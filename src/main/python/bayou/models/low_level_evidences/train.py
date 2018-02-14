@@ -62,7 +62,12 @@ Config options should be given as a JSON file (see config.json for example):
         "units": 256,                     | Size of the decoder hidden state
         "num_layers": 3,                  | Number of layers in the decoder
         "max_ast_depth": 32               | Maximum depth of the AST (length of the longest path)
-    }                                     |
+    }
+    "reverse_encoder": {
+        "units": 256,
+        "num_layers": 3,
+        "max_ast_depth": 32
+    }                                   |
 }                                         |
 """
 
@@ -73,7 +78,7 @@ def train(clargs):
     with open(config_file) as f:
         config = read_config(json.load(f), chars_vocab=clargs.continue_from)
     reader = Reader(clargs, config)
-    
+
     jsconfig = dump_config(config)
     print(clargs)
     print(json.dumps(jsconfig, indent=2))

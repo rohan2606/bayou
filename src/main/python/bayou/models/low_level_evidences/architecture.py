@@ -91,6 +91,7 @@ class BayesianDecoder(object):
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
             # TODO: update with dynamic decoder (being implemented in tf) once it is released
             with tf.variable_scope('rnn'):
+
                 self.state = self.initial_state
                 self.outputs = []
                 prev = None
@@ -110,3 +111,11 @@ class BayesianDecoder(object):
                     self.outputs.append(output)
                     if loop_function is not None:
                         prev = output
+
+
+class BayesianReverseEncoder(object):
+    def __init__(self):
+        cells1 = []
+        for _ in range(config.decoder.num_layers):
+            cells1.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
+        self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)

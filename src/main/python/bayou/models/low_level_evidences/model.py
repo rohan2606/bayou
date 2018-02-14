@@ -28,11 +28,18 @@ class Model():
             config.batch_size = 1
             config.decoder.max_ast_depth = 1
 
-        # setup the encoder
-        self.encoder = BayesianEncoder(config)
+        # self.targets was defined way down before gen_loss, Now it has been moved up
+        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
+
+        # setup the reverse encoder.
+        self.reverse_encoder = BayesianReverseEncoder(config, targets)
         samples = tf.random_normal([config.batch_size, config.latent_size],
                                    mean=0., stddev=1., dtype=tf.float32)
-        self.psi = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples
+        self.psi = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
+
+        #setup the encode, however remember that the Encoder is there only for KL-divergence
+        # Also note that no samples were generated from it
+        self.encoder = BayesianEncoder(config)
 
         # setup the decoder with psi as the initial state
         lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
@@ -47,24 +54,25 @@ class Model():
         self.probs = tf.nn.softmax(logits)
 
         # 1. generation loss: log P(X | \Psi)
-        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
         self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
                                               [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
-        # 2. latent loss: KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
-        latent_loss = 0.5 * tf.reduce_sum(- tf.log(self.encoder.psi_covariance)
-                                          - 1 + self.encoder.psi_covariance
-                                          + tf.square(self.encoder.psi_mean), axis=1)
-        self.latent_loss = config.alpha * latent_loss
+        # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
+        #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
+        latent_loss = 0.5 * tf.reduce_sum( tf.log(self.encoder.covariance) - tf.log(self.reverse_encoder.psi_covariance)
+                                          - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
+                                          + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.covariance
+                                          , axis=1)
+        self.latent_loss =  latent_loss
 
-        # 3. evidence loss: log P(f(\theta) | \Psi; \sigma)
-        evidence_loss = [ev.evidence_loss(self.psi, encoding, config) for ev, encoding
-                         in zip(config.evidence, self.encoder.encodings)]
-        evidence_loss = [tf.reduce_sum(loss, axis=1) for loss in evidence_loss]
-        self.evidence_loss = config.beta * tf.reduce_sum(tf.stack(evidence_loss), axis=0)
+        # # 3. evidence loss: log P(f(\theta) | \Psi; \sigma)
+        # evidence_loss = [ev.evidence_loss(self.psi, encoding, config) for ev, encoding
+        #                  in zip(config.evidence, self.encoder.encodings)]
+        # evidence_loss = [tf.reduce_sum(loss, axis=1) for loss in evidence_loss]
+        # self.evidence_loss = config.beta * tf.reduce_sum(tf.stack(evidence_loss), axis=0)
 
         # The optimizer
-        self.loss = self.gen_loss + self.latent_loss + self.evidence_loss
+        self.loss = self.gen_loss + self.latent_loss
         self.train_op = tf.train.AdamOptimizer(config.learning_rate).minimize(self.loss)
 
         var_params = [np.prod([dim.value for dim in var.get_shape()])

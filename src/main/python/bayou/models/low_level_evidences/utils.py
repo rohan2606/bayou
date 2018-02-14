@@ -22,6 +22,7 @@ CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',
                   'learning_rate', 'print_step', 'alpha', 'beta']
 CONFIG_ENCODER = ['name', 'units', 'num_layers', 'tile']
 CONFIG_DECODER = ['units', 'num_layers', 'max_ast_depth']
+CONFIG_REVERSE_ENCODER = ['units', 'num_layers', 'max_ast_depth']
 CONFIG_INFER = ['chars', 'vocab', 'vocab_size']
 
 C0 = 'CLASS0'
@@ -53,7 +54,7 @@ def read_config(js, chars_vocab=False):
 
     for attr in CONFIG_GENERAL:
         config.__setattr__(attr, js[attr])
-    
+
     config.evidence = bayou.models.low_level_evidences.evidence.Evidence.read_config(js['evidence'], chars_vocab)
     config.decoder = argparse.Namespace()
     for attr in CONFIG_DECODER:
@@ -61,7 +62,13 @@ def read_config(js, chars_vocab=False):
     if chars_vocab:
         for attr in CONFIG_INFER:
             config.decoder.__setattr__(attr, js['decoder'][attr])
-
+    config.decoder = argparse.Namespace()
+    # added two paragraph  of new code for reverse encoder
+    for config in CONFIG_REVERSE_ENCODER:
+        config.reverse_encoder.__setattr__(attr, js['reverse_encoder'][attr])
+    if chars_vocab:
+        for attr in CONFIG_REVERSE_ENCODER:
+            config.reverse_encoder.__setattr__(attr, js['reverse_encoder'][attr])
     return config
 
 
@@ -75,7 +82,9 @@ def dump_config(config):
     js['evidence'] = [ev.dump_config() for ev in config.evidence]
     js['decoder'] = {attr: config.decoder.__getattribute__(attr) for attr in
                      CONFIG_DECODER + CONFIG_INFER}
-
+    # added code for reverse encoder
+    js['reverse_encoder'] = {attr: config.reverse_encoder.__getattribute__(attr) for attr in
+                    CONFIG_REVERSE_ENCODER + CONFIG_INFER}
     return js
 
 

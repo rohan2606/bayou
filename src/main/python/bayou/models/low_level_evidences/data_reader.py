@@ -50,6 +50,10 @@ class Reader():
             config.decoder.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
             config.decoder.vocab = dict(zip(config.decoder.chars, range(len(config.decoder.chars))))
             config.decoder.vocab_size = len(config.decoder.vocab)
+            # adding the same variables for reverse Encoder
+            config.reverse_encoder.chars = config.decoder.chars_vocab
+            config.reverse_encoder.vocab = config.decoder.vocab
+            config.reverse_encoder.vocab_size = config.decoder.vocab_size
 
         # wrangle the evidences and targets into numpy arrays
         self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
