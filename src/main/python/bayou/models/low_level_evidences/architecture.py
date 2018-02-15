@@ -116,6 +116,44 @@ class BayesianDecoder(object):
 class BayesianReverseEncoder(object):
     def __init__(self):
         cells1 = []
-        for _ in range(config.decoder.num_layers):
-            cells1.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
+        for _ in range(config.reverse_encoder.num_layers):
+            cells1.append(tf.nn.rnn_cell.GRUCell(config.reverse_encoder.units))
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
+
+        # placeholders
+        # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
+        self.initial_state = [tf.zeros(batch_size,self.units)] * config.decoder.num_layers
+        self.nodes = [tf.placeholder(tf.int32, [config.batch_size], name='node{0}'.format(i))
+                      for i in range(config.reverse_encoder.max_ast_depth)]
+        self.edges = [tf.placeholder(tf.bool, [config.batch_size], name='edge{0}'.format(i))
+                      for i in range(config.reverse_encoder.max_ast_depth)]
+
+        # projection matrices for output
+        self.projection_zw = tf.get_variable('projection_zw', [self.cell1.output_size,
+                                                             config.latent_size])
+        self.projection_zb = tf.get_variable('projection_zb', [config.latent_size])
+
+        # setup embedding
+        with tf.variable_scope('reverse_encoder'):
+            emb = tf.get_variable('emb', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
+            emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+
+            # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
+            # TODO: update with dynamic decoder (being implemented in tf) once it is released
+            with tf.variable_scope('reverse_encoder_rnn'):
+
+                self.state = self.initial_state
+                self.outputs = []
+                prev = None
+
+                for i, inp in enumerate(emb_inp):
+                    if i > 0:
+                        tf.get_variable_scope().reuse_variables()
+                    with tf.variable_scope('cell1'):  # handles CHILD_EDGE
+                        output1, state1 = self.cell1(inp, self.state)
+                    output = output1 #tf.where(self.edges[i], output1, output2)
+                    self.state = [state1[j] for j in range(config.reverse_encoder.num_layers)]
+                    #[tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.decoder.num_layers)]
+                    self.outputs.append(output)
+        self.psi_mean = tf.nn.xw_plus_b(self.outputs[-1], self.projection_zw, self.projection_zb)
+        self.psi_covariance = tf.ones([config.batch_size, config.latent_size])

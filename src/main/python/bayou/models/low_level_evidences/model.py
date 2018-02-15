@@ -16,7 +16,7 @@ import tensorflow as tf
 from tensorflow.contrib import legacy_seq2seq as seq2seq
 import numpy as np
 
-from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder
+from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder
 from bayou.models.low_level_evidences.data_reader import CHILD_EDGE, SIBLING_EDGE
 
 
@@ -28,11 +28,8 @@ class Model():
             config.batch_size = 1
             config.decoder.max_ast_depth = 1
 
-        # self.targets was defined way down before gen_loss, Now it has been moved up
-        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
-
         # setup the reverse encoder.
-        self.reverse_encoder = BayesianReverseEncoder(config, targets)
+        self.reverse_encoder = BayesianReverseEncoder(config)
         samples = tf.random_normal([config.batch_size, config.latent_size],
                                    mean=0., stddev=1., dtype=tf.float32)
         self.psi = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
@@ -54,6 +51,7 @@ class Model():
         self.probs = tf.nn.softmax(logits)
 
         # 1. generation loss: log P(X | \Psi)
+        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
         self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
                                               [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
@@ -63,7 +61,7 @@ class Model():
                                           - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
                                           + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.covariance
                                           , axis=1)
-        self.latent_loss =  latent_loss
+        self.latent_loss = latent_loss
 
         # # 3. evidence loss: log P(f(\theta) | \Psi; \sigma)
         # evidence_loss = [ev.evidence_loss(self.psi, encoding, config) for ev, encoding
