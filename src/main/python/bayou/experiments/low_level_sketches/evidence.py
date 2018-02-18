@@ -62,6 +62,7 @@ class Evidence(object):
         raise NotImplementedError('wrangle() has not been implemented')
 
     def placeholder(self, config):
+        # type: (object) -> object
         raise NotImplementedError('placeholder() has not been implemented')
 
     def exists(self, inputs):
@@ -91,6 +92,7 @@ class APICalls(Evidence):
         return np.array(self.lda.infer(data), dtype=np.float32)
 
     def placeholder(self, config):
+        # type: (object) -> object
         return tf.placeholder(tf.float32, [config.batch_size, self.lda.model.n_components])
 
     def exists(self, inputs):
@@ -135,6 +137,7 @@ class Types(Evidence):
         return np.array(self.lda.infer(data), dtype=np.float32)
 
     def placeholder(self, config):
+        # type: (object) -> object
         return tf.placeholder(tf.float32, [config.batch_size, self.lda.model.n_components])
 
     def exists(self, inputs):
@@ -245,6 +248,7 @@ class Javadoc(Evidence):
         return np.array(indices_list, dtype=np.int32)
 
     def placeholder(self, config):
+        # type: (object) -> object
         return tf.placeholder(tf.int32, [config.batch_size, self.max_sentence_length])
 
     def exists(self, inputs):

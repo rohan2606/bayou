@@ -57,9 +57,9 @@ class Model():
 
         # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
         #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
-        latent_loss = 0.5 * tf.reduce_sum( tf.log(self.encoder.covariance) - tf.log(self.reverse_encoder.psi_covariance)
+        latent_loss = 0.5 * tf.reduce_sum( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
                                           - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
-                                          + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.covariance
+                                          + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                           , axis=1)
         self.latent_loss = latent_loss
 

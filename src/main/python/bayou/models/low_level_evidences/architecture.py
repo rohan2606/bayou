@@ -114,7 +114,7 @@ class BayesianDecoder(object):
 
 
 class BayesianReverseEncoder(object):
-    def __init__(self):
+    def __init__(self, config):
         cells1 = []
         for _ in range(config.reverse_encoder.num_layers):
             cells1.append(tf.nn.rnn_cell.GRUCell(config.reverse_encoder.units))
@@ -122,7 +122,7 @@ class BayesianReverseEncoder(object):
 
         # placeholders
         # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
-        self.initial_state = [tf.zeros(batch_size,self.units)] * config.decoder.num_layers
+        self.initial_state = [tf.zeros([config.batch_size,config.reverse_encoder.units])] * config.decoder.num_layers
         self.nodes = [tf.placeholder(tf.int32, [config.batch_size], name='node{0}'.format(i))
                       for i in range(config.reverse_encoder.max_ast_depth)]
         self.edges = [tf.placeholder(tf.bool, [config.batch_size], name='edge{0}'.format(i))
@@ -144,7 +144,7 @@ class BayesianReverseEncoder(object):
 
                 self.state = self.initial_state
                 self.outputs = []
-                prev = None
+                #prev = None
 
                 for i, inp in enumerate(emb_inp):
                     if i > 0:

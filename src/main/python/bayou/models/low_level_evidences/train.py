@@ -70,7 +70,7 @@ Config options should be given as a JSON file (see config.json for example):
     }                                   |
 }                                         |
 """
-
+#%%
 
 def train(clargs):
     config_file = clargs.config if clargs.continue_from is None \
@@ -101,7 +101,7 @@ def train(clargs):
         # training
         for i in range(config.num_epochs):
             reader.reset_batches()
-            avg_loss = avg_evidence = avg_latent = avg_generation = 0
+            avg_loss = 0
             for b in range(config.num_batches):
                 start = time.time()
 
@@ -113,44 +113,36 @@ def train(clargs):
                 for j in range(config.decoder.max_ast_depth):
                     feed[model.decoder.nodes[j].name] = n[j]
                     feed[model.decoder.edges[j].name] = e[j]
+                    # Feeding value into reverse encoder
+                    feed[model.reverse_encoder.nodes[j].name] = n[j]
+                    feed[model.reverse_encoder.edges[j].name] = e[j]
 
                 # run the optimizer
-                loss, evidence, latent, generation, mean, covariance, _ \
+                loss, mean, covariance, _ \
                     = sess.run([model.loss,
-                                model.evidence_loss,
-                                model.latent_loss,
-                                model.gen_loss,
                                 model.encoder.psi_mean,
                                 model.encoder.psi_covariance,
                                 model.train_op], feed)
                 end = time.time()
                 avg_loss += np.mean(loss)
-                avg_evidence += np.mean(evidence)
-                avg_latent += np.mean(latent)
-                avg_generation += generation
                 step = i * config.num_batches + b
                 if step % config.print_step == 0:
-                    print('{}/{} (epoch {}), evidence: {:.3f}, latent: {:.3f}, generation: {:.3f}, '
+                    print('{}/{} (epoch {}) '
                           'loss: {:.3f}, mean: {:.3f}, covariance: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i,
-                           np.mean(evidence),
-                           np.mean(latent),
-                           generation,
                            np.mean(loss),
                            np.mean(mean),
                            np.mean(covariance),
                            end - start))
             checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i))
             saver.save(sess, checkpoint_dir)
-            print('Model checkpointed: {}. Average for epoch evidence: {:.3f}, latent: {:.3f}, '
-                  'generation: {:.3f}, loss: {:.3f}'.format
+            print('Model checkpointed: {}. Average for epoch , '
+                  'loss: {:.3f}'.format
                   (checkpoint_dir,
-                   avg_evidence / config.num_batches,
-                   avg_latent / config.num_batches,
-                   avg_generation / config.num_batches,
                    avg_loss / config.num_batches))
 
 
+#%%
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=textwrap.dedent(HELP))
@@ -164,7 +156,10 @@ if __name__ == '__main__':
                         help='config file (see description above for help)')
     parser.add_argument('--continue_from', type=str, default=None,
                         help='ignore config options and continue training model checkpointed here')
-    clargs = parser.parse_args()
+    #clargs = parser.parse_args()
+    clargs = parser.parse_args(['--config',
+    'config.json',
+    '..\..\..\..\..\..\data\DATA-training-top.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

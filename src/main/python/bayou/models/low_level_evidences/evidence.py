@@ -60,6 +60,7 @@ class Evidence(object):
         raise NotImplementedError('wrangle() has not been implemented')
 
     def placeholder(self, config):
+        # type: (object) -> object
         raise NotImplementedError('placeholder() has not been implemented')
 
     def exists(self, inputs):
@@ -96,6 +97,7 @@ class APICalls(Evidence):
         return wrangled
 
     def placeholder(self, config):
+        # type: (object) -> object
         return tf.placeholder(tf.float32, [config.batch_size, 1, self.vocab_size])
 
     def exists(self, inputs):
@@ -156,6 +158,7 @@ class Types(Evidence):
         return wrangled
 
     def placeholder(self, config):
+        # type: (object) -> object
         return tf.placeholder(tf.float32, [config.batch_size, 1, self.vocab_size])
 
     def exists(self, inputs):
@@ -262,6 +265,7 @@ class Keywords(Evidence):
         return wrangled
 
     def placeholder(self, config):
+        # type: (object) -> object
         return tf.placeholder(tf.float32, [config.batch_size, 1, self.vocab_size])
 
     def exists(self, inputs):

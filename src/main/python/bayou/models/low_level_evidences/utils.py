@@ -62,9 +62,9 @@ def read_config(js, chars_vocab=False):
     if chars_vocab:
         for attr in CONFIG_INFER:
             config.decoder.__setattr__(attr, js['decoder'][attr])
-    config.decoder = argparse.Namespace()
+    config.reverse_encoder = argparse.Namespace()
     # added two paragraph  of new code for reverse encoder
-    for config in CONFIG_REVERSE_ENCODER:
+    for attr in CONFIG_REVERSE_ENCODER:
         config.reverse_encoder.__setattr__(attr, js['reverse_encoder'][attr])
     if chars_vocab:
         for attr in CONFIG_REVERSE_ENCODER:

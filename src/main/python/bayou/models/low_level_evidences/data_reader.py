@@ -29,12 +29,12 @@ class Reader():
 
         # read the raw evidences and targets
         print('Reading data file...')
-        raw_evidences, raw_targets = self.read_data(clargs.input_file[0], save=clargs.save)
+        raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
 
         # align with number of batches
-        config.num_batches = int(len(raw_targets) / config.batch_size)
+        config.num_batches = 1 #int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -51,7 +51,7 @@ class Reader():
             config.decoder.vocab = dict(zip(config.decoder.chars, range(len(config.decoder.chars))))
             config.decoder.vocab_size = len(config.decoder.vocab)
             # adding the same variables for reverse Encoder
-            config.reverse_encoder.chars = config.decoder.chars_vocab
+            config.reverse_encoder.chars = config.decoder.chars
             config.reverse_encoder.vocab = config.decoder.vocab
             config.reverse_encoder.vocab_size = config.decoder.vocab_size
 
