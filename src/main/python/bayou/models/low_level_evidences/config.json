@@ -5,6 +5,7 @@
     "num_epochs": 100,
     "learning_rate": 0.0002,
     "print_step": 1,
+    "checkpoint_step": 50,
     "alpha": 0.001,
     "beta": 1e-05,
     "evidence": [

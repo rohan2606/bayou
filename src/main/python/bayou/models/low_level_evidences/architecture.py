@@ -114,11 +114,17 @@ class BayesianDecoder(object):
 
 
 class BayesianReverseEncoder(object):
-    def __init__(self, config):
+    def __init__(self, config, infer = False):
+        # infer is always False but this is here just to remind you that there was infer in BayesianDecoder and this was
+        # probably to infer the tree during inference.
         cells1 = []
+        cells2 = []
         for _ in range(config.reverse_encoder.num_layers):
             cells1.append(tf.nn.rnn_cell.GRUCell(config.reverse_encoder.units))
+            cells2.append(tf.nn.rnn_cell.GRUCell(config.reverse_encoder.units))
+
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
+        self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
 
         # placeholders
         # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
@@ -151,9 +157,14 @@ class BayesianReverseEncoder(object):
                         tf.get_variable_scope().reuse_variables()
                     with tf.variable_scope('cell1'):  # handles CHILD_EDGE
                         output1, state1 = self.cell1(inp, self.state)
-                    output = output1 #tf.where(self.edges[i], output1, output2)
-                    self.state = [state1[j] for j in range(config.reverse_encoder.num_layers)]
-                    #[tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.decoder.num_layers)]
+                    with tf.variable_scope('cell2'): # handles SIBLING EDGE
+                        output2, state2 = self.cell2(inp, self.state)
+
+                    #output = output1 #tf.where(self.edges[i], output1, output2)
+                    output = tf.where(self.edges[i], output1, output2)
+                    # self.state = [state1[j] for j in range(config.reverse_encoder.num_layers)]
+                    self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.decoder.num_layers)]
                     self.outputs.append(output)
+
         self.psi_mean = tf.nn.xw_plus_b(self.outputs[-1], self.projection_zw, self.projection_zb)
         self.psi_covariance = tf.ones([config.batch_size, config.latent_size])

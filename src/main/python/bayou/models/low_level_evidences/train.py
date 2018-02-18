@@ -134,12 +134,13 @@ def train(clargs):
                            np.mean(mean),
                            np.mean(covariance),
                            end - start))
-            checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i))
-            saver.save(sess, checkpoint_dir)
-            print('Model checkpointed: {}. Average for epoch , '
-                  'loss: {:.3f}'.format
-                  (checkpoint_dir,
-                   avg_loss / config.num_batches))
+                if i % config.checkpoint_step == 0 and i > 0:
+                    checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i))
+                    saver.save(sess, checkpoint_dir)
+                    print('Model checkpointed: {}. Average for epoch , '
+                          'loss: {:.3f}'.format
+                          (checkpoint_dir,
+                           avg_loss / config.num_batches))
 
 
 #%%
@@ -157,8 +158,7 @@ if __name__ == '__main__':
     parser.add_argument('--continue_from', type=str, default=None,
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--config',
-    'config.json',
+    clargs = parser.parse_args(['--config','config.json',
     '..\..\..\..\..\..\data\DATA-training-top.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
