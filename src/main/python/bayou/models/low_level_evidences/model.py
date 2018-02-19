@@ -28,15 +28,17 @@ class Model():
             config.batch_size = 1
             config.decoder.max_ast_depth = 1
 
+        #setup the encode, however remember that the Encoder is there only for KL-divergence
+        # Also note that no samples were generated from it
+        self.encoder = BayesianEncoder(config)
+
         # setup the reverse encoder.
-        self.reverse_encoder = BayesianReverseEncoder(config)
+        self.reverse_encoder = BayesianReverseEncoder(config, self.encoder.psi_covariance)
         samples = tf.random_normal([config.batch_size, config.latent_size],
                                    mean=0., stddev=1., dtype=tf.float32)
         self.psi = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
 
-        #setup the encode, however remember that the Encoder is there only for KL-divergence
-        # Also note that no samples were generated from it
-        self.encoder = BayesianEncoder(config)
+
 
         # setup the decoder with psi as the initial state
         lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])

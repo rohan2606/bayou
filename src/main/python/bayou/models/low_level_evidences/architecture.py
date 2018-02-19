@@ -114,7 +114,10 @@ class BayesianDecoder(object):
 
 
 class BayesianReverseEncoder(object):
-    def __init__(self, config, infer = False):
+    # IT IS WRONG TO INCLUDE psi_covariance HERE BUT FOR NOW ITS OK
+    def __init__(self, config, psi_covariance, infer = False):
+
+
         # infer is always False but this is here just to remind you that there was infer in BayesianDecoder and this was
         # probably to infer the tree during inference.
         cells1 = []
@@ -128,7 +131,7 @@ class BayesianReverseEncoder(object):
 
         # placeholders
         # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
-        self.initial_state = [tf.zeros([config.batch_size,config.reverse_encoder.units])] * config.decoder.num_layers
+        self.initial_state = [tf.random_uniform([config.batch_size,config.reverse_encoder.units] , minval=-1.0, maxval=+1.0) ] * config.decoder.num_layers
         self.nodes = [tf.placeholder(tf.int32, [config.batch_size], name='node{0}'.format(i))
                       for i in range(config.reverse_encoder.max_ast_depth)]
         self.edges = [tf.placeholder(tf.bool, [config.batch_size], name='edge{0}'.format(i))
@@ -168,4 +171,4 @@ class BayesianReverseEncoder(object):
                     self.outputs.append(output)
 
         self.psi_mean = tf.nn.xw_plus_b(self.outputs[-1], self.projection_zw, self.projection_zb)
-        self.psi_covariance = tf.ones([config.batch_size, config.latent_size])
+        self.psi_covariance = psi_covariance #tf.ones([config.batch_size, config.latent_size])
