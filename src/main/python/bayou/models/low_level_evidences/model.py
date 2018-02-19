@@ -78,14 +78,18 @@ class Model():
         if not infer:
             print('Model parameters: {}'.format(np.sum(var_params)))
 
+    # Last but one function I am not aware of.
+    # Qs: Why is this is model anyway?
     def infer_psi(self, sess, evidences):
+        # Qs: What is evidences. I believe a JSON with headings as keywords, apicalls etc
         # read and wrangle (with batch_size 1) the data
         inputs = [ev.wrangle([ev.read_data_point(evidences)]) for ev in self.config.evidence]
-
         # setup initial states and feed
         feed = {}
         for j, ev in enumerate(self.config.evidence):
+            # Note that writing .name after every tf variable is a norm
             feed[self.encoder.inputs[j].name] = inputs[j]
+        #psi is in model.py only
         psi = sess.run(self.psi, feed)
         return psi
 
@@ -102,6 +106,7 @@ class Model():
 
         # run the decoder for every time step
         for node, edge in zip(nodes, edges):
+
             assert edge == CHILD_EDGE or edge == SIBLING_EDGE, 'invalid edge: {}'.format(edge)
             n = np.array([self.config.decoder.vocab[node]], dtype=np.int32)
             e = np.array([edge == CHILD_EDGE], dtype=np.bool)

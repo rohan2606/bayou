@@ -110,16 +110,16 @@ class BayesianPredictor(object):
         while partial_candidate:
             partial_candidate = False
             new_candidates = []
-            for (candidate, pr) in candidates:
+            for (candidate, pr) in candidates: # current candidate is [[('DSubTree', CHILD_EDGE)]], pr is 1.
 
                 # gather candidate's complete and incomplete paths
                 complete_paths, incomplete_paths = [], []
                 try:
-                    for path in candidate:
+                    for path in candidate: # current path is [('DSubTree', CHILD_EDGE)]
                         if self.is_complete_path(path):
                             complete_paths.append(path)
                         else:
-                            incomplete_paths.append(path)
+                            incomplete_paths.append(path) #if we assume  [('DSubTree', CHILD_EDGE)] is incomplete incomplete_paths is that now
                 except (InvalidSketchError, TooLongPathError) as e:
                     continue  # throw out the candidate
 
@@ -127,12 +127,12 @@ class BayesianPredictor(object):
                 if len(incomplete_paths) == 0:
                     complete_candidates.append((candidate, pr))
                     new_candidates.append((candidate, pr))
-                    continue
+                    continue # this will exit the big while
                 partial_candidate = True
 
                 # for every incomplete path, create k new candidates from the top k in the next step's dist
-                for i, inc_path in enumerate(incomplete_paths):
-                    nodes, edges = zip(*inc_path)
+                for i, inc_path in enumerate(incomplete_paths): # one inc_path is ('DSubTree', CHILD_EDGE)
+                    nodes, edges = zip(*inc_path) # which makes 'DSubTree' a node and 'CHILD_EDGE' an edge
                     dist = list(enumerate(self.model.infer_ast(self.sess, psi, nodes, edges, cache=cache)))
                     dist.sort(key=lambda x: x[1], reverse=True)
                     topk = dist[:beam_width]
@@ -373,4 +373,3 @@ class BayesianPredictor(object):
         pathidx = self.update_until_STOP(astnode['_cond'], path, pathidx+1)
         if pathidx > 0:
             self.update_until_STOP(astnode['_body'], path, pathidx+1)
-

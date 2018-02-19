@@ -142,6 +142,7 @@ class BayesianReverseEncoder(object):
         # setup embedding
         with tf.variable_scope('reverse_encoder'):
             emb = tf.get_variable('emb', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
+            # might be possible to reduce the number of variables if you make both the embeddings the same
             emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
 
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)

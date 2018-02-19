@@ -102,6 +102,7 @@ def train(clargs):
         for i in range(config.num_epochs):
             reader.reset_batches()
             avg_loss = 0
+            avg_gen_loss = 0
             for b in range(config.num_batches):
                 start = time.time()
 
@@ -118,19 +119,22 @@ def train(clargs):
                     feed[model.reverse_encoder.edges[j].name] = e[j]
 
                 # run the optimizer
-                loss, mean, covariance, _ \
+                loss, gen_loss, mean, covariance, _ \
                     = sess.run([model.loss,
+                                model.gen_loss,
                                 model.encoder.psi_mean,
                                 model.encoder.psi_covariance,
                                 model.train_op], feed)
                 end = time.time()
                 avg_loss += np.mean(loss)
+                avg_gen_loss += np.mean(gen_loss)
                 step = i * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, mean: {:.3f}, covariance: {:.3f}, time: {:.3f}'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, mean: {:.3f}, covariance: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i,
                            np.mean(loss),
+                           np.mean(gen_loss),
                            np.mean(mean),
                            np.mean(covariance),
                            end - start))
