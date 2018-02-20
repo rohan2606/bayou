@@ -164,6 +164,7 @@ if __name__ == '__main__':
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--config','config.json',
     '..\..\..\..\..\..\data\DATA-training-top.json'])
+    
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

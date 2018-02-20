@@ -34,7 +34,7 @@
         "max_ast_depth": 32
     },
     "reverse_encoder": {
-        "units": 64,
+        "units": 256, 
         "num_layers": 3,
         "max_ast_depth": 32
     }

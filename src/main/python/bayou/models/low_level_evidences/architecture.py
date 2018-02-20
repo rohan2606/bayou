@@ -77,17 +77,19 @@ class BayesianDecoder(object):
         self.projection_b = tf.get_variable('projection_b', [config.decoder.vocab_size])
 
         # setup embedding
-        with tf.variable_scope('decoder'):
+        with tf.variable_scope('dec_n_revenc_emb', reuse=True):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
-
+            emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+            self.emb_inp = emb_inp
+        
+        with tf.variable_scope('decoder'):
             def loop_fn(prev, _):
                 prev = tf.nn.xw_plus_b(prev, self.projection_w, self.projection_b)
                 prev_symbol = tf.argmax(prev, 1)
                 return tf.nn.embedding_lookup(emb, prev_symbol)
-
             loop_function = loop_fn if infer else None
-            emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
-
+            
+            emb_inp = self.emb_inp
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
             # TODO: update with dynamic decoder (being implemented in tf) once it is released
             with tf.variable_scope('rnn'):
@@ -131,7 +133,7 @@ class BayesianReverseEncoder(object):
 
         # placeholders
         # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
-        self.initial_state = [tf.random_uniform([config.batch_size,config.reverse_encoder.units] , minval=-1.0, maxval=+1.0) ] * config.decoder.num_layers
+        self.initial_state = [tf.random_uniform([config.batch_size,config.reverse_encoder.units] , minval=-0.01, maxval=+0.01) ] * config.decoder.num_layers
         self.nodes = [tf.placeholder(tf.int32, [config.batch_size], name='node{0}'.format(i))
                       for i in range(config.reverse_encoder.max_ast_depth)]
         self.edges = [tf.placeholder(tf.bool, [config.batch_size], name='edge{0}'.format(i))
@@ -142,12 +144,21 @@ class BayesianReverseEncoder(object):
                                                              config.latent_size])
         self.projection_zb = tf.get_variable('projection_zb', [config.latent_size])
 
-        # setup embedding
-        with tf.variable_scope('reverse_encoder'):
-            emb = tf.get_variable('emb', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
-            # might be possible to reduce the number of variables if you make both the embeddings the same
+        
+        with tf.variable_scope('dec_n_revenc_emb'):
+            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
             emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
-
+            self.emb_inp = emb_inp
+            
+        # setup embedding
+        # setting this variable scope to decoder helps you use the same embedding as in decoder
+        with tf.variable_scope('reverse_encoder'):
+            # for now the reverse_encoder.units is same as decoder.units so that the same embedding can be used. However once you vary that,
+            # a lift up or lift down NN will be needed.
+            #emb = tf.get_variable('emb', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
+            # might be possible to reduce the number of variables if you make both the embeddings the same
+            #emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+            emb_inp = self.emb_inp
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
             # TODO: update with dynamic decoder (being implemented in tf) once it is released
             with tf.variable_scope('reverse_encoder_rnn'):

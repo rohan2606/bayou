@@ -59,20 +59,27 @@ class Model():
 
         # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
         #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
-        latent_loss = 0.5 * tf.reduce_sum( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
+        # KL loss
+        KL_loss = 0.5 * tf.reduce_sum( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
                                           - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
                                           + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                           , axis=1)
-        self.latent_loss = latent_loss
+        self.KL_loss = KL_loss
 
-        # # 3. evidence loss: log P(f(\theta) | \Psi; \sigma)
-        # evidence_loss = [ev.evidence_loss(self.psi, encoding, config) for ev, encoding
-        #                  in zip(config.evidence, self.encoder.encodings)]
-        # evidence_loss = [tf.reduce_sum(loss, axis=1) for loss in evidence_loss]
-        # self.evidence_loss = config.beta * tf.reduce_sum(tf.stack(evidence_loss), axis=0)
+        # 3. Latent loss
+        latent_loss = 0.5 * tf.reduce_sum(- tf.log(self.reverse_encoder.psi_covariance)
+                                          - 1 + self.reverse_encoder.psi_covariance
+                                          + tf.square(self.reverse_encoder.psi_mean), axis=1)
+        self.latent_loss = config.alpha * latent_loss
+
+        # 3. evidence loss: log P(f(\theta) | \Psi; \sigma)
+        evidence_loss = [ev.evidence_loss(self.psi, encoding, config) for ev, encoding
+                         in zip(config.evidence, self.encoder.encodings)]
+        evidence_loss = [tf.reduce_sum(loss, axis=1) for loss in evidence_loss]
+        self.evidence_loss = config.beta * tf.reduce_sum(tf.stack(evidence_loss), axis=0)
 
         # The optimizer
-        self.loss = self.gen_loss + self.latent_loss
+        self.loss = self.gen_loss + self.KL_loss + self.latent_loss + self.evidence_loss
         self.train_op = tf.train.AdamOptimizer(config.learning_rate).minimize(self.loss)
 
         var_params = [np.prod([dim.value for dim in var.get_shape()])
