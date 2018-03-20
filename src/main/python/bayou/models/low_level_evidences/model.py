@@ -27,7 +27,7 @@ class Model():
         if infer:
             config.batch_size = 1
             # THE NEXT LINE IS TO BE TREATED WITH CAUTION FOR CODE SEARCH
-            config.decoder.max_ast_depth = 1
+            #config.decoder.max_ast_depth = 1
 
 
         #setup the encode, however remember that the Encoder is there only for KL-divergence
