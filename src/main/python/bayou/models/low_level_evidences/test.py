@@ -72,79 +72,60 @@ Config options should be given as a JSON file (see config.json for example):
 """
 #%%
 
-def train(clargs):
-    config_file = clargs.config if clargs.continue_from is None \
-                                else os.path.join(clargs.continue_from, 'config.json')
-    with open(config_file) as f:
-        config = read_config(json.load(f), chars_vocab=clargs.continue_from)
+def test(clargs):
+    #set clargs.continue_from = True which ignores config options and starts
+    #training
+    clargs.continue_from = True
+
+    with open(os.path.join(clargs.save, 'config.json')) as f:
+        model_type = json.load(f)['model']
+    if model_type == 'core':
+        model = bayou.models.core.infer.BayesianPredictor
+    elif model_type == 'lle':
+        model = bayou.models.low_level_evidences.infer.BayesianPredictor
+    else:
+        raise ValueError('Invalid model type in config: ' + model_type)
+
+    config.batch_size = 1 # this is to make sure that every code search worls in series, might be easier to do in batches later
     reader = Reader(clargs, config)
 
-    jsconfig = dump_config(config)
-    # print(clargs)
-    # print(json.dumps(jsconfig, indent=2))
-    with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
-        json.dump(jsconfig, fp=f, indent=2)
-
-    model = Model(config)
-
     with tf.Session() as sess:
-        tf.global_variables_initializer().run()
-        saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
-        tf.train.write_graph(sess.graph_def, clargs.save, 'model.pbtxt')
-        tf.train.write_graph(sess.graph_def, clargs.save, 'model.pb', as_text=False)
+        predictor = model(clargs.save,sess) # goes to infer.BayesianPredictor
 
-        # restore model
-        if clargs.continue_from is not None:
-            ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
-            saver.restore(sess, ckpt.model_checkpoint_path)
+        # testing
+        reader.reset_batches()
 
-        # training
-        for i in range(config.num_epochs):
-            reader.reset_batches()
-            avg_loss = 0
-            avg_gen_loss = 0
-            for b in range(config.num_batches):
-                start = time.time()
+        # computing P(Y) = int_Z P(Z,Y) = int_Z(P(Y|Z)*P(Z)) = int_Z(P(Y|Z)*P(Z|X)*P(Z)/P(Z|X))
+        # = 1/L Sum_i={1,L} P(Y|Z_i)*P(Z_i)/P(Z_i|X) where Z_i ~ P(Z|X) = N(0,1)
+        prob_Y, a1b1, a2b2 = [], [], []
+        start = time.time()
+        for i in range(config.num_batches):
+            # setup the feed dict, ignoring the evidences and raw_targets
+            ev_data, n, e, y = reader.next_batch()
+            prob_Y.append(predictor.get_Prob_Y_i(ev_data, n, e, y))
+            a1b1.append(predictor.get_encoder_abc(ev_data))
+            a2b2.append(predictor.get_rev_encoder_abc(n,e))
 
-                # setup the feed dict
-                ev_data, n, e, y = reader.next_batch()
-                feed = {model.targets: y}
-                for j, ev in enumerate(config.evidence):
-                    feed[model.encoder.inputs[j].name] = ev_data[j]
-                for j in range(config.decoder.max_ast_depth):
-                    feed[model.decoder.nodes[j].name] = n[j]
-                    feed[model.decoder.edges[j].name] = e[j]
-                    # Feeding value into reverse encoder
-                    feed[model.reverse_encoder.nodes[j].name] = n[j]
-                    feed[model.reverse_encoder.edges[j].name] = e[j]
 
-                # run the optimizer
-                loss, gen_loss, mean, covariance, _ \
-                    = sess.run([model.loss,
-                                model.gen_loss,
-                                model.encoder.psi_mean,
-                                model.encoder.psi_covariance,
-                                model.train_op], feed)
-                end = time.time()
-                avg_loss += np.mean(loss)
-                avg_gen_loss += np.mean(gen_loss)
-                step = i * config.num_batches + b
-                if step % config.print_step == 0:
-                    print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f}, mean: {:.3f}, covariance: {:.3f}, time: {:.3f}'.format
-                          (step, config.num_epochs * config.num_batches, i,
-                           np.mean(loss),
-                           np.mean(gen_loss),
-                           np.mean(mean),
-                           np.mean(covariance),
-                           end - start))
-                if i % config.checkpoint_step == 0 and i > 0:
-                    checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i))
-                    saver.save(sess, checkpoint_dir)
-                    print('Model checkpointed: {}. Average for epoch , '
-                          'loss: {:.3f}'.format
-                          (checkpoint_dir,
-                           avg_loss / config.num_batches))
+        end = time.time()
+
+        reader.reset_batches()
+        avg_loss = 0
+        avg_gen_loss = 0
+
+
+        for i in range(config.num_batches):
+            prob_Y_X = []
+            for j in range(config.num_batches)
+                prob_Y_X_i = predictor.get_PY_given_Xi(a1b1[i], a2b2[j]) * prob_Y[j]
+                prob_Y_X.append(prob_Y_X_i)
+            sort_id = np.argsort(prob_Y_X).index(i)
+            if sort_id < 5:
+                print('Success')
+            else:
+                print('Fail')
+
+
 
 
 #%%
@@ -155,19 +136,17 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save',
+    parser.add_argument('--save', type=str, required=True,
                         help='checkpoint model during training here')
-    parser.add_argument('--config', type=str, default=None,
-                        help='config file (see description above for help)')
-    parser.add_argument('--continue_from', type=str, default=None,
-                        help='ignore config options and continue training model checkpointed here')
+    parser.add_argument('--evidence', type=str, default='all',
+                        choices=['apicalls', 'types', 'keywords', 'all'],
+                        help='use only this evidence for inference queries')
+    parser.add_argument('--output_file', type=str, default=None,
+                        help='output file to print probabilities')
+
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--config','config.json',
     '..\..\..\..\..\..\data\DATA-training-top.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
-    if clargs.config and clargs.continue_from:
-        parser.error('Do not provide --config if you are continuing from checkpointed model')
-    if not clargs.config and not clargs.continue_from:
-        parser.error('Provide at least one option: --config or --continue_from')
-    train(clargs)
+    test(clargs)

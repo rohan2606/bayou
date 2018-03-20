@@ -54,7 +54,7 @@ class Reader():
             config.reverse_encoder.chars = config.decoder.chars
             config.reverse_encoder.vocab = config.decoder.vocab
             config.reverse_encoder.vocab_size = config.decoder.vocab_size
-            
+
 
         # wrangle the evidences and targets into numpy arrays
         self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]

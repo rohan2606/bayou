@@ -26,24 +26,32 @@ class Model():
         self.config = config
         if infer:
             config.batch_size = 1
+            # THE NEXT LINE IS TO BE TREATED WITH CAUTION FOR CODE SEARCH
             config.decoder.max_ast_depth = 1
+
 
         #setup the encode, however remember that the Encoder is there only for KL-divergence
         # Also note that no samples were generated from it
         self.encoder = BayesianEncoder(config)
+        # Note that psi_encoder and samples2 are only used in inference
+        samples_2 = tf.random_normal([config.batch_size, config.latent_size],
+                                   mean=0., stddev=1., dtype=tf.float32)
+        self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_2
+
 
         # setup the reverse encoder.
         self.reverse_encoder = BayesianReverseEncoder(config, self.encoder.psi_covariance)
         samples = tf.random_normal([config.batch_size, config.latent_size],
                                    mean=0., stddev=1., dtype=tf.float32)
-        self.psi = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
+        self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
+
 
 
 
         # setup the decoder with psi as the initial state
         lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
         lift_b = tf.get_variable('lift_b', [config.decoder.units])
-        self.initial_state = tf.nn.xw_plus_b(self.psi, lift_w, lift_b)
+        self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b)
         self.decoder = BayesianDecoder(config, initial_state=self.initial_state, infer=infer)
 
         # get the decoder outputs
@@ -76,34 +84,49 @@ class Model():
         if not infer:
             print('Model parameters: {}'.format(np.sum(var_params)))
 
-    # Last but one function I am not aware of.
-    # Qs: Why is this is model anyway?
-    def infer_psi(self, sess, evidences):
+    # called from infer only when the model is used in inference
+    def infer_psi_encoder(self, sess, evidences):
         # Qs: What is evidences. I believe a JSON with headings as keywords, apicalls etc
         # read and wrangle (with batch_size 1) the data
-        inputs = [ev.wrangle([ev.read_data_point(evidences)]) for ev in self.config.evidence]
+        ## NO NEED TO WRANGLE THE INPUTS ANYMORE
+        # inputs = [ev.wrangle(evidences) for ev in self.config.evidence]
+
+        inputs = evidences
         # setup initial states and feed
         feed = {}
         for j, ev in enumerate(self.config.evidence):
-            # Note that writing .name after every tf variable is a norm
             feed[self.encoder.inputs[j].name] = inputs[j]
-        #psi is in model.py only
-        psi = sess.run(self.psi, feed)
-        return psi
 
-    def infer_ast(self, sess, psi, nodes, edges, cache=None):
-        # check cache if provided
-        if cache is not None:
-            serialized = ','.join(['(' + node + ',' + edge + ')' for node, edge in zip(nodes, edges)])
-            if serialized in cache:
-                return cache[serialized]
+        psi_encoder, psi_encoder_mean, psi_encoder_sigma_sqr = \
+                    sess.run([self.psi_encoder, self.encoder.psi_mean, self.encoder.psi_covariance], feed)
+        psi_encoder_sigma = np.sqrt(psi_encoder_sigma_sqr)
+
+        return psi_encoder, psi_encoder_mean, psi_encoder_sigma
+
+
+    def infer_psi_reverse_encoder(self, sess, nodes, edges):
+
+        # setup initial states and feed
+        feed = {}
+        for j in range(self.config.decoder.max_ast_depth):
+            feed[self.reverse_encoder.nodes[j].name] = nodes[j]
+            feed[self.reverse_encoder.edges[j].name] = edges[j]
+
+        psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma_sqr = \
+                    sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)
+        psi_reverse_encoder_sigma = np.sqrt(psi_reverse_encoder_sigma_sqr)
+
+        return psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma
+
+    def infer_probY_given_psi(self, sess, psi, nodes, edges, targets):
 
         # use the given psi and get decoder's start state
-        state = sess.run(self.initial_state, {self.psi: psi})
+        state = sess.run(self.initial_state, {self.psi_reverse_encoder: psi})
         state = [state] * self.config.decoder.num_layers
 
+        prob = 1
         # run the decoder for every time step
-        for node, edge in zip(nodes, edges):
+        for node, edge, target in zip(nodes, edges, targets):
 
             assert edge == CHILD_EDGE or edge == SIBLING_EDGE, 'invalid edge: {}'.format(edge)
             n = np.array([self.config.decoder.vocab[node]], dtype=np.int32)
@@ -115,10 +138,6 @@ class Model():
                 feed[self.decoder.initial_state[i].name] = state[i]
             [probs, state] = sess.run([self.probs, self.decoder.state], feed)
 
-        dist = probs[0]
+            prob *= probs[0][target]
 
-        # save in cache if provided
-        if cache is not None:
-            cache[serialized] = dist
-
-        return dist
+        return prob

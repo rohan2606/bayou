@@ -81,14 +81,14 @@ class BayesianDecoder(object):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
             emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
             self.emb_inp = emb_inp
-        
+
         with tf.variable_scope('decoder'):
             def loop_fn(prev, _):
                 prev = tf.nn.xw_plus_b(prev, self.projection_w, self.projection_b)
                 prev_symbol = tf.argmax(prev, 1)
                 return tf.nn.embedding_lookup(emb, prev_symbol)
             loop_function = loop_fn if infer else None
-            
+
             emb_inp = self.emb_inp
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
             # TODO: update with dynamic decoder (being implemented in tf) once it is released
@@ -144,12 +144,12 @@ class BayesianReverseEncoder(object):
                                                              config.latent_size])
         self.projection_zb = tf.get_variable('projection_zb', [config.latent_size])
 
-        
+
         with tf.variable_scope('dec_n_revenc_emb'):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
             emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
             self.emb_inp = emb_inp
-            
+
         # setup embedding
         # setting this variable scope to decoder helps you use the same embedding as in decoder
         with tf.variable_scope('reverse_encoder'):
@@ -178,7 +178,7 @@ class BayesianReverseEncoder(object):
                     #output = output1 #tf.where(self.edges[i], output1, output2)
                     output = tf.where(self.edges[i], output1, output2)
                     # self.state = [state1[j] for j in range(config.reverse_encoder.num_layers)]
-                    self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.decoder.num_layers)]
+                    self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.reverse_encoder.num_layers)]
                     self.outputs.append(output)
 
         self.psi_mean = tf.nn.xw_plus_b(self.outputs[-1], self.projection_zw, self.projection_zb)
