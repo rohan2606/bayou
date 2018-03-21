@@ -71,6 +71,7 @@ class BayesianPredictor(object):
             # the prob that we get here is the P(Y|Z) where Z~P(Z|X). It still needs to multiplied by P(Z)/P(Z|X) to get the correct value
             prob = self.model.infer_probY_given_psi(self.sess, psi, nodes, edges, targets)
             prob = prob * self.get_psi_prob(psi) / self.get_psi_prob(psi, psi_mean, psi_sigma)
+            
             probs.append(prob)
 
         avg_prob = np.mean(probs, axis=0)
@@ -90,10 +91,10 @@ class BayesianPredictor(object):
         psi, psi_mean, psi_sigma = self.model.infer_psi_encoder(self.sess, js_evidences)
         return psi, psi_mean, psi_sigma
 
-    def psi_from_output(self, nodes, edges):
+    def psi_from_output(self, nodes, edges, js_evidences):
         """
         """
-        psi_re, psi_re_mu, psi_re_sigma = self.model.infer_psi_reverse_encoder(self.sess, nodes, edges)
+        psi_re, psi_re_mu, psi_re_sigma = self.model.infer_psi_reverse_encoder(self.sess, nodes, edges, js_evidences)
         return psi_re, psi_re_mu, psi_re_sigma
 
 
@@ -102,8 +103,8 @@ class BayesianPredictor(object):
         a1, b1, c1 = self.calculate_abc(psi_e_mu, psi_e_sigma)
         return [a1, b1, c1]
 
-    def get_rev_encoder_abc(self, nodes, edges):
-        psi_re, psi_re_mu, psi_re_sigma = self.psi_from_output(nodes, edges)
+    def get_rev_encoder_abc(self, nodes, edges, js_evidences):
+        psi_re, psi_re_mu, psi_re_sigma = self.psi_from_output(nodes, edges, js_evidences)
         a2, b2, c2 = self.calculate_abc(psi_re_mu, psi_re_sigma)
         return [a2,b2,c2]
 

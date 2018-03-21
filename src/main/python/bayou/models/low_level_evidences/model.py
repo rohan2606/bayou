@@ -60,7 +60,7 @@ class Model():
                             [-1, self.decoder.cell1.output_size])
         logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
         self.probs = tf.nn.softmax(logits)
-
+#        print (self.probs)
         # 1. generation loss: log P(X | \Psi)
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
         self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
@@ -105,10 +105,13 @@ class Model():
         return psi_encoder, psi_encoder_mean, psi_encoder_sigma
 
 
-    def infer_psi_reverse_encoder(self, sess, nodes, edges):
+    def infer_psi_reverse_encoder(self, sess, nodes, edges, evidences):
 
         # setup initial states and feed
+        inputs = evidences
         feed = {}
+        for j, ev in enumerate(self.config.evidence):
+            feed[self.encoder.inputs[j].name] = inputs[j]
         for j in range(self.config.decoder.max_ast_depth):
             feed[self.reverse_encoder.nodes[j].name] = nodes[j]
             feed[self.reverse_encoder.edges[j].name] = edges[j]
@@ -126,14 +129,15 @@ class Model():
         prob = 1
         feed = {}
         for j in range(self.config.decoder.max_ast_depth):
-            feed[self.model.decoder.nodes[j].name] = nodes[j]
-            feed[self.model.decoder.edges[j].name] = edges[j]
+            feed[self.decoder.nodes[j].name] = nodes[j]
+            feed[self.decoder.edges[j].name] = edges[j]
+
         for i in range(self.config.decoder.num_layers):
             feed[self.decoder.initial_state[i].name] = state[i]
 
         [probs, state] = sess.run([self.probs, self.decoder.state], feed)
         
         for j in range(self.config.decoder.max_ast_depth):
-            prob *= probs[j][targets[j]]
+            prob *= probs[j][targets[0][j]]
 
         return prob

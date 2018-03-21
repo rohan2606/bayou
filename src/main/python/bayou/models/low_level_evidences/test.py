@@ -80,6 +80,7 @@ def test(clargs):
 
     with open(os.path.join(clargs.save, 'config.json')) as f:
         model_type = json.load(f)['model']
+
     if model_type == 'core':
         model = bayou.models.core.infer.BayesianPredictor
     elif model_type == 'lle':
@@ -93,30 +94,32 @@ def test(clargs):
     reader = Reader(clargs, config)
 
     with tf.Session() as sess:
-        predictor = model(clargs.save,sess, config) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save, sess, config) # goes to infer.BayesianPredictor
 
         # testing
         reader.reset_batches()
-
-        # computing P(Y) = int_Z P(Z,Y) = int_Z(P(Y|Z)*P(Z)) = int_Z(P(Y|Z)*P(Z|X)*P(Z)/P(Z|X))
-        # = 1/L Sum_i={1,L} P(Y|Z_i)*P(Z_i)/P(Z_i|X) where Z_i ~ P(Z|X) = N(0,1)
         prob_Y, a1b1, a2b2 = [], [], []
         for i in range(config.num_batches):
-            # setup the feed dict, ignoring the evidences and raw_targets
             ev_data, n, e, y = reader.next_batch()
             prob_Y.append(predictor.get_Prob_Y_i(ev_data, n, e, y))
             a1b1.append(predictor.get_encoder_abc(ev_data))
-            a2b2.append(predictor.get_rev_encoder_abc(n,e))
-
+            a2b2.append(predictor.get_rev_encoder_abc(n,e, ev_data))
+        
+        
         reader.reset_batches()
 
         for i in range(config.num_batches):
             prob_Y_X = []
             for j in range(config.num_batches):
                 prob_Y_X_i = predictor.get_PY_given_Xi(a1b1[i], a2b2[j]) * prob_Y[j]
+                print (prob_Y_X_i)                                     
                 prob_Y_X.append(prob_Y_X_i)
-            sort_id = np.argsort(prob_Y_X).index(i)
-            if sort_id < 5:
+            array = np.array(prob_Y_X)
+            temp = array.argsort()
+            ranks = np.empty_like(temp)
+            ranks[temp] = np.arange(len(array))
+            
+            if ranks[i] < 5:
                 print('Success')
             else:
                 print('Fail')
