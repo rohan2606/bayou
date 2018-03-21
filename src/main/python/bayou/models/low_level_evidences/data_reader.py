@@ -54,6 +54,9 @@ class Reader():
             config.reverse_encoder.chars = config.decoder.chars
             config.reverse_encoder.vocab = config.decoder.vocab
             config.reverse_encoder.vocab_size = config.decoder.vocab_size
+        else:
+            config.num_batches = sz
+            config.batch_size = 1
 
 
         # wrangle the evidences and targets into numpy arrays
@@ -146,7 +149,11 @@ class Reader():
         print('{:8d} programs ignored by given config'.format(ignored))
 
         # randomly shuffle to avoid bias towards initial data points during training
-        random.shuffle(data_points)
+        # COMMENTING THIS IS WRONG
+        print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")
+#        random.shuffle(data_points)
+
+
         evidences, targets = zip(*data_points)
 
         # save callmap if save location is given

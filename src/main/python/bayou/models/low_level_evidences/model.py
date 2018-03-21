@@ -52,6 +52,7 @@ class Model():
         lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
         lift_b = tf.get_variable('lift_b', [config.decoder.units])
         self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b)
+
         self.decoder = BayesianDecoder(config, initial_state=self.initial_state, infer=infer)
 
         # get the decoder outputs
@@ -120,24 +121,19 @@ class Model():
 
     def infer_probY_given_psi(self, sess, psi, nodes, edges, targets):
 
-        # use the given psi and get decoder's start state
         state = sess.run(self.initial_state, {self.psi_reverse_encoder: psi})
         state = [state] * self.config.decoder.num_layers
-
         prob = 1
-        # run the decoder for every time step
-        for node, edge, target in zip(nodes, edges, targets):
+        feed = {}
+        for j in range(self.config.decoder.max_ast_depth):
+            feed[self.model.decoder.nodes[j].name] = nodes[j]
+            feed[self.model.decoder.edges[j].name] = edges[j]
+        for i in range(self.config.decoder.num_layers):
+            feed[self.decoder.initial_state[i].name] = state[i]
 
-            assert edge == CHILD_EDGE or edge == SIBLING_EDGE, 'invalid edge: {}'.format(edge)
-            n = np.array([self.config.decoder.vocab[node]], dtype=np.int32)
-            e = np.array([edge == CHILD_EDGE], dtype=np.bool)
-
-            feed = {self.decoder.nodes[0].name: n,
-                    self.decoder.edges[0].name: e}
-            for i in range(self.config.decoder.num_layers):
-                feed[self.decoder.initial_state[i].name] = state[i]
-            [probs, state] = sess.run([self.probs, self.decoder.state], feed)
-
-            prob *= probs[0][target]
+        [probs, state] = sess.run([self.probs, self.decoder.state], feed)
+        
+        for j in range(self.config.decoder.max_ast_depth):
+            prob *= probs[j][targets[j]]
 
         return prob

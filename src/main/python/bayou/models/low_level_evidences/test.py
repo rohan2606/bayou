@@ -17,15 +17,16 @@ import numpy as np
 import tensorflow as tf
 
 import argparse
-import time
 import os
 import sys
 import json
 import textwrap
 
-from bayou.models.low_level_evidences.data_reader import Reader
-from bayou.models.low_level_evidences.model import Model
+
+import bayou.models.core.infer
+import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.utils import read_config, dump_config
+from bayou.models.low_level_evidences.data_reader import Reader
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
@@ -86,11 +87,13 @@ def test(clargs):
     else:
         raise ValueError('Invalid model type in config: ' + model_type)
 
-    config.batch_size = 1 # this is to make sure that every code search worls in series, might be easier to do in batches later
+    # load the saved config
+    with open(os.path.join(clargs.save, 'config.json')) as f:
+        config = read_config(json.load(f), chars_vocab=True)
     reader = Reader(clargs, config)
 
     with tf.Session() as sess:
-        predictor = model(clargs.save,sess) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save,sess, config) # goes to infer.BayesianPredictor
 
         # testing
         reader.reset_batches()
@@ -98,7 +101,6 @@ def test(clargs):
         # computing P(Y) = int_Z P(Z,Y) = int_Z(P(Y|Z)*P(Z)) = int_Z(P(Y|Z)*P(Z|X)*P(Z)/P(Z|X))
         # = 1/L Sum_i={1,L} P(Y|Z_i)*P(Z_i)/P(Z_i|X) where Z_i ~ P(Z|X) = N(0,1)
         prob_Y, a1b1, a2b2 = [], [], []
-        start = time.time()
         for i in range(config.num_batches):
             # setup the feed dict, ignoring the evidences and raw_targets
             ev_data, n, e, y = reader.next_batch()
@@ -106,17 +108,11 @@ def test(clargs):
             a1b1.append(predictor.get_encoder_abc(ev_data))
             a2b2.append(predictor.get_rev_encoder_abc(n,e))
 
-
-        end = time.time()
-
         reader.reset_batches()
-        avg_loss = 0
-        avg_gen_loss = 0
-
 
         for i in range(config.num_batches):
             prob_Y_X = []
-            for j in range(config.num_batches)
+            for j in range(config.num_batches):
                 prob_Y_X_i = predictor.get_PY_given_Xi(a1b1[i], a2b2[j]) * prob_Y[j]
                 prob_Y_X.append(prob_Y_X_i)
             sort_id = np.argsort(prob_Y_X).index(i)
@@ -145,8 +141,9 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--config','config.json',
-    '..\..\..\..\..\..\data\DATA-training-top.json'])
+    clargs = parser.parse_args(['--save', 
+    '..\low_level_evidences\save','..\..\..\..\..\..\data\DATA-training-top.json'])
+
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

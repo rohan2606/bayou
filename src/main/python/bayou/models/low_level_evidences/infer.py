@@ -42,12 +42,10 @@ class InvalidSketchError(Exception):
 
 class BayesianPredictor(object):
 
-    def __init__(self, save, sess):
+    def __init__(self, save, sess, config):
         self.sess = sess
 
-        # load the saved config
-        with open(os.path.join(save, 'config.json')) as f:
-            config = read_config(json.load(f), chars_vocab=True)
+
         self.model = Model(config, True)
 
         # load the callmap
@@ -78,7 +76,7 @@ class BayesianPredictor(object):
         avg_prob = np.mean(probs, axis=0)
         return avg_prob
 
-    def get_psi_prob(self, mu=0, sigma=1):
+    def get_psi_prob(self, x, mu=0, sigma=1):
         val = np.exp( -1*np.square(x-mu)/2*np.square(sigma) )/np.sqrt(2*np.pi*np.square(sigma))
         return val
 
@@ -101,12 +99,12 @@ class BayesianPredictor(object):
 
     def get_encoder_abc(self, evidences):
         psi_e, psi_e_mu, psi_e_sigma = self.psi_from_evidence(evidences)
-        a1, b1, c1 = calculate_abc(psi_e_mu, psi_e_sigma)
+        a1, b1, c1 = self.calculate_abc(psi_e_mu, psi_e_sigma)
         return [a1, b1, c1]
 
-    def get_rev_encoder_abc(self, node, edges):
+    def get_rev_encoder_abc(self, nodes, edges):
         psi_re, psi_re_mu, psi_re_sigma = self.psi_from_output(nodes, edges)
-        a2, b2, c2 = calculate_abc(psi_re_mu, psi_re_sigma)
+        a2, b2, c2 = self.calculate_abc(psi_re_mu, psi_re_sigma)
         return [a2,b2,c2]
 
     def get_PY_given_Xi(self, abc1, abc2):
