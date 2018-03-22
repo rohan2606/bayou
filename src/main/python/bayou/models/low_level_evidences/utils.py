@@ -17,6 +17,7 @@ import argparse
 import re
 import tensorflow as tf
 from itertools import chain
+import numpy as np
 
 CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',
                   'learning_rate', 'print_step', 'checkpoint_step', 'alpha', 'beta']
@@ -43,6 +44,13 @@ def split_camel(s):
     split = s1.split('#')
     return [s.lower() for s in split]
 
+
+def lse(probs):
+    
+    lnsum = probs[0]
+    for prob in probs[1:]:
+        lnsum = np.logaddexp(lnsum, prob)
+    return lnsum
 
 # Do not move these imports to the top, it will introduce a cyclic dependency
 import bayou.models.low_level_evidences.evidence

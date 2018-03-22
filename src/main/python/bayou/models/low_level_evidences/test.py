@@ -101,7 +101,7 @@ def test(clargs):
         prob_Y, a1s, b1s, a2s, b2s = [], [], [], [], []
         for i in range(config.num_batches):
             ev_data, n, e, y = reader.next_batch()
-            prob_Y.append(predictor.get_Prob_Y_i(ev_data, n, e, y))
+            prob_Y.append(predictor.get_lnProb_Y_i(ev_data, n, e, y))
             a1, b1 = predictor.get_encoder_ab(ev_data)
             a1s.append(a1)
             b1s.append(b1)

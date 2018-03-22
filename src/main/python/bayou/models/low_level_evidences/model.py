@@ -59,8 +59,8 @@ class Model():
         output = tf.reshape(tf.concat(self.decoder.outputs, 1),
                             [-1, self.decoder.cell1.output_size])
         logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
-        self.probs = tf.nn.softmax(logits)
-#        print (self.probs)
+        self.ln_probs = tf.nn.log_softmax(logits)
+        
         # 1. generation loss: log P(X | \Psi)
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
         self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
@@ -122,11 +122,11 @@ class Model():
 
         return psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma
 
-    def infer_probY_given_psi(self, sess, psi, nodes, edges, targets):
+    def infer_lnprobY_given_psi(self, sess, psi, nodes, edges, targets):
 
         state = sess.run(self.initial_state, {self.psi_reverse_encoder: psi})
         state = [state] * self.config.decoder.num_layers
-        prob = 1
+        prob = 0
         feed = {}
         for j in range(self.config.decoder.max_ast_depth):
             feed[self.decoder.nodes[j].name] = nodes[j]
@@ -135,9 +135,9 @@ class Model():
         for i in range(self.config.decoder.num_layers):
             feed[self.decoder.initial_state[i].name] = state[i]
 
-        [probs, state] = sess.run([self.probs, self.decoder.state], feed)
+        [ln_probs, state] = sess.run([self.ln_probs, self.decoder.state], feed)
         
         for j in range(self.config.decoder.max_ast_depth):
-            prob *= probs[j][targets[0][j]]
+            prob += ln_probs[j][targets[0][j]]
         
-        return prob
+        return prob # this is assumed to be for batch_size = 1

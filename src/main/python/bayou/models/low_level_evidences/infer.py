@@ -18,11 +18,10 @@ import numpy as np
 
 import os
 import pickle
-import json
 
 from bayou.models.low_level_evidences.model import Model
-from bayou.models.low_level_evidences.utils import CHILD_EDGE, SIBLING_EDGE
-from bayou.models.low_level_evidences.utils import read_config
+from bayou.models.low_level_evidences.utils import lse
+
 
 MAX_GEN_UNTIL_STOP = 20
 MAX_AST_DEPTH = 5
@@ -47,7 +46,7 @@ class BayesianPredictor(object):
 
 
         self.model = Model(config, True)
-
+        
         # load the callmap
         with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:
             self.callmap = pickle.load(f)
@@ -58,7 +57,7 @@ class BayesianPredictor(object):
         ckpt = tf.train.get_checkpoint_state(save)
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
-    def get_Prob_Y_i(self, evidences, nodes, edges, targets, num_psi_samples=100):
+    def get_lnProb_Y_i(self, evidences, nodes, edges, targets, num_psi_samples=10):
         """
 
         :param evidences: the input evidences
@@ -69,27 +68,34 @@ class BayesianPredictor(object):
         for i in range(num_psi_samples):
             psi, psi_mean, psi_Sigma = self.psi_from_evidence(evidences)
             # the prob that we get here is the P(Y|Z) where Z~P(Z|X). It still needs to multiplied by P(Z)/P(Z|X) to get the correct value
-            prob = self.model.infer_probY_given_psi(self.sess, psi, nodes, edges, targets)
-            
-            zero_mean = np.zeros(psi_mean.shape)
-            one_sigma = np.ones(psi_Sigma.shape)
-            
-            prob = prob * self.get_psi_prob(psi, zero_mean, one_sigma) / self.get_psi_prob(psi, psi_mean, psi_Sigma)
-            
+            prob = self.model.infer_lnprobY_given_psi(self.sess, psi, nodes, edges, targets)
+            #prob is now scalar but in ideal case it will be [batch_size]
+            prob +=  self.get_psi_lnprob(psi) - self.get_psi_lnprob(psi, psi_mean, psi_Sigma)
+            #also get_psi_lnprob is of size [batch_size] so they should add up.
             probs.append(prob)
-
-        avg_prob = np.mean(probs, axis=0)
+        
+        # probs should be concatenated when batch is used
+        # probs = np.transpose(np.array(probs))
+        
+        #This is wrong, need to do LSE trick
+        # in batch case probs is [batch_size , num_psi_samples]
+        avg_prob = lse(probs)
         return avg_prob
 
-    def get_psi_prob(self, x, mu , sigma ):
+    def get_psi_lnprob(self, x, mu=None , sigma=None ):
         
-        # mu is a vector of size [1, latent_size]
-        #sigma is another vector of size [1, latent size] denoting a diagonl matrix
-        nume = np.exp( -0.5 * np.sum( np.square(x-mu) /sigma, axis=1 ) ) 
-        deno = np.power(2 * np.pi, len(x)/2) * np.power( np.prod(sigma, axis=1) , 0.5)
-        val = nume/deno
+        if mu is None:
+            mu = np.zeros(x.shape)
+        if sigma is None:
+            sigma = np.ones(x.shape)
         
-        return val[0]
+        # mu is a vector of size [batch_size, latent_size]
+        #sigma is another vector of size [batch_size, latent size] denoting a diagonl matrix
+        ln_nume =  -0.5 * np.sum( np.square(x-mu) /sigma, axis=1 )  
+        ln_deno = len(x)/2 * np.log(2 * np.pi ) + 0.5 * np.sum(np.log(sigma), axis=1)
+        val = ln_nume - ln_deno
+        
+        return val[0] # take the first batch
 
     def psi_from_evidence(self, js_evidences):
         """
