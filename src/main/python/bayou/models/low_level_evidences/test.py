@@ -25,7 +25,7 @@ import textwrap
 
 import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
-from bayou.models.low_level_evidences.utils import read_config, dump_config
+from bayou.models.low_level_evidences.utils import read_config
 from bayou.models.low_level_evidences.data_reader import Reader
 
 HELP = """\
@@ -98,21 +98,28 @@ def test(clargs):
 
         # testing
         reader.reset_batches()
-        prob_Y, a1b1, a2b2 = [], [], []
+        prob_Y, a1s, b1s, a2s, b2s = [], [], [], [], []
         for i in range(config.num_batches):
             ev_data, n, e, y = reader.next_batch()
             prob_Y.append(predictor.get_Prob_Y_i(ev_data, n, e, y))
-            a1b1.append(predictor.get_encoder_abc(ev_data))
-            a2b2.append(predictor.get_rev_encoder_abc(n,e, ev_data))
+            a1, b1 = predictor.get_encoder_ab(ev_data)
+            a1s.append(a1)
+            b1s.append(b1)
+            a2, b2 = predictor.get_rev_encoder_ab(n,e, ev_data)
+            a2s.append(a2)
+            b2s.append(b2)
         
+        a1s = np.concatenate(a1s, axis=0)
+        b1s = np.concatenate(b1s, axis=0)
+        a2s = np.concatenate(a2s, axis=0)
+        b2s = np.concatenate(b2s, axis=0)
         
-        reader.reset_batches()
+#        reader.reset_batches()
 
         for i in range(config.num_batches):
             prob_Y_X = []
             for j in range(config.num_batches):
-                prob_Y_X_i = predictor.get_PY_given_Xi(a1b1[i], a2b2[j]) * prob_Y[j]
-                print (prob_Y_X_i)                                     
+                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j], b2s[j]) * prob_Y[j]
                 prob_Y_X.append(prob_Y_X_i)
             array = np.array(prob_Y_X)
             temp = array.argsort()
@@ -120,9 +127,9 @@ def test(clargs):
             ranks[temp] = np.arange(len(array))
             
             if ranks[i] < 5:
-                print('Success')
+                print(str(array[i]) + ' Success')
             else:
-                print('Fail')
+                print(str(array[i]) + ' Fail')
 
 
 

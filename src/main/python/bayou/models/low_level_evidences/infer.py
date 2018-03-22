@@ -67,19 +67,29 @@ class BayesianPredictor(object):
         """
         probs = []
         for i in range(num_psi_samples):
-            psi, psi_mean, psi_sigma = self.psi_from_evidence(evidences)
+            psi, psi_mean, psi_Sigma = self.psi_from_evidence(evidences)
             # the prob that we get here is the P(Y|Z) where Z~P(Z|X). It still needs to multiplied by P(Z)/P(Z|X) to get the correct value
             prob = self.model.infer_probY_given_psi(self.sess, psi, nodes, edges, targets)
-            prob = prob * self.get_psi_prob(psi) / self.get_psi_prob(psi, psi_mean, psi_sigma)
+            
+            zero_mean = np.zeros(psi_mean.shape)
+            one_sigma = np.ones(psi_Sigma.shape)
+            
+            prob = prob * self.get_psi_prob(psi, zero_mean, one_sigma) / self.get_psi_prob(psi, psi_mean, psi_Sigma)
             
             probs.append(prob)
 
         avg_prob = np.mean(probs, axis=0)
         return avg_prob
 
-    def get_psi_prob(self, x, mu=0, sigma=1):
-        val = np.exp( -1*np.square(x-mu)/2*np.square(sigma) )/np.sqrt(2*np.pi*np.square(sigma))
-        return val
+    def get_psi_prob(self, x, mu , sigma ):
+        
+        # mu is a vector of size [1, latent_size]
+        #sigma is another vector of size [1, latent size] denoting a diagonl matrix
+        nume = np.exp( -0.5 * np.sum( np.square(x-mu) /sigma, axis=1 ) ) 
+        deno = np.power(2 * np.pi, len(x)/2) * np.power( np.prod(sigma, axis=1) , 0.5)
+        val = nume/deno
+        
+        return val[0]
 
     def psi_from_evidence(self, js_evidences):
         """
@@ -88,8 +98,8 @@ class BayesianPredictor(object):
         :param js_evidences: the evidences
         :return: the latent intent
         """
-        psi, psi_mean, psi_sigma = self.model.infer_psi_encoder(self.sess, js_evidences)
-        return psi, psi_mean, psi_sigma
+        psi, psi_mean, psi_Sigma = self.model.infer_psi_encoder(self.sess, js_evidences)
+        return psi, psi_mean, psi_Sigma
 
     def psi_from_output(self, nodes, edges, js_evidences):
         """
@@ -98,28 +108,40 @@ class BayesianPredictor(object):
         return psi_re, psi_re_mu, psi_re_sigma
 
 
-    def get_encoder_abc(self, evidences):
-        psi_e, psi_e_mu, psi_e_sigma = self.psi_from_evidence(evidences)
-        a1, b1, c1 = self.calculate_abc(psi_e_mu, psi_e_sigma)
-        return [a1, b1, c1]
+    def get_encoder_ab(self, evidences):
+        psi_e, psi_e_mu, psi_e_Sigma = self.psi_from_evidence(evidences)
+        a1, b1 = self.calculate_ab(psi_e_mu, psi_e_Sigma)
+        return a1, b1
 
-    def get_rev_encoder_abc(self, nodes, edges, js_evidences):
+    def get_rev_encoder_ab(self, nodes, edges, js_evidences):
         psi_re, psi_re_mu, psi_re_sigma = self.psi_from_output(nodes, edges, js_evidences)
-        a2, b2, c2 = self.calculate_abc(psi_re_mu, psi_re_sigma)
-        return [a2,b2,c2]
+        a2, b2= self.calculate_ab(psi_re_mu, psi_re_sigma)
+        return a2, b2
 
-    def get_PY_given_Xi(self, abc1, abc2):
+    def calculate_ab(self, mu, Sigma):
+        a = -1 /(2*Sigma)
+        b = mu / Sigma
+        return a, b
+    
+    def get_c_minus_cstar(self, a1,b1, a2, b2):
         """
         """
-        a1,b1,c1 = abc1
-        a2,b2,c2 = abc2
-        t1 = np.square(b1)/(4*a1) + np.square(b2)/(4*a2) - np.square(b1+b2)/(4*(a1+a2+0.5)) \
-                    + 0.5*np.log(2*a1*a2/np.pi) - 0.5*np.log(-1*(a1+a2+0.5)/np.pi)
-        prob = np.exp(t1)
+        
+        t1 = np.sum(np.square(b1)/(4*a1)) + np.sum(np.square(b2)/(4*a2))
+        t2 = -0.5 * np.sum(np.log(-1/(2*a1))) -0.5 * np.sum(np.log(-1/(2*a2)))
+        t3 = - (3/2) * len(a1)* np.log(2*np.pi)
+        
+        c = t1+t2+t3
+        
+        b_star = b1 + b2
+        a_star = a1 + a2 + 0.5
+        
+        t1_star = np.sum(np.square(b_star)/(4*a_star))
+        t2_star = -0.5 * np.sum(np.log(-1/(2*a_star)))
+        t3_star = - (1/2) * len(a1)* np.log(2*np.pi)
+        
+        c_star = t1_star + t2_star + t3_star
+        
+        
+        prob = np.exp(c - c_star)
         return prob
-
-    def calculate_abc(self, mu, sigma):
-        a = -1 /(2*np.square(sigma))
-        b = mu / np.square(sigma)
-        c = -1 * np.square(mu)/(2*np.square(sigma))
-        return a, b, c

@@ -98,11 +98,11 @@ class Model():
         for j, ev in enumerate(self.config.evidence):
             feed[self.encoder.inputs[j].name] = inputs[j]
 
-        psi_encoder, psi_encoder_mean, psi_encoder_sigma_sqr = \
+        psi_encoder, psi_encoder_mean, psi_encoder_Sigma = \
                     sess.run([self.psi_encoder, self.encoder.psi_mean, self.encoder.psi_covariance], feed)
-        psi_encoder_sigma = np.sqrt(psi_encoder_sigma_sqr)
-
-        return psi_encoder, psi_encoder_mean, psi_encoder_sigma
+        
+        #sigma is diag of covar, ie std.dev ^ 2
+        return psi_encoder, psi_encoder_mean, psi_encoder_Sigma
 
 
     def infer_psi_reverse_encoder(self, sess, nodes, edges, evidences):
@@ -139,5 +139,5 @@ class Model():
         
         for j in range(self.config.decoder.max_ast_depth):
             prob *= probs[j][targets[0][j]]
-
+        
         return prob
