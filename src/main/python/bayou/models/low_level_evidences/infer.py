@@ -46,7 +46,7 @@ class BayesianPredictor(object):
 
 
         self.model = Model(config, True)
-        
+
         # load the callmap
         with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:
             self.callmap = pickle.load(f)
@@ -73,28 +73,27 @@ class BayesianPredictor(object):
             prob +=  self.get_psi_lnprob(psi) - self.get_psi_lnprob(psi, psi_mean, psi_Sigma)
             #also get_psi_lnprob is of size [batch_size] so they should add up.
             probs.append(prob)
-        
+
         # probs should be concatenated when batch is used
         # probs = np.transpose(np.array(probs))
-        
-        #This is wrong, need to do LSE trick
+
         # in batch case probs is [batch_size , num_psi_samples]
         avg_prob = lse(probs)
         return avg_prob
 
     def get_psi_lnprob(self, x, mu=None , sigma=None ):
-        
+
         if mu is None:
             mu = np.zeros(x.shape)
         if sigma is None:
             sigma = np.ones(x.shape)
-        
+
         # mu is a vector of size [batch_size, latent_size]
         #sigma is another vector of size [batch_size, latent size] denoting a diagonl matrix
-        ln_nume =  -0.5 * np.sum( np.square(x-mu) /sigma, axis=1 )  
-        ln_deno = len(x)/2 * np.log(2 * np.pi ) + 0.5 * np.sum(np.log(sigma), axis=1)
+        ln_nume =  -0.5 * np.sum( np.square(x-mu) /sigma, axis=1 )
+        ln_deno = x.shape[2]/2 * np.log(2 * np.pi ) + 0.5 * np.sum(np.log(sigma), axis=1)
         val = ln_nume - ln_deno
-        
+
         return val[0] # take the first batch
 
     def psi_from_evidence(self, js_evidences):
@@ -128,26 +127,26 @@ class BayesianPredictor(object):
         a = -1 /(2*Sigma)
         b = mu / Sigma
         return a, b
-    
+
     def get_c_minus_cstar(self, a1,b1, a2, b2):
         """
         """
-        
+
         t1 = np.sum(np.square(b1)/(4*a1)) + np.sum(np.square(b2)/(4*a2))
         t2 = -0.5 * np.sum(np.log(-1/(2*a1))) -0.5 * np.sum(np.log(-1/(2*a2)))
         t3 = - (3/2) * len(a1)* np.log(2*np.pi)
-        
+
         c = t1+t2+t3
-        
+
         b_star = b1 + b2
         a_star = a1 + a2 + 0.5
-        
+
         t1_star = np.sum(np.square(b_star)/(4*a_star))
         t2_star = -0.5 * np.sum(np.log(-1/(2*a_star)))
-        t3_star = - (1/2) * len(a1)* np.log(2*np.pi)
-        
+        t3_star = - (1/2) * len(a_star)* np.log(2*np.pi)
+
         c_star = t1_star + t2_star + t3_star
-        
-        
+
+
         prob = (c - c_star)
         return prob

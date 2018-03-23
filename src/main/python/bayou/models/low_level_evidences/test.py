@@ -106,12 +106,12 @@ def test(clargs):
             a2, b2 = predictor.get_rev_encoder_ab(n,e, ev_data)
             a2s.append(a2)
             b2s.append(b2)
-        
+
         a1s = np.concatenate(a1s, axis=0)
         b1s = np.concatenate(b1s, axis=0)
         a2s = np.concatenate(a2s, axis=0)
         b2s = np.concatenate(b2s, axis=0)
-        
+
 #        reader.reset_batches()
 
         for i in range(config.num_batches):
@@ -120,12 +120,13 @@ def test(clargs):
                 prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j], b2s[j]) + prob_Y[j]
                 prob_Y_X.append(prob_Y_X_i)
             array = np.array(prob_Y_X)
+            array *= -1
             temp = array.argsort()
             ranks = np.empty_like(temp)
             ranks[temp] = np.arange(len(array))
-            
+
             if ranks[i] < 5:
-                print(str(array[i]) + ' Success ' + str(ranks[i]))
+                print(str(array[i])  + ' Success ' + str(ranks[i]))
             else:
                 print(str(array[i]) + ' Fail ' + str(ranks[i]))
 
@@ -149,7 +150,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 
+    clargs = parser.parse_args(['--save',
     '/home/ubuntu/bayou/src/main/python/bayou/models/low_level_evidences/save','/home/ubuntu/bayou/data/DATA-training.json'])
 
 
