@@ -149,5 +149,5 @@ class BayesianPredictor(object):
         c_star = t1_star + t2_star + t3_star
         
         
-        prob = np.exp(c - c_star)
+        prob = (c - c_star)
         return prob

@@ -23,7 +23,7 @@ import json
 import textwrap
 
 
-import bayou.models.core.infer
+#import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.utils import read_config
 from bayou.models.low_level_evidences.data_reader import Reader
@@ -81,9 +81,7 @@ def test(clargs):
     with open(os.path.join(clargs.save, 'config.json')) as f:
         model_type = json.load(f)['model']
 
-    if model_type == 'core':
-        model = bayou.models.core.infer.BayesianPredictor
-    elif model_type == 'lle':
+    if model_type == 'lle':
         model = bayou.models.low_level_evidences.infer.BayesianPredictor
     else:
         raise ValueError('Invalid model type in config: ' + model_type)
@@ -119,7 +117,7 @@ def test(clargs):
         for i in range(config.num_batches):
             prob_Y_X = []
             for j in range(config.num_batches):
-                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j], b2s[j]) * prob_Y[j]
+                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j], b2s[j]) + prob_Y[j]
                 prob_Y_X.append(prob_Y_X_i)
             array = np.array(prob_Y_X)
             temp = array.argsort()
@@ -127,9 +125,9 @@ def test(clargs):
             ranks[temp] = np.arange(len(array))
             
             if ranks[i] < 5:
-                print(str(array[i]) + ' Success')
+                print(str(array[i]) + ' Success ' + str(ranks[i]))
             else:
-                print(str(array[i]) + ' Fail')
+                print(str(array[i]) + ' Fail ' + str(ranks[i]))
 
 
 
@@ -152,7 +150,7 @@ if __name__ == '__main__':
 
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--save', 
-    '..\low_level_evidences\save','..\..\..\..\..\..\data\DATA-training-top.json'])
+    '/home/ubuntu/bayou/src/main/python/bayou/models/low_level_evidences/save','/home/ubuntu/bayou/data/DATA-training.json'])
 
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
