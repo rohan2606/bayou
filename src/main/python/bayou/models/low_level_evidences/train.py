@@ -139,7 +139,7 @@ def train(clargs):
                            np.mean(covariance),
                            end - start))
             if  (i+1) % config.checkpoint_step == 0 and i > 0:
-                checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i))
+                checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
