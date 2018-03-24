@@ -45,9 +45,6 @@ class Model():
                                    mean=0., stddev=1., dtype=tf.float32)
         self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
 
-
-
-
         # setup the decoder with psi as the initial state
         lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
         lift_b = tf.get_variable('lift_b', [config.decoder.units])
@@ -60,7 +57,7 @@ class Model():
                             [-1, self.decoder.cell1.output_size])
         logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
         self.ln_probs = tf.nn.log_softmax(logits)
-        
+
         # 1. generation loss: log P(X | \Psi)
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
         self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
@@ -100,7 +97,7 @@ class Model():
 
         psi_encoder, psi_encoder_mean, psi_encoder_Sigma = \
                     sess.run([self.psi_encoder, self.encoder.psi_mean, self.encoder.psi_covariance], feed)
-        
+
         #sigma is diag of covar, ie std.dev ^ 2
         return psi_encoder, psi_encoder_mean, psi_encoder_Sigma
 
@@ -136,8 +133,8 @@ class Model():
             feed[self.decoder.initial_state[i].name] = state[i]
 
         [ln_probs, state] = sess.run([self.ln_probs, self.decoder.state], feed)
-        
+
         for j in range(self.config.decoder.max_ast_depth):
             prob += ln_probs[j][targets[0][j]]
-        
+
         return prob # this is assumed to be for batch_size = 1

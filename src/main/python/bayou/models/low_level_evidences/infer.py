@@ -20,7 +20,7 @@ import os
 import pickle
 
 from bayou.models.low_level_evidences.model import Model
-from bayou.models.low_level_evidences.utils import lse
+from bayou.models.low_level_evidences.utils import get_sum_in_log
 
 
 MAX_GEN_UNTIL_STOP = 20
@@ -66,7 +66,7 @@ class BayesianPredictor(object):
         """
         probs = []
         for i in range(num_psi_samples):
-            psi, psi_mean, psi_Sigma = self.psi_from_evidence(evidences)
+            psi, psi_mean, psi_Sigma = self.model.infer_psi_encoder(self.sess, evidences)
             # the prob that we get here is the P(Y|Z) where Z~P(Z|X). It still needs to multiplied by P(Z)/P(Z|X) to get the correct value
             prob = self.model.infer_lnprobY_given_psi(self.sess, psi, nodes, edges, targets)
             #prob is now scalar but in ideal case it will be [batch_size]
@@ -78,49 +78,33 @@ class BayesianPredictor(object):
         # probs = np.transpose(np.array(probs))
 
         # in batch case probs is [batch_size , num_psi_samples]
-        avg_prob = lse(probs)
+        avg_prob = get_sum_in_log(probs) - np.log(len(probs))
         return avg_prob
 
-    def get_psi_lnprob(self, x, mu=None , sigma=None ):
+    def get_psi_lnprob(self, x, mu=None , Sigma=None ):
 
         if mu is None:
             mu = np.zeros(x.shape)
-        if sigma is None:
-            sigma = np.ones(x.shape)
+        if Sigma is None:
+            Sigma = np.ones(x.shape)
 
         # mu is a vector of size [batch_size, latent_size]
         #sigma is another vector of size [batch_size, latent size] denoting a diagonl matrix
-        ln_nume =  -0.5 * np.sum( np.square(x-mu) /sigma, axis=1 )
-        ln_deno = x.shape[2]/2 * np.log(2 * np.pi ) + 0.5 * np.sum(np.log(sigma), axis=1)
+        ln_nume =  -0.5 * np.sum( np.square(x-mu) /Sigma, axis=1 )
+        ln_deno = x.shape[1]/2 * np.log(2 * np.pi ) + 0.5 * np.sum(np.log(Sigma), axis=1)
         val = ln_nume - ln_deno
 
         return val[0] # take the first batch
 
-    def psi_from_evidence(self, js_evidences):
-        """
-        Gets a latent intent from the model, given some evidences
-
-        :param js_evidences: the evidences
-        :return: the latent intent
-        """
-        psi, psi_mean, psi_Sigma = self.model.infer_psi_encoder(self.sess, js_evidences)
-        return psi, psi_mean, psi_Sigma
-
-    def psi_from_output(self, nodes, edges, js_evidences):
-        """
-        """
-        psi_re, psi_re_mu, psi_re_sigma = self.model.infer_psi_reverse_encoder(self.sess, nodes, edges, js_evidences)
-        return psi_re, psi_re_mu, psi_re_sigma
-
 
     def get_encoder_ab(self, evidences):
-        psi_e, psi_e_mu, psi_e_Sigma = self.psi_from_evidence(evidences)
+        psi_e, psi_e_mu, psi_e_Sigma = self.model.infer_psi_encoder(self.sess, evidences)
         a1, b1 = self.calculate_ab(psi_e_mu, psi_e_Sigma)
         return a1, b1
 
-    def get_rev_encoder_ab(self, nodes, edges, js_evidences):
-        psi_re, psi_re_mu, psi_re_sigma = self.psi_from_output(nodes, edges, js_evidences)
-        a2, b2= self.calculate_ab(psi_re_mu, psi_re_sigma)
+    def get_rev_encoder_ab(self, nodes, edges, evidences):
+        psi_re, psi_re_mu, psi_re_Sigma = self.model.infer_psi_reverse_encoder(self.sess, nodes, edges, evidences)
+        a2, b2= self.calculate_ab(psi_re_mu, psi_re_Sigma)
         return a2, b2
 
     def calculate_ab(self, mu, Sigma):

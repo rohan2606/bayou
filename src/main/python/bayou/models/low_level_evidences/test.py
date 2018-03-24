@@ -25,7 +25,7 @@ import textwrap
 
 #import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
-from bayou.models.low_level_evidences.utils import read_config
+from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs
 from bayou.models.low_level_evidences.data_reader import Reader
 
 HELP = """\
@@ -107,12 +107,13 @@ def test(clargs):
             a2s.append(a2)
             b2s.append(b2)
 
+
         a1s = np.concatenate(a1s, axis=0)
         b1s = np.concatenate(b1s, axis=0)
         a2s = np.concatenate(a2s, axis=0)
         b2s = np.concatenate(b2s, axis=0)
 
-#        reader.reset_batches()
+        normalize_log_probs(prob_Y)
 
         for i in range(config.num_batches):
             prob_Y_X = []

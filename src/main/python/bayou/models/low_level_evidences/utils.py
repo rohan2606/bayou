@@ -45,12 +45,16 @@ def split_camel(s):
     return [s.lower() for s in split]
 
 
-def lse(probs):
-    
+def get_sum_in_log(probs):
+
     lnsum = probs[0]
     for prob in probs[1:]:
         lnsum = np.logaddexp(lnsum, prob)
     return lnsum
+
+def normalize_log_probs(probs):
+    lnsum = get_sum_in_log(probs)
+    probs -= lnsum
 
 # Do not move these imports to the top, it will introduce a cyclic dependency
 import bayou.models.low_level_evidences.evidence
