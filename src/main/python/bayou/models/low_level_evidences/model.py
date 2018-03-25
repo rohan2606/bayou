@@ -70,16 +70,16 @@ class Model():
                                           - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
                                           + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                           , axis=1)
-        self.KL_loss = KL_loss
+        self.KL_loss = tf.reduce_mean(KL_loss)
 
 
         # The optimizer
         self.loss = self.gen_loss + self.KL_loss
         self.train_op = tf.train.AdamOptimizer(config.learning_rate).minimize(self.loss)
 
-        var_params = [np.prod([dim.value for dim in var.get_shape()])
-                      for var in tf.trainable_variables()]
         if not infer:
+            var_params = [np.prod([dim.value for dim in var.get_shape()])
+                          for var in tf.trainable_variables()]
             print('Model parameters: {}'.format(np.sum(var_params)))
 
     # called from infer only when the model is used in inference

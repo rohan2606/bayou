@@ -119,11 +119,11 @@ def train(clargs):
                     feed[model.reverse_encoder.edges[j].name] = e[j]
 
                 # run the optimizer
-                loss, gen_loss, mean, covariance, _ \
+                loss, gen_loss, mean, other_mean, _ \
                     = sess.run([model.loss,
                                 model.gen_loss,
                                 model.encoder.psi_mean,
-                                model.encoder.psi_covariance,
+                                model.reverse_encoder.psi_mean,
                                 model.train_op], feed)
                 end = time.time()
                 avg_loss += np.mean(loss)
@@ -131,12 +131,12 @@ def train(clargs):
                 step = i * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f}, mean: {:.3f}, covariance: {:.3f}, time: {:.3f}'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, mean: {:.3f}, other_mean: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i,
                            np.mean(loss),
                            np.mean(gen_loss),
                            np.mean(mean),
-                           np.mean(covariance),
+                           np.mean(other_mean),
                            end - start))
             if  (i+1) % config.checkpoint_step == 0 and i > 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
@@ -163,8 +163,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--config','config.json',
-    '/home/ubuntu/bayou/data/DATA-training.json'])
-
+    '..\..\..\..\..\..\data\DATA-training-top.json'])
+ #'/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')
