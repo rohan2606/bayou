@@ -82,12 +82,16 @@ def train(clargs):
     jsconfig = dump_config(config)
     # print(clargs)
     # print(json.dumps(jsconfig, indent=2))
+    
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
     model = Model(config)
 
+
     with tf.Session() as sess:
+        writer = tf.summary.FileWriter("/tmp/Bayou_Code_Search/1")
+        writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pbtxt')
@@ -163,8 +167,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--config','config.json',
-    '..\..\..\..\..\..\data\DATA-training-top.json'])
- #'/home/ubuntu/bayou/data/DATA-training.json'])
+    # '..\..\..\..\..\..\data\DATA-training-top.json'])
+        '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

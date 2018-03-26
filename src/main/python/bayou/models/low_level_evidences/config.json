@@ -1,6 +1,6 @@
 {
     "model": "lle",
-    "latent_size": 1,
+    "latent_size": 4,
     "batch_size": 50,
     "num_epochs": 100,
     "learning_rate": 0.0002,
@@ -31,11 +31,11 @@
     "decoder": {
         "units": 8,
         "num_layers": 1,
-        "max_ast_depth": 8
+        "max_ast_depth": 32
     },
     "reverse_encoder": {
         "units": 8,
         "num_layers": 1,
-        "max_ast_depth": 8
+        "max_ast_depth": 32
     }
 }

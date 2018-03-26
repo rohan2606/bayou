@@ -55,7 +55,7 @@ class BayesianEncoder(object):
 
 
 class BayesianDecoder(object):
-    def __init__(self, config, initial_state, infer=False):
+    def __init__(self, config, emb, initial_state, infer=False):
 
         cells1, cells2 = [], []
         for _ in range(config.decoder.num_layers):
@@ -72,17 +72,16 @@ class BayesianDecoder(object):
                       for i in range(config.decoder.max_ast_depth)]
 
         # projection matrices for output
-        self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size,
-                                                             config.decoder.vocab_size])
-        self.projection_b = tf.get_variable('projection_b', [config.decoder.vocab_size])
+        with tf.variable_scope("projections"):
+            self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size,
+                                                                 config.decoder.vocab_size])
+            self.projection_b = tf.get_variable('projection_b', [config.decoder.vocab_size])
 
         # setup embedding
-        with tf.variable_scope('dec_n_revenc_emb', reuse=True):
-            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
-            emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
-            self.emb_inp = emb_inp
+        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+        self.emb_inp = emb_inp
 
-        with tf.variable_scope('decoder'):
+        with tf.variable_scope('decoder_network'):
             def loop_fn(prev, _):
                 prev = tf.nn.xw_plus_b(prev, self.projection_w, self.projection_b)
                 prev_symbol = tf.argmax(prev, 1)
@@ -117,11 +116,7 @@ class BayesianDecoder(object):
 
 class BayesianReverseEncoder(object):
     # IT IS WRONG TO INCLUDE psi_covariance HERE BUT FOR NOW ITS OK
-    def __init__(self, config, psi_covariance, infer = False):
-
-
-        # infer is always False but this is here just to remind you that there was infer in BayesianDecoder and this was
-        # probably to infer the tree during inference.
+    def __init__(self, config, psi_covariance, emb):
         cells1 = []
         cells2 = []
         for _ in range(config.reverse_encoder.num_layers):
@@ -140,31 +135,29 @@ class BayesianReverseEncoder(object):
                       for i in range(config.reverse_encoder.max_ast_depth)]
 
         # projection matrices for output
-        self.projection_zw = tf.get_variable('projection_zw', [self.cell1.output_size,
-                                                             config.latent_size])
-        self.projection_zb = tf.get_variable('projection_zb', [config.latent_size])
+        with tf.variable_scope("projections"):
+            self.projection_zw = tf.get_variable('projection_zw', [self.cell1.output_size,
+                                                                 config.latent_size])
+            self.projection_zb = tf.get_variable('projection_zb', [config.latent_size])
 
+            self.projection_zws = tf.get_variable('projection_zws', [self.cell1.output_size,
+                                                                 config.latent_size])
+            self.projection_zbs = tf.get_variable('projection_zbs', [config.latent_size])
 
-        with tf.variable_scope('dec_n_revenc_emb'):
-            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
-            emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
-            self.emb_inp = emb_inp
+        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+        self.emb_inp = emb_inp
 
         # setup embedding
         # setting this variable scope to decoder helps you use the same embedding as in decoder
-        with tf.variable_scope('reverse_encoder'):
-            # for now the reverse_encoder.units is same as decoder.units so that the same embedding can be used. However once you vary that,
-            # a lift up or lift down NN will be needed.
-            #emb = tf.get_variable('emb', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
-            # might be possible to reduce the number of variables if you make both the embeddings the same
-            #emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+        with tf.variable_scope('reverse_encoder_network'):
+
             emb_inp = self.emb_inp
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
             # TODO: update with dynamic decoder (being implemented in tf) once it is released
-            with tf.variable_scope('reverse_encoder_rnn'):
+            with tf.variable_scope('rnn'):
 
                 self.state = self.initial_state
-                self.outputs = []
+                # self.outputs = []
                 #prev = None
 
                 for i, inp in enumerate(emb_inp):
@@ -179,7 +172,7 @@ class BayesianReverseEncoder(object):
                     output = tf.where(self.edges[i], output1, output2)
                     # self.state = [state1[j] for j in range(config.reverse_encoder.num_layers)]
                     self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.reverse_encoder.num_layers)]
-                    self.outputs.append(output)
+                    # self.outputs.append(output)
 
-        self.psi_mean = tf.nn.xw_plus_b(self.outputs[-1], self.projection_zw, self.projection_zb)
-        self.psi_covariance = psi_covariance #tf.ones([config.batch_size, config.latent_size])
+        self.psi_mean = tf.nn.xw_plus_b(output, self.projection_zw, self.projection_zb, name="Mean")
+        self.psi_covariance = 1 + tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Covariance")

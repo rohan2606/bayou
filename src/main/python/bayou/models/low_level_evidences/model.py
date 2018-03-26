@@ -32,50 +32,57 @@ class Model():
 
         #setup the encode, however remember that the Encoder is there only for KL-divergence
         # Also note that no samples were generated from it
-        self.encoder = BayesianEncoder(config)
-        # Note that psi_encoder and samples2 are only used in inference
-        samples_2 = tf.random_normal([config.batch_size, config.latent_size],
-                                   mean=0., stddev=1., dtype=tf.float32)
-        self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_2
+        with tf.variable_scope("Encoder"):
+            self.encoder = BayesianEncoder(config)
+            # Note that psi_encoder and samples2 are only used in inference
+            samples_2 = tf.random_normal([config.batch_size, config.latent_size],
+                                       mean=0., stddev=1., dtype=tf.float32)
+            self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_2
 
+
+        with tf.variable_scope('Embedding'):
+            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
 
         # setup the reverse encoder.
-        self.reverse_encoder = BayesianReverseEncoder(config, self.encoder.psi_covariance)
-        samples = tf.random_normal([config.batch_size, config.latent_size],
-                                   mean=0., stddev=1., dtype=tf.float32)
-        self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
+        with tf.variable_scope("Reverse_Encoder"):
+            self.reverse_encoder = BayesianReverseEncoder(config, self.encoder.psi_covariance, emb)
+            samples = tf.random_normal([config.batch_size, config.latent_size],
+                                       mean=0., stddev=1., dtype=tf.float32)
+            self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
 
         # setup the decoder with psi as the initial state
-        lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
-        lift_b = tf.get_variable('lift_b', [config.decoder.units])
-        self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b)
+        with tf.variable_scope("Decoder"):
+            lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
+            lift_b = tf.get_variable('lift_b', [config.decoder.units])
+            self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+            self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
 
-        self.decoder = BayesianDecoder(config, initial_state=self.initial_state, infer=infer)
+        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
 
         # get the decoder outputs
-        output = tf.reshape(tf.concat(self.decoder.outputs, 1),
-                            [-1, self.decoder.cell1.output_size])
-        logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
-        self.ln_probs = tf.nn.log_softmax(logits)
+        with tf.name_scope("Loss"):
+            output = tf.reshape(tf.concat(self.decoder.outputs, 1),
+                                [-1, self.decoder.cell1.output_size])
+            logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
+            self.ln_probs = tf.nn.log_softmax(logits)
 
-        # 1. generation loss: log P(X | \Psi)
-        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
-        self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
-                                              [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
+            # 1. generation loss: log P(X | \Psi)
+            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
+                                                  [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
-        # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
-        #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
-        # KL loss
-        KL_loss = 0.5 * tf.reduce_sum( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
-                                          - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
-                                          + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
-                                          , axis=1)
-        self.KL_loss = tf.reduce_mean(KL_loss)
-
+            # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
+            #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
+            KL_loss = 0.5 * tf.reduce_sum( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
+                                              - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
+                                              + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
+                                              , axis=1)
+            self.KL_loss = tf.reduce_mean(KL_loss)
+            self.loss = self.gen_loss + self.KL_loss
 
         # The optimizer
-        self.loss = self.gen_loss + self.KL_loss
-        self.train_op = tf.train.AdamOptimizer(config.learning_rate).minimize(self.loss)
+
+        with tf.name_scope("train"):
+            self.train_op = tf.train.AdamOptimizer(config.learning_rate).minimize(self.loss)
 
         if not infer:
             var_params = [np.prod([dim.value for dim in var.get_shape()])
