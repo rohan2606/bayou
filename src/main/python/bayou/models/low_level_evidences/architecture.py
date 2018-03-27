@@ -76,6 +76,8 @@ class BayesianDecoder(object):
             self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size,
                                                                  config.decoder.vocab_size])
             self.projection_b = tf.get_variable('projection_b', [config.decoder.vocab_size])
+            tf.summary.histogram("projection_w", self.projection_w)
+            tf.summary.histogram("projection_b", self.projection_b)
 
         # setup embedding
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
@@ -144,6 +146,12 @@ class BayesianReverseEncoder(object):
                                                                  config.latent_size])
             self.projection_zbs = tf.get_variable('projection_zbs', [config.latent_size])
 
+            tf.summary.histogram("projection_zw", self.projection_zw)
+            tf.summary.histogram("projection_zb", self.projection_zb)
+            tf.summary.histogram("projection_zws", self.projection_zws)
+            tf.summary.histogram("projection_zbs", self.projection_zbs)
+
+
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
         self.emb_inp = emb_inp
 
@@ -155,11 +163,7 @@ class BayesianReverseEncoder(object):
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
             # TODO: update with dynamic decoder (being implemented in tf) once it is released
             with tf.variable_scope('rnn'):
-
                 self.state = self.initial_state
-                # self.outputs = []
-                #prev = None
-
                 for i, inp in enumerate(emb_inp):
                     if i > 0:
                         tf.get_variable_scope().reuse_variables()
@@ -168,11 +172,8 @@ class BayesianReverseEncoder(object):
                     with tf.variable_scope('cell2'): # handles SIBLING EDGE
                         output2, state2 = self.cell2(inp, self.state)
 
-                    #output = output1 #tf.where(self.edges[i], output1, output2)
                     output = tf.where(self.edges[i], output1, output2)
-                    # self.state = [state1[j] for j in range(config.reverse_encoder.num_layers)]
                     self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.reverse_encoder.num_layers)]
-                    # self.outputs.append(output)
 
         self.psi_mean = tf.nn.xw_plus_b(output, self.projection_zw, self.projection_zb, name="Mean")
-        self.psi_covariance = 1 + tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Covariance")
+        self.psi_covariance = 1 + tf.square(tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Covariance"))

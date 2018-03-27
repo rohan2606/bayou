@@ -79,6 +79,9 @@ class Model():
             self.KL_loss = tf.reduce_mean(KL_loss)
             self.loss = self.gen_loss + self.KL_loss
 
+            tf.summary.scalar('loss', self.loss)
+            tf.summary.scalar('gen_loss', self.gen_loss)
+            tf.summary.scalar('KL_loss', self.KL_loss)
         # The optimizer
 
         with tf.name_scope("train"):

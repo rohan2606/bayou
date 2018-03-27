@@ -82,17 +82,19 @@ def train(clargs):
     jsconfig = dump_config(config)
     # print(clargs)
     # print(json.dumps(jsconfig, indent=2))
-    
+
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
     model = Model(config)
+    merged_summary = tf.summary.merge_all()
 
 
     with tf.Session() as sess:
-        writer = tf.summary.FileWriter("/tmp/Bayou_Code_Search/1")
+        writer = tf.summary.FileWriter(os.getcwd() + "/log")
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
+
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pbtxt')
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pb', as_text=False)
@@ -107,6 +109,8 @@ def train(clargs):
             reader.reset_batches()
             avg_loss = 0
             avg_gen_loss = 0
+
+
             for b in range(config.num_batches):
                 start = time.time()
 
@@ -129,6 +133,11 @@ def train(clargs):
                                 model.encoder.psi_mean,
                                 model.reverse_encoder.psi_mean,
                                 model.train_op], feed)
+
+
+                s = sess.run(merged_summary, feed)
+                writer.add_summary(s,i)
+
                 end = time.time()
                 avg_loss += np.mean(loss)
                 avg_gen_loss += np.mean(gen_loss)
@@ -142,6 +151,7 @@ def train(clargs):
                            np.mean(mean),
                            np.mean(other_mean),
                            end - start))
+
             if  (i+1) % config.checkpoint_step == 0 and i > 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
