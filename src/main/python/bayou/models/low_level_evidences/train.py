@@ -29,6 +29,11 @@ from bayou.models.low_level_evidences.utils import read_config, dump_config
 from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.contrib.tensorboard.plugins import projector
 
+PATH = os.getcwd()
+
+LOG_DIR = PATH + '/save'
+
+
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
 {                                         |
@@ -74,18 +79,6 @@ Config options should be given as a JSON file (see config.json for example):
 """
 #%%
 
-PATH = os.getcwd()
-
-LOG_DIR = PATH + '/save'
-metadata = os.path.join(LOG_DIR, 'metadata.tsv')
-
-mnist = input_data.read_data_sets(PATH + "/mnist-tensorboard/data/", one_hot=True)
-images = tf.Variable(mnist.test.images, name='images')
-with open(metadata, 'w') as metadata_file:
-    for row in range(10000):
-        c = np.nonzero(mnist.test.labels[::1])[1:][0][row]
-        metadata_file.write('{}\n'.format(c))
-
 
 def train(clargs):
     config_file = clargs.config if clargs.continue_from is None \
@@ -125,7 +118,7 @@ def train(clargs):
             avg_loss = 0
             avg_gen_loss = 0
 
-
+            _psi_encoders = []
             for b in range(config.num_batches):
                 start = time.time()
 
@@ -142,14 +135,15 @@ def train(clargs):
                     feed[model.reverse_encoder.edges[j].name] = e[j]
 
                 # run the optimizer
-                loss, gen_loss, mean, other_mean, _ \
-                    = sess.run([model.loss,
+                _psi_encoder, loss, gen_loss, mean, other_mean, _ \
+                    = sess.run([model.psi_encoder,
+                                model.loss,
                                 model.gen_loss,
                                 model.encoder.psi_mean,
                                 model.reverse_encoder.psi_mean,
                                 model.train_op], feed)
 
-
+                _psi_encoders.append(_psi_encoder)
                 s = sess.run(merged_summary, feed)
                 writer.add_summary(s,i)
 
@@ -166,7 +160,7 @@ def train(clargs):
                            np.mean(mean),
                            np.mean(other_mean),
                            end - start))
-
+            _psi_encoders_agg = np.concatenate(_psi_encoders, axis=0)
             if  (i+1) % config.checkpoint_step == 0 and i > 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
@@ -174,12 +168,32 @@ def train(clargs):
                       'loss: {:.3f}'.format
                       (checkpoint_dir,
                        avg_loss / config.num_batches))
-                config = projector.ProjectorConfig()
+           
+
+        embedding(_psi_encoders_agg)
+  
+                
+def embedding(input_tensor):
+#    metadata = os.path.join(LOG_DIR, 'metadata.tsv')
+
+    images = tf.Variable( input_tensor , name='images')
+#    with open(metadata, 'w') as metadata_file:
+#        for row in range(10000):
+#            c = np.nonzero(mnist.test.labels[::1])[1:][0][row]
+#            metadata_file.write('{}\n'.format(c))        
+    
+    with tf.Session() as sess:
+        saver = tf.train.Saver([images])
+    
+        sess.run(images.initializer)
+        saver.save(sess, os.path.join(LOG_DIR, 'images.ckpt'))
+    
+        config = projector.ProjectorConfig()
         # One can add multiple embeddings.
         embedding = config.embeddings.add()
         embedding.tensor_name = images.name
         # Link this tensor to its metadata file (e.g. labels).
-        embedding.metadata_path = metadata
+#        embedding.metadata_path = metadata
         # Saves a config file that TensorBoard will read during startup.
         projector.visualize_embeddings(tf.summary.FileWriter(LOG_DIR), config)
 
@@ -201,9 +215,9 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--config','config.json',
-    # '..\..\..\..\..\..\data\DATA-training-top.json'])
+     '..\..\..\..\..\..\data\DATA-training-top.json'])
     # '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
-        '/home/ubuntu/bayou/data/DATA-training.json'])
+#        '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')
