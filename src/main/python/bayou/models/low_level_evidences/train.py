@@ -26,6 +26,8 @@ import textwrap
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.model import Model
 from bayou.models.low_level_evidences.utils import read_config, dump_config
+from tensorflow.examples.tutorials.mnist import input_data
+from tensorflow.contrib.tensorboard.plugins import projector
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
@@ -72,6 +74,19 @@ Config options should be given as a JSON file (see config.json for example):
 """
 #%%
 
+PATH = os.getcwd()
+
+LOG_DIR = PATH + '/save'
+metadata = os.path.join(LOG_DIR, 'metadata.tsv')
+
+mnist = input_data.read_data_sets(PATH + "/mnist-tensorboard/data/", one_hot=True)
+images = tf.Variable(mnist.test.images, name='images')
+with open(metadata, 'w') as metadata_file:
+    for row in range(10000):
+        c = np.nonzero(mnist.test.labels[::1])[1:][0][row]
+        metadata_file.write('{}\n'.format(c))
+
+
 def train(clargs):
     config_file = clargs.config if clargs.continue_from is None \
                                 else os.path.join(clargs.continue_from, 'config.json')
@@ -91,7 +106,7 @@ def train(clargs):
 
 
     with tf.Session() as sess:
-        writer = tf.summary.FileWriter(os.getcwd() + "/log")
+        writer = tf.summary.FileWriter(LOG_DIR)
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
 
@@ -159,6 +174,15 @@ def train(clargs):
                       'loss: {:.3f}'.format
                       (checkpoint_dir,
                        avg_loss / config.num_batches))
+                config = projector.ProjectorConfig()
+        # One can add multiple embeddings.
+        embedding = config.embeddings.add()
+        embedding.tensor_name = images.name
+        # Link this tensor to its metadata file (e.g. labels).
+        embedding.metadata_path = metadata
+        # Saves a config file that TensorBoard will read during startup.
+        projector.visualize_embeddings(tf.summary.FileWriter(LOG_DIR), config)
+
 
 
 #%%
@@ -178,7 +202,8 @@ if __name__ == '__main__':
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--config','config.json',
     # '..\..\..\..\..\..\data\DATA-training-top.json'])
-        '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
+    # '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
+        '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')
