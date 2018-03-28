@@ -118,7 +118,6 @@ def train(clargs):
             avg_loss = 0
             avg_gen_loss = 0
 
-            _psi_encoders = []
             for b in range(config.num_batches):
                 start = time.time()
 
@@ -135,15 +134,13 @@ def train(clargs):
                     feed[model.reverse_encoder.edges[j].name] = e[j]
 
                 # run the optimizer
-                _psi_encoder, loss, gen_loss, mean, other_mean, _ \
-                    = sess.run([model.psi_encoder,
-                                model.loss,
+                loss, gen_loss, mean, other_mean, _ \
+                    = sess.run([model.loss,
                                 model.gen_loss,
                                 model.encoder.psi_mean,
                                 model.reverse_encoder.psi_mean,
                                 model.train_op], feed)
 
-                _psi_encoders.append(_psi_encoder)
                 s = sess.run(merged_summary, feed)
                 writer.add_summary(s,i)
 
@@ -160,7 +157,7 @@ def train(clargs):
                            np.mean(mean),
                            np.mean(other_mean),
                            end - start))
-            _psi_encoders_agg = np.concatenate(_psi_encoders, axis=0)
+
             if  (i+1) % config.checkpoint_step == 0 and i > 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
@@ -168,11 +165,32 @@ def train(clargs):
                       'loss: {:.3f}'.format
                       (checkpoint_dir,
                        avg_loss / config.num_batches))
-           
 
+
+        _psi_encoders = []
+        reader.reset_batches()
+        for b in range(config.num_batches):
+            # setup the feed dict
+            ev_data, n, e, y = reader.next_batch()
+            feed = {model.targets: y}
+            for j, ev in enumerate(config.evidence):
+                feed[model.encoder.inputs[j].name] = ev_data[j]
+            for j in range(config.decoder.max_ast_depth):
+                feed[model.decoder.nodes[j].name] = n[j]
+                feed[model.decoder.edges[j].name] = e[j]
+                # Feeding value into reverse encoder
+                feed[model.reverse_encoder.nodes[j].name] = n[j]
+                feed[model.reverse_encoder.edges[j].name] = e[j]
+
+            # run the optimizer
+            _psi_encoder = sess.run(model.psi_encoder, feed)
+            
+            _psi_encoders.append(_psi_encoder)
+
+        _psi_encoders_agg = np.concatenate(_psi_encoders, axis=0)
         embedding(_psi_encoders_agg)
-  
-                
+
+
 def embedding(input_tensor):
 #    metadata = os.path.join(LOG_DIR, 'metadata.tsv')
 
@@ -180,14 +198,14 @@ def embedding(input_tensor):
 #    with open(metadata, 'w') as metadata_file:
 #        for row in range(10000):
 #            c = np.nonzero(mnist.test.labels[::1])[1:][0][row]
-#            metadata_file.write('{}\n'.format(c))        
-    
+#            metadata_file.write('{}\n'.format(c))
+
     with tf.Session() as sess:
         saver = tf.train.Saver([images])
-    
+
         sess.run(images.initializer)
         saver.save(sess, os.path.join(LOG_DIR, 'images.ckpt'))
-    
+
         config = projector.ProjectorConfig()
         # One can add multiple embeddings.
         embedding = config.embeddings.add()
