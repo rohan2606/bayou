@@ -26,13 +26,7 @@ import textwrap
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.model import Model
 from bayou.models.low_level_evidences.utils import read_config, dump_config
-from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.contrib.tensorboard.plugins import projector
-
-PATH = os.getcwd()
-
-LOG_DIR = PATH + '/save'
-
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
@@ -79,6 +73,9 @@ Config options should be given as a JSON file (see config.json for example):
 """
 #%%
 
+PATH = os.getcwd()
+
+LOG_DIR = PATH + '/save'
 
 def train(clargs):
     config_file = clargs.config if clargs.continue_from is None \
@@ -118,6 +115,7 @@ def train(clargs):
             avg_loss = 0
             avg_gen_loss = 0
 
+
             for b in range(config.num_batches):
                 start = time.time()
 
@@ -141,6 +139,7 @@ def train(clargs):
                                 model.reverse_encoder.psi_mean,
                                 model.train_op], feed)
 
+
                 s = sess.run(merged_summary, feed)
                 writer.add_summary(s,i)
 
@@ -158,7 +157,7 @@ def train(clargs):
                            np.mean(other_mean),
                            end - start))
 
-            if  (i+1) % config.checkpoint_step == 0 and i > 0:
+            if (i+1) % config.checkpoint_step == 0 and i > 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
                 print('Model checkpointed: {}. Average for epoch , '
@@ -167,8 +166,13 @@ def train(clargs):
                        avg_loss / config.num_batches))
 
 
-        _psi_encoders = []
         reader.reset_batches()
+        _classes = ['java.util', 'android.app', 'android.view', 'android.widget', 'java.io', 'javax.xml', 'java.net', \
+        'android.graphics', 'android.content', 'android.webkit']
+        _psi_encoders = []
+        _labels = []
+        _rev_dict = {v: k for k, v in config.decoder.vocab.items()}
+
         for b in range(config.num_batches):
             # setup the feed dict
             ev_data, n, e, y = reader.next_batch()
@@ -181,26 +185,43 @@ def train(clargs):
                 # Feeding value into reverse encoder
                 feed[model.reverse_encoder.nodes[j].name] = n[j]
                 feed[model.reverse_encoder.edges[j].name] = e[j]
-
+            for arr in y:
+                flag = 0
+                for val in arr:
+                    API_call = _rev_dict[val]
+                    for _class in _classes:
+                        if (API_call.find(_class)!= -1) == True:
+                            flag = 1
+                            _labels.append(_class)
+                            break
+                    if flag == 1:
+                        break
+                if flag == 0:
+                    _labels.append('other_API')
             # run the optimizer
-            _psi_encoder = sess.run(model.psi_encoder, feed)
-            
+            _psi_encoder \
+                = sess.run(model.psi_encoder, feed)
+
             _psi_encoders.append(_psi_encoder)
 
-        _psi_encoders_agg = np.concatenate(_psi_encoders, axis=0)
-        embedding(_psi_encoders_agg)
+            _psi_encoders_agg = np.concatenate(_psi_encoders, axis = 0)
 
 
-def embedding(input_tensor):
-#    metadata = os.path.join(LOG_DIR, 'metadata.tsv')
+        embedding(_psi_encoders_agg,_labels)
 
-    images = tf.Variable( input_tensor , name='images')
-#    with open(metadata, 'w') as metadata_file:
-#        for row in range(10000):
-#            c = np.nonzero(mnist.test.labels[::1])[1:][0][row]
-#            metadata_file.write('{}\n'.format(c))
 
-    with tf.Session() as sess:
+def embedding(input_tensor, labels):
+   metadata = os.path.join(LOG_DIR, 'metadata.tsv')
+
+   images = tf.Variable( input_tensor , name='images')
+
+
+   with open(metadata, 'w') as metadata_file:
+       for row in range(input_tensor.shape[0]):
+           c=labels[row]
+           metadata_file.write('{}\n'.format(c))
+
+   with tf.Session() as sess:
         saver = tf.train.Saver([images])
 
         sess.run(images.initializer)
@@ -211,7 +232,7 @@ def embedding(input_tensor):
         embedding = config.embeddings.add()
         embedding.tensor_name = images.name
         # Link this tensor to its metadata file (e.g. labels).
-#        embedding.metadata_path = metadata
+        embedding.metadata_path = metadata
         # Saves a config file that TensorBoard will read during startup.
         projector.visualize_embeddings(tf.summary.FileWriter(LOG_DIR), config)
 
@@ -233,9 +254,9 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--config','config.json',
-     '..\..\..\..\..\..\data\DATA-training-top.json'])
+    # '..\..\..\..\..\..\data\DATA-training-top.json'])
     # '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
-#        '/home/ubuntu/bayou/data/DATA-training.json'])
+        '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')
