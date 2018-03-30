@@ -131,10 +131,9 @@ class APICalls(Evidence):
     def from_call(callnode):
         call = callnode['_call']
         call = re.sub('^\$.*\$', '', call)  # get rid of predicates
-        split = call.split('(')[0].split('.')
-        cls, name = split[-2:]
-        cls = cls.split('<')[0]  # class name might be generic but method name is never
-        return [name] if not cls == name else []
+        name = call.split('(')[0].split('.')[-1]
+        name = name.split('<')[0]  # remove generics from call name
+        return [name] if name[0].islower() else []  # Java convention
 
 
 class Types(Evidence):
@@ -189,36 +188,29 @@ class Types(Evidence):
         return loss
 
     @staticmethod
+    def get_types_re(s):
+        patt = re.compile('java[x]?\.(\w*)\.(\w*)(\.([A-Z]\w*))*')
+        types = [match.group(4) if match.group(4) is not None else match.group(2)
+                 for match in re.finditer(patt, s)]
+        primitives = ['byte', 'short', 'int', 'long', 'float', 'double', 'boolean', 'char']
+        for p in primitives:
+            if re.search('\W{}'.format(p), s):
+                types.append(p)
+        return list(set(types))
+
+    @staticmethod
     def from_call(callnode):
         call = callnode['_call']
-        call = re.sub('^\$.*\$', '', call)  # get rid of predicates
-        split = list(reversed([q for q in call.split('(')[0].split('.')[:-1] if q[0].isupper()]))
-        types = [split[1], split[0]] if len(split) > 1 else [split[0]]
-        types = [re.sub('<.*', r'', t) for t in types]  # ignore generic types in evidence
-
-        args = call.split('(')[1].split(')')[0].split(',')
-        args = [arg.split('.')[-1] for arg in args]
-        args = [re.sub('<.*', r'', arg) for arg in args]  # remove generics
-        args = [re.sub('\[\]', r'', arg) for arg in args]  # remove array type
-        types_args = [arg for arg in args if not arg == '' and not arg.startswith('Tau_')]
+        types = Types.get_types_re(call)
 
         if '_throws' in callnode:
-            throws = [throw.split('.')[-1] for throw in callnode['_throws']]
-            throws = [re.sub('<.*', r'', throw) for throw in throws]  # remove generics
-            throws = [re.sub('\[\]', r'', throw) for throw in throws]  # remove array type
-            throws = [throw for throw in throws if not throw.startswith('Tau_')]
-        else:
-            throws = []
+            for throw in callnode['_throws']:
+                types += Types.get_types_re(throw)
 
         if '_returns' in callnode:
-            ret = callnode['_returns'].split('.')[-1]
-            ret = re.sub('<.*', r'', ret)  # remove generics
-            ret = re.sub('\[\]', r'', ret)  # remove array type
-            returns = [] if ret.startswith('Tau_') or ret == 'void' else [ret]
-        else:
-            returns = []
+            types += Types.get_types_re(callnode['_returns'])
 
-        return types + types_args + throws + returns
+        return list(set(types))
 
 
 class Keywords(Evidence):

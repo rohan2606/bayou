@@ -23,6 +23,14 @@ from collections import Counter
 from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls
 
 
+class TooLongPathError(Exception):
+    pass
+
+
+class InvalidSketchError(Exception):
+    pass
+
+
 class Reader():
     def __init__(self, clargs, config):
         self.config = config
@@ -121,6 +129,53 @@ class Reader():
             ph = [cons_calls + [('DLoop', SIBLING_EDGE)] + path for path in p]
             return ph + pv
 
+    def _check_DAPICall_repeats(self, nodelist):
+        """
+        Checks if an API call node repeats in succession twice in a list of nodes
+
+        :param nodelist: list of nodes to check
+        :return: None
+        :raise: InvalidSketchError if some API call node repeats, ValueError if a node is of invalid type
+        """
+        for i in range(1, len(nodelist)):
+            node = nodelist[i]
+            node_type = node['node']
+            if node_type == 'DAPICall':
+                if nodelist[i] == nodelist[i-1]:
+                    raise InvalidSketchError
+            elif node_type == 'DBranch':
+                self._check_DAPICall_repeats(node['_cond'])
+                self._check_DAPICall_repeats(node['_then'])
+                self._check_DAPICall_repeats(node['_else'])
+            elif node_type == 'DExcept':
+                self._check_DAPICall_repeats(node['_try'])
+                self._check_DAPICall_repeats(node['_catch'])
+            elif node_type == 'DLoop':
+                self._check_DAPICall_repeats(node['_cond'])
+                self._check_DAPICall_repeats(node['_body'])
+            else:
+                raise ValueError('Invalid node type: ' + node)
+
+    def validate_sketch_paths(self, program, ast_paths):
+        """
+        Checks if a sketch along with its paths is good training data:
+        1. No API call should be repeated successively
+        2. No path in the sketch should be of length more than max_ast_depth hyper-parameter
+        3. No branch, loop or except should occur more than once along a single path
+
+        :param program: the sketch
+        :param ast_paths: paths in the sketch
+        :return: None
+        :raise: TooLongPathError or InvalidSketchError if sketch or its paths is invalid
+        """
+        self._check_DAPICall_repeats(program['ast']['_nodes'])
+        for path in ast_paths:
+            if len(path) >= self.config.decoder.max_ast_depth:
+                raise TooLongPathError
+            nodes = [node for (node, edge) in path]
+            if nodes.count('DBranch') > 1 or nodes.count('DLoop') > 1 or nodes.count('DExcept') > 1:
+                raise TooLongPathError
+
     def read_data(self, filename, save=None):
         with open(filename) as f:
             js = json.load(f)
@@ -134,19 +189,20 @@ class Reader():
             try:
                 evidence = [ev.read_data_point(program) for ev in self.config.evidence]
                 ast_paths = self.get_ast_paths(program['ast']['_nodes'])
+                self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    assert len(path) <= self.config.decoder.max_ast_depth
                     data_points.append((evidence, path))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
                         callmap[call['_call']] = call
-            except AssertionError:
+            except (TooLongPathError, InvalidSketchError) as e:
                 ignored += 1
             done += 1
         print('{:8d} programs in training data'.format(done))
         print('{:8d} programs ignored by given config'.format(ignored))
+        print('{:8d} data points total'.format(len(data_points)))
 
         # randomly shuffle to avoid bias towards initial data points during training
         # COMMENTING THIS IS WRONG

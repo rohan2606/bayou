@@ -13,23 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package edu.rice.cs.caper.bayou.core.dom_driver;
+package edu.rice.cs.caper.programming.thread;
 
-import edu.rice.cs.caper.bayou.core.dsl.DSubTree;
-import org.eclipse.jdt.core.dom.MethodDeclaration;
-
-public class DOMMethodDeclaration implements Handler {
-
-    final MethodDeclaration method;
-    final Visitor visitor;
-
-    public DOMMethodDeclaration(MethodDeclaration method, Visitor visitor) {
-        this.method = method;
-        this.visitor = visitor;
-    }
-
-    @Override
-    public DSubTree handle() {
-        return new DOMBlock(method.getBody(), visitor).handle();
-    }
+public interface Operation<V, T extends Throwable>
+{
+    V apply() throws T;
 }

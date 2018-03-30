@@ -28,6 +28,8 @@ import java.util.stream.Stream;
 public class DAPICall extends DASTNode
 {
 
+    public class InvalidAPICallException extends Exception {}
+
     String node = "DAPICall";
     String _call;
     List<String> _throws;
@@ -48,7 +50,7 @@ public class DAPICall extends DASTNode
         this.node = "DAPICall";
     }
 
-    public DAPICall(IMethodBinding methodBinding, int linenum) {
+    public DAPICall(IMethodBinding methodBinding, int linenum) throws InvalidAPICallException {
         this.methodBinding = methodBinding;
         this._call = getClassName() + "." + getSignature();
         this._throws = new ArrayList<>();
@@ -71,19 +73,23 @@ public class DAPICall extends DASTNode
         }
     }
 
-    private String getClassName() {
+    private String getClassName() throws InvalidAPICallException {
         ITypeBinding cls = methodBinding.getDeclaringClass();
         String className = cls.getQualifiedName();
         if (cls.isGenericType())
             className += "<" + String.join(",", Arrays.stream(cls.getTypeParameters()).map(
                     t -> getTypeName(t, t.getName())
             ).collect(Collectors.toList())) + ">";
+        if (className.equals(""))
+            throw new InvalidAPICallException();
         return className;
     }
 
-    private String getSignature() {
+    private String getSignature() throws InvalidAPICallException {
         Stream<String> types = Arrays.stream(methodBinding.getParameterTypes()).map(
                 t -> getTypeName(t, t.getQualifiedName()));
+        if (methodBinding.getName().equals(""))
+            throw new InvalidAPICallException();
         return methodBinding.getName() + "(" + String.join(",", types.collect(Collectors.toCollection(ArrayList::new))) + ")";
     }
 
@@ -184,9 +190,18 @@ public class DAPICall extends DASTNode
         ClassInstanceCreation creation = ast.newClassInstanceCreation();
 
         /* constructor type */
-        Type type = new Type(constructor.getDeclaringClass());
+        String qualifiedName = _call.substring(0, _call.indexOf("("));
+        String className = qualifiedName.substring(0, qualifiedName.lastIndexOf("."));
+        Type type;
+        try {
+            type = className.contains("Tau_")? new Type(constructor.getDeclaringClass())
+                    : Type.fromString(className, env.ast());
+        } catch (Type.TypeParseException e) {
+            System.out.println(className);
+            throw new SynthesisException(SynthesisException.TypeParseException);
+        }
         type.concretizeType(env);
-        creation.setType(type.T());
+        creation.setType(type.simpleT(ast, null));
 
         /* constructor arguments */
         for (int i = 0; i < constructor.getParameterCount(); i++) {
@@ -202,6 +217,7 @@ public class DAPICall extends DASTNode
 
         /* constructor return object */
         TypedExpression ret = env.addVariable(type);
+        env.addImport(type.C());
 
         /* the assignment */
         Assignment assignment = ast.newAssignment();
@@ -232,7 +248,17 @@ public class DAPICall extends DASTNode
             object = new TypedExpression(ast.newName(method.getDeclaringClass().getSimpleName()), type);
             env.addImport(method.getDeclaringClass());
         } else {
-            object = env.search(new SearchTarget(new Type(method.getDeclaringClass())));
+            String qualifiedName = _call.substring(0, _call.indexOf("("));
+            String className = qualifiedName.substring(0, qualifiedName.lastIndexOf("."));
+            Type type;
+            try {
+                type = className.contains("Tau_")? new Type(method.getDeclaringClass())
+                        : Type.fromString(className, env.ast());
+            } catch (Type.TypeParseException e) {
+                System.out.println(className);
+                throw new SynthesisException(SynthesisException.TypeParseException);
+            }
+            object = env.search(new SearchTarget(type));
         }
         invocation.setExpression(object.getExpression());
 
@@ -254,6 +280,7 @@ public class DAPICall extends DASTNode
         /* method return value */
         Type retType = object.getType().getConcretization(method.getGenericReturnType());
         TypedExpression ret = env.addVariable(retType);
+        env.addImport(retType.C());
 
         /* the assignment */
         Expression lhs = ret.getExpression();
@@ -272,8 +299,14 @@ public class DAPICall extends DASTNode
         return assignment;
     }
 
+    /**
+     * Returns a constructor or method based on the _call class variable
+     *
+     * @return an Executable representing the constructor or method
+     * @throws SynthesisException if executable is not found or there is a generic type mismatch during search
+     */
     private Executable getConstructorOrMethod() throws SynthesisException {
-        /* get the type-erased name */
+        /* Step 1: get the type-erased name */
         String qualifiedName = _call.substring(0, _call.indexOf("("));
         String[] args = _call.substring(_call.indexOf("(") + 1, _call.lastIndexOf(")")).split(",");
 
@@ -281,54 +314,80 @@ public class DAPICall extends DASTNode
         String methodName = qualifiedName.substring(qualifiedName.lastIndexOf(".") + 1);
         String erasedClassName = className.replaceAll("<.*>", "");
         Class cls = Environment.getClass(erasedClassName);
+        List<Executable> executables = new ArrayList<>();
+        executables.addAll(Arrays.asList(cls.getMethods()));
+        executables.addAll(Arrays.asList(cls.getConstructors()));
 
-        TypeVariable[] typeVars = cls.getTypeParameters();
+        /* Step 2: check if there is a direct match of the name (after resolving Taus) */
         List<String> erasedArgs = new ArrayList<>();
-        for (String arg : args) {
-            if (! arg.startsWith("Tau_")) {
-                erasedArgs.add(arg);
+        for (String arg : args)
+            erasedArgs.add(arg.startsWith("Tau_")? getBound(arg.substring(4), cls).getName() : arg);
+
+        // search methods
+        String mName = erasedClassName + "." + methodName + "(" + String.join(",", erasedArgs) + ")";
+        String cName = erasedClassName + "(" + String.join(",", erasedArgs) + ")";
+        for (Executable e : executables) {
+            String eName = getNameAsString(e);
+            if ((e instanceof Method && mName.equals(eName)) || (e instanceof Constructor && cName.equals(eName)))
+                return e;
+        }
+
+        /* Step 3: check if there is a matching name by substituting type variables with bounds */
+        for (Executable e : executables) {
+            if (e.getParameterCount() != args.length)
                 continue;
+            List<String> subsArgs = new ArrayList<>();
+            for (int i = 0; i < args.length; i++) {
+                String arg = args[i];
+                java.lang.reflect.Type param = e.getGenericParameterTypes()[i];
+                if (arg.startsWith("Tau_"))
+                    subsArgs.add(getBound(arg.substring(4), cls).getName());
+                else if (param instanceof TypeVariable)
+                    subsArgs.add(((Class) (((TypeVariable) param).getBounds()[0])).getName());
+                else
+                    subsArgs.add(arg);
             }
-            // generic type variable
-            String typeVarName = arg.substring(4);
-            TypeVariable typeVar = null;
-            for (TypeVariable t : typeVars)
-                if (t.getName().equals(typeVarName)) {
-                    typeVar = t;
-                    break;
-                }
-            if (typeVar == null)
-                throw new SynthesisException(SynthesisException.GenericTypeVariableMismatch);
-            java.lang.reflect.Type bound = typeVar.getBounds()[0]; // first bound is the class
-            erasedArgs.add(((Class) bound).getName());
-        }
-        String erasedName = erasedClassName + "." + methodName + "(" + String.join(",", erasedArgs) + ")";
-
-        /* find the method in the class */
-        for (Method m : cls.getMethods()) {
-            String name = null;
-            for (String s : m.toString().split(" "))
-                if (s.contains("(")) {
-                    name = s;
-                    break;
-                }
-            if (name != null && name.replaceAll("\\$", ".").equals(erasedName))
-                return m;
-        }
-
-        /* .. or the constructor */
-        String _callC = erasedClassName + erasedName.substring(erasedName.indexOf("("));
-        for (Constructor c : cls.getConstructors()) {
-            String name = null;
-            for (String s : c.toString().split(" "))
-                if (s.contains("(")) {
-                    name = s;
-                    break;
-                }
-            if (name != null && name.replaceAll("\\$", ".").equals(_callC))
-                return c;
+            String subsMName = erasedClassName + "." + methodName + "(" + String.join(",", subsArgs) + ")";
+            String subsCName = erasedClassName + "(" + String.join(",", subsArgs) + ")";
+            String eName = getNameAsString(e);
+            if ((e instanceof Method && subsMName.equals(eName)) || (e instanceof Constructor && subsCName.equals(eName)))
+                return e;
         }
 
         throw new SynthesisException(SynthesisException.MethodOrConstructorNotFound);
+    }
+
+    /**
+     * Returns the bounding class of a generic type variable
+     *
+     * @param typeVarName the name of the generic type variable
+     * @param cls the class for which the variable is generic
+     * @return the bounding class for the generic variable
+     * @throws SynthesisException if there is a type mismatch
+     */
+    private Class getBound(String typeVarName, Class cls) throws SynthesisException {
+        TypeVariable typeVar = null;
+        for (TypeVariable t : cls.getTypeParameters())
+            if (t.getName().equals(typeVarName)) {
+                typeVar = t;
+                break;
+            }
+        if (typeVar == null)
+            throw new SynthesisException(SynthesisException.GenericTypeVariableMismatch);
+        java.lang.reflect.Type bound = typeVar.getBounds()[0]; // first bound is the class
+        return (Class) bound;
+    }
+
+    /**
+     * Returns the name of a given executable from its toString() method
+     *
+     * @param e the executable
+     * @return the name of the executable
+     */
+    private String getNameAsString(Executable e) {
+        for (String s : e.toString().split(" "))
+            if (s.contains("("))
+                return s.replaceAll("\\$", ".");
+        return null;
     }
 }

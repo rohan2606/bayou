@@ -84,6 +84,19 @@ public class Scope {
     }
 
     /**
+     * Removes a variable from this scope if it exists, otherwise does nothing
+     *
+     * @param var the variable to be removed
+     * @return boolean denoting if the variable existed or not
+     */
+    public boolean removeVariable(Variable var) {
+        if (variables.contains(var)) {
+            variables.remove(var);
+            return true;
+        } else return false;
+    }
+
+    /**
      * Adds a variable with the given type and properties to the current scope
      *
      * @param type       variable type, from which a variable name will be derived
@@ -148,8 +161,15 @@ public class Scope {
      */
     public void join(List<Scope> subScopes) {
         Set<Variable> common = new HashSet<>(subScopes.get(0).getVariables());
-        for (Scope subScope : subScopes)
+        for (Scope subScope : subScopes) {
             common.retainAll(subScope.getVariables());
+            for (Variable v2 : subScope.getVariables())
+                for (Variable v : common)
+                    if (v.equals(v2)) {
+                        v.addAlias(v2);
+                        v2.addAlias(v);
+                    }
+        }
         common.removeAll(variables);
         for (Variable var : common)
             if (var.isJoinVar())

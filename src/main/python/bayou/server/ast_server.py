@@ -84,6 +84,7 @@ def _generate_asts(evidence_json: str, predictor, okay_check=True):
         for ast in asts:
             if _okay(js, ast, predictor):
                 okay_asts.append(ast)
+        okay_asts = asts if okay_asts == [] else okay_asts
     else:
         okay_asts = asts
 
