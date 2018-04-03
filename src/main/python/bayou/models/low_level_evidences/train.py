@@ -128,8 +128,8 @@ def train(clargs):
                     feed[model.decoder.nodes[j].name] = n[j]
                     feed[model.decoder.edges[j].name] = e[j]
                     # Feeding value into reverse encoder
-                    feed[model.reverse_encoder.nodes[j].name] = n[j]
-                    feed[model.reverse_encoder.edges[j].name] = e[j]
+                    feed[model.reverse_encoder.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
+                    feed[model.reverse_encoder.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
 
                 # run the optimizer
                 loss, gen_loss, mean, other_mean, _ \
@@ -166,48 +166,48 @@ def train(clargs):
                        avg_loss / config.num_batches))
 
 
-        reader.reset_batches()
-        _classes = ['java.util', 'android.app', 'android.view', 'android.widget', 'java.io', 'javax.xml', 'java.net', \
-        'android.graphics', 'android.content', 'android.webkit']
-        _psi_encoders = []
-        _labels = []
-        _rev_dict = {v: k for k, v in config.decoder.vocab.items()}
+                reader.reset_batches()
+                _classes = ['java.util', 'android.app', 'android.view', 'android.widget', 'java.io', 'javax.xml', 'java.net', \
+                'android.graphics', 'android.content', 'android.webkit']
+                _psi_encoders = []
+                _labels = []
+                _rev_dict = {v: k for k, v in config.decoder.vocab.items()}
 
-        for b in range(config.num_batches):
-            # setup the feed dict
-            ev_data, n, e, y = reader.next_batch()
-            feed = {model.targets: y}
-            for j, ev in enumerate(config.evidence):
-                feed[model.encoder.inputs[j].name] = ev_data[j]
-            for j in range(config.decoder.max_ast_depth):
-                feed[model.decoder.nodes[j].name] = n[j]
-                feed[model.decoder.edges[j].name] = e[j]
-                # Feeding value into reverse encoder
-                feed[model.reverse_encoder.nodes[j].name] = n[j]
-                feed[model.reverse_encoder.edges[j].name] = e[j]
-            for arr in y:
-                flag = 0
-                for val in arr:
-                    API_call = _rev_dict[val]
-                    for _class in _classes:
-                        if (API_call.find(_class)!= -1) == True:
-                            flag = 1
-                            _labels.append(_class)
+                for b in range(config.num_batches):
+                    # setup the feed dict
+                    ev_data, n, e, y = reader.next_batch()
+                    feed = {model.targets: y}
+                    for j, ev in enumerate(config.evidence):
+                        feed[model.encoder.inputs[j].name] = ev_data[j]
+                    for j in range(config.decoder.max_ast_depth):
+                        feed[model.decoder.nodes[j].name] = n[j]
+                        feed[model.decoder.edges[j].name] = e[j]
+                    # Feeding value into reverse encoder
+                        feed[model.reverse_encoder.nodes[j].name] = n[j]
+                        feed[model.reverse_encoder.edges[j].name] = e[j]
+                    for arr in y:
+                       flag = 0
+                       for val in arr:
+                          API_call = _rev_dict[val]
+                          for _class in _classes:
+                             if (API_call.find(_class)!= -1) == True:
+                                flag = 1
+                                _labels.append(_class)
+                                break
+                          if flag == 1:
                             break
-                    if flag == 1:
-                        break
-                if flag == 0:
-                    _labels.append('other_API')
-            # run the optimizer
-            _psi_encoder \
-                = sess.run(model.psi_encoder, feed)
+                       if flag == 0:
+                          _labels.append('other_API')
+                    # run the optimizer
+                    _psi_encoder \
+                        = sess.run(model.psi_encoder, feed)
 
-            _psi_encoders.append(_psi_encoder)
+                    _psi_encoders.append(_psi_encoder)
 
-            _psi_encoders_agg = np.concatenate(_psi_encoders, axis = 0)
+                    _psi_encoders_agg = np.concatenate(_psi_encoders, axis = 0)
 
 
-        embedding(_psi_encoders_agg,_labels)
+                embedding(_psi_encoders_agg,_labels)
 
 
 def embedding(input_tensor, labels):

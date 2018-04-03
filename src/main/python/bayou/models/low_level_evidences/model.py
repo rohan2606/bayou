@@ -41,11 +41,12 @@ class Model():
 
 
         with tf.variable_scope('Embedding'):
-            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
+            emb1 = tf.get_variable('emb1', [config.decoder.vocab_size, config.decoder.units])
+            emb2 = tf.get_variable('emb2', [config.decoder.vocab_size, config.decoder.units])
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, self.encoder.psi_covariance, emb)
+            self.reverse_encoder = BayesianReverseEncoder(config, self.encoder.psi_covariance, self.encoder.psi_mean ,emb1)
             samples = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
@@ -55,7 +56,7 @@ class Model():
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
             self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
-            self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
+            self.decoder = BayesianDecoder(config, emb2, initial_state=self.initial_state, infer=infer)
 
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
 
@@ -72,7 +73,7 @@ class Model():
 
             # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
             #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
-            KL_loss = 0.5 * tf.reduce_sum( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
+            KL_loss = 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
                                               - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                               , axis=1)

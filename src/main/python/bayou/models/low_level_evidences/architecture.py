@@ -59,8 +59,11 @@ class BayesianDecoder(object):
 
         cells1, cells2 = [], []
         for _ in range(config.decoder.num_layers):
-            cells1.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
-            cells2.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
+            cell1 = tf.nn.rnn_cell.GRUCell(config.decoder.units)
+            cell2 = tf.nn.rnn_cell.GRUCell(config.decoder.units)
+            cells1.append(cell1)
+            cells2.append(cell2)
+            
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
 
@@ -118,7 +121,7 @@ class BayesianDecoder(object):
 
 class BayesianReverseEncoder(object):
     # IT IS WRONG TO INCLUDE psi_covariance HERE BUT FOR NOW ITS OK
-    def __init__(self, config, psi_covariance, emb):
+    def __init__(self, config, psi_covariance, psi_mean, emb):
         cells1 = []
         cells2 = []
         for _ in range(config.reverse_encoder.num_layers):
@@ -130,7 +133,7 @@ class BayesianReverseEncoder(object):
 
         # placeholders
         # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
-        self.initial_state = [tf.random_uniform([config.batch_size,config.reverse_encoder.units] , minval=-0.01, maxval=+0.01) ] * config.decoder.num_layers
+        self.initial_state = [tf.truncated_normal([config.batch_size,config.reverse_encoder.units] , stddev=0.001 ) ] * config.decoder.num_layers
         self.nodes = [tf.placeholder(tf.int32, [config.batch_size], name='node{0}'.format(i))
                       for i in range(config.reverse_encoder.max_ast_depth)]
         self.edges = [tf.placeholder(tf.bool, [config.batch_size], name='edge{0}'.format(i))
@@ -142,14 +145,8 @@ class BayesianReverseEncoder(object):
                                                                  config.latent_size])
             self.projection_zb = tf.get_variable('projection_zb', [config.latent_size])
 
-            self.projection_zws = tf.get_variable('projection_zws', [self.cell1.output_size,
-                                                                 config.latent_size])
-            self.projection_zbs = tf.get_variable('projection_zbs', [config.latent_size])
-
             tf.summary.histogram("projection_zw", self.projection_zw)
             tf.summary.histogram("projection_zb", self.projection_zb)
-            tf.summary.histogram("projection_zws", self.projection_zws)
-            tf.summary.histogram("projection_zbs", self.projection_zbs)
 
 
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
@@ -176,4 +173,6 @@ class BayesianReverseEncoder(object):
                     self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.reverse_encoder.num_layers)]
 
         self.psi_mean = tf.nn.xw_plus_b(output, self.projection_zw, self.projection_zb, name="Mean")
-        self.psi_covariance = 1 + tf.square(tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Covariance"))
+        I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
+        self.psi_covariance = I / 5. 
+#self.psi_covariance = tf.ones) #1 + tf.square(tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Covariance"))
