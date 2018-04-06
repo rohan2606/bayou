@@ -79,7 +79,7 @@ def read_config(js, chars_vocab=False):
     for attr in CONFIG_REVERSE_ENCODER:
         config.reverse_encoder.__setattr__(attr, js['reverse_encoder'][attr])
     if chars_vocab:
-        for attr in CONFIG_REVERSE_ENCODER:
+        for attr in CONFIG_INFER:
             config.reverse_encoder.__setattr__(attr, js['reverse_encoder'][attr])
     return config
 

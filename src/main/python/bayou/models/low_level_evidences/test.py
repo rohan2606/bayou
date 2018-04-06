@@ -89,7 +89,7 @@ def test(clargs):
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
-    reader = Reader(clargs, config)
+    reader = Reader(clargs, config, test_mode=True)
 
     with tf.Session() as sess:
         predictor = model(clargs.save, sess, config) # goes to infer.BayesianPredictor

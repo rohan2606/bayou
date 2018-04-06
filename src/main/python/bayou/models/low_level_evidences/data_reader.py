@@ -32,7 +32,7 @@ class InvalidSketchError(Exception):
 
 
 class Reader():
-    def __init__(self, clargs, config):
+    def __init__(self, clargs, config, test_mode=False):
         self.config = config
 
         # read the raw evidences and targets
@@ -49,6 +49,11 @@ class Reader():
             raw_evidences[i] = raw_evidences[i][:sz]
         raw_targets = raw_targets[:sz]
 
+        if test_mode:
+            config.num_batches = sz
+            config.batch_size = 1
+
+
         # setup input and target chars/vocab
         if clargs.continue_from is None:
             for ev, data in zip(config.evidence, raw_evidences):
@@ -62,9 +67,7 @@ class Reader():
             config.reverse_encoder.chars = config.decoder.chars
             config.reverse_encoder.vocab = config.decoder.vocab
             config.reverse_encoder.vocab_size = config.decoder.vocab_size
-        else:
-            config.num_batches = sz
-            config.batch_size = 1
+
 
 
         # wrangle the evidences and targets into numpy arrays

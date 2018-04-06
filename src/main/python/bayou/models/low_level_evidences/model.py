@@ -121,8 +121,8 @@ class Model():
         for j, ev in enumerate(self.config.evidence):
             feed[self.encoder.inputs[j].name] = inputs[j]
         for j in range(self.config.decoder.max_ast_depth):
-            feed[self.reverse_encoder.nodes[j].name] = nodes[j]
-            feed[self.reverse_encoder.edges[j].name] = edges[j]
+            feed[self.reverse_encoder.nodes[j].name] = nodes[config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.edges[j].name] = edges[config.decoder.max_ast_depth - 1 - j]
 
         psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma_sqr = \
                     sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)

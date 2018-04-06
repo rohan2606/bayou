@@ -74,7 +74,6 @@ Config options should be given as a JSON file (see config.json for example):
 #%%
 
 PATH = os.getcwd()
-
 LOG_DIR = PATH + '/save'
 
 def train(clargs):
@@ -164,77 +163,6 @@ def train(clargs):
                       'loss: {:.3f}'.format
                       (checkpoint_dir,
                        avg_loss / config.num_batches))
-
-
-                reader.reset_batches()
-                _classes = ['java.util', 'android.app', 'android.view', 'android.widget', 'java.io', 'javax.xml', 'java.net', \
-                'android.graphics', 'android.content', 'android.webkit']
-                _psi_encoders = []
-                _labels = []
-                _rev_dict = {v: k for k, v in config.decoder.vocab.items()}
-
-                for b in range(config.num_batches):
-                    # setup the feed dict
-                    ev_data, n, e, y = reader.next_batch()
-                    feed = {model.targets: y}
-                    for j, ev in enumerate(config.evidence):
-                        feed[model.encoder.inputs[j].name] = ev_data[j]
-                    for j in range(config.decoder.max_ast_depth):
-                        feed[model.decoder.nodes[j].name] = n[j]
-                        feed[model.decoder.edges[j].name] = e[j]
-                    # Feeding value into reverse encoder
-                        feed[model.reverse_encoder.nodes[j].name] = n[j]
-                        feed[model.reverse_encoder.edges[j].name] = e[j]
-                    for arr in y:
-                       flag = 0
-                       for val in arr:
-                          API_call = _rev_dict[val]
-                          for _class in _classes:
-                             if (API_call.find(_class)!= -1) == True:
-                                flag = 1
-                                _labels.append(_class)
-                                break
-                          if flag == 1:
-                            break
-                       if flag == 0:
-                          _labels.append('other_API')
-                    # run the optimizer
-                    _psi_encoder \
-                        = sess.run(model.psi_encoder, feed)
-
-                    _psi_encoders.append(_psi_encoder)
-
-                    _psi_encoders_agg = np.concatenate(_psi_encoders, axis = 0)
-
-
-                embedding(_psi_encoders_agg,_labels)
-
-
-def embedding(input_tensor, labels):
-   metadata = os.path.join(LOG_DIR, 'metadata.tsv')
-
-   images = tf.Variable( input_tensor , name='images')
-
-
-   with open(metadata, 'w') as metadata_file:
-       for row in range(input_tensor.shape[0]):
-           c=labels[row]
-           metadata_file.write('{}\n'.format(c))
-
-   with tf.Session() as sess:
-        saver = tf.train.Saver([images])
-
-        sess.run(images.initializer)
-        saver.save(sess, os.path.join(LOG_DIR, 'images.ckpt'))
-
-        config = projector.ProjectorConfig()
-        # One can add multiple embeddings.
-        embedding = config.embeddings.add()
-        embedding.tensor_name = images.name
-        # Link this tensor to its metadata file (e.g. labels).
-        embedding.metadata_path = metadata
-        # Saves a config file that TensorBoard will read during startup.
-        projector.visualize_embeddings(tf.summary.FileWriter(LOG_DIR), config)
 
 
 
