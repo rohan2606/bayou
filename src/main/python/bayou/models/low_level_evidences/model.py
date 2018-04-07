@@ -18,7 +18,7 @@ import numpy as np
 
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder
 from bayou.models.low_level_evidences.data_reader import CHILD_EDGE, SIBLING_EDGE
-
+from bayou.models.low_level_evidences.utils import get_var_list
 
 class Model():
     def __init__(self, config, infer=False):
@@ -39,12 +39,11 @@ class Model():
 
 
         with tf.variable_scope('Embedding'):
-            emb1 = tf.get_variable('emb1', [config.decoder.vocab_size, config.decoder.units])
-            emb2 = tf.get_variable('emb2', [config.decoder.vocab_size, config.decoder.units])
+            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, self.encoder.psi_covariance, self.encoder.psi_mean ,emb1)
+            self.reverse_encoder = BayesianReverseEncoder(config, emb)
             samples = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
@@ -53,8 +52,8 @@ class Model():
         with tf.variable_scope("Decoder"):
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
-            self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
-            self.decoder = BayesianDecoder(config, emb2, initial_state=self.initial_state, infer=infer)
+            self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
+            self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
 
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
 
@@ -76,7 +75,7 @@ class Model():
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                               , axis=1)
             self.KL_loss = tf.reduce_mean(KL_loss)
-            self.loss = self.gen_loss + self.KL_loss
+            self.loss = self.KL_loss # self.gen_loss #+
 
             tf.summary.scalar('loss', self.loss)
             tf.summary.scalar('gen_loss', self.gen_loss)
@@ -84,7 +83,10 @@ class Model():
         # The optimizer
 
         with tf.name_scope("train"):
-            self.train_op = tf.train.AdamOptimizer(config.learning_rate).minimize(self.loss)
+            train_ops = get_var_list()['rev_encoder_vars']
+#            train_ops = get_var_list()['bayou_vars']
+            opt = tf.train.AdamOptimizer(config.learning_rate)
+            self.train_op = opt.minimize(self.loss, var_list=train_ops)
 
         if not infer:
             var_params = [np.prod([dim.value for dim in var.get_shape()])

@@ -121,7 +121,7 @@ class BayesianDecoder(object):
 
 class BayesianReverseEncoder(object):
     # IT IS WRONG TO INCLUDE psi_covariance HERE BUT FOR NOW ITS OK
-    def __init__(self, config, psi_covariance, psi_mean, emb):
+    def __init__(self, config, emb):
         cells1 = []
         cells2 = []
         for _ in range(config.reverse_encoder.num_layers):
@@ -174,5 +174,5 @@ class BayesianReverseEncoder(object):
 
         self.psi_mean = tf.nn.xw_plus_b(output, self.projection_zw, self.projection_zb, name="Mean")
         I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
-        self.psi_covariance = I / 5. 
+        self.psi_covariance = I  
 #self.psi_covariance = tf.ones) #1 + tf.square(tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Covariance"))

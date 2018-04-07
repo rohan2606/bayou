@@ -56,6 +56,21 @@ def normalize_log_probs(probs):
     lnsum = get_sum_in_log(probs)
     probs -= lnsum
 
+    
+def get_var_list():
+    all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Decoder')
+    encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder')
+    emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Embedding')
+    
+    bayou_vars = decoder_vars + encoder_vars + emb_vars
+    rev_encoder_vars= tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
+    var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars, 
+                'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
+                'bayou_vars':bayou_vars, 
+                'rev_encoder_vars':rev_encoder_vars}
+    return var_dict
+    
 # Do not move these imports to the top, it will introduce a cyclic dependency
 import bayou.models.low_level_evidences.evidence
 
