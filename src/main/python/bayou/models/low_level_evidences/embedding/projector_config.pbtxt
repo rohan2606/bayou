@@ -1,0 +1,4 @@
+embeddings {
+  tensor_name: "Embedding_1:0"
+  metadata_path: "C:\\Users\\Rohan\\Bayou_Code_Search\\bayou\\src\\main\\python\\bayou\\models\\low_level_evidences\\embedding\\metadata.tsv"
+}

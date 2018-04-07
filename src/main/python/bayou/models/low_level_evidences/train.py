@@ -26,7 +26,6 @@ import textwrap
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.model import Model
 from bayou.models.low_level_evidences.utils import read_config, dump_config
-from tensorflow.contrib.tensorboard.plugins import projector
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
@@ -150,8 +149,8 @@ def train(clargs):
                     print('{}/{} (epoch {}) '
                           'loss: {:.3f}, gen_loss: {:.3f}, mean: {:.3f}, other_mean: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i,
-                           np.mean(loss),
-                           np.mean(gen_loss),
+                           avg_loss/(b+1),
+                           avg_gen_loss/(b+1),
                            np.mean(mean),
                            np.mean(other_mean),
                            end - start))
@@ -182,9 +181,9 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--config','config.json',
-    # '..\..\..\..\..\..\data\DATA-training-top.json'])
+     '..\..\..\..\..\..\data\DATA-training-top.json'])
     # '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
-        '/home/ubuntu/bayou/data/DATA-training.json'])
+#        '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

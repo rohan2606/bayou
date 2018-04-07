@@ -126,10 +126,10 @@ def test(clargs):
             ranks = np.empty_like(temp)
             ranks[temp] = np.arange(len(array))
 
-            if ranks[i] < 5:
-                print(str(array[i])  + ' Success ' + str(ranks[i]))
+            if ranks[i] < 10:
+                print(str(array[i])  + ' Success ' + str(ranks[i]) + ' ' + str(config.num_batches))
             else:
-                print(str(array[i]) + ' Fail ' + str(ranks[i]))
+                print(str(array[i]) + ' Fail ' + str(ranks[i]) + ' ' + str(config.num_batches))
 
 
 
@@ -152,7 +152,10 @@ if __name__ == '__main__':
 
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--save',
-    '/home/ubuntu/bayou/src/main/python/bayou/models/low_level_evidences/save','/home/ubuntu/bayou/data/DATA-training.json'])
+    #'/home/ubuntu/bayou/src/main/python/bayou/models/low_level_evidences/save',
+    '..\low_level_evidences\save',
+    '..\..\..\..\..\..\data\DATA-training-top.json'])
+    #'/home/ubuntu/bayou/data/DATA-training.json'])
 
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

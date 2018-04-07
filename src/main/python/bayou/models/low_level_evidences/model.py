@@ -24,10 +24,8 @@ class Model():
     def __init__(self, config, infer=False):
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
         self.config = config
-        if infer:
-            config.batch_size = 1
-            # THE NEXT LINE IS TO BE TREATED WITH CAUTION FOR CODE SEARCH
-            #config.decoder.max_ast_depth = 1
+#        if infer:
+#            config.batch_size = 1
 
 
         #setup the encode, however remember that the Encoder is there only for KL-divergence
@@ -121,8 +119,8 @@ class Model():
         for j, ev in enumerate(self.config.evidence):
             feed[self.encoder.inputs[j].name] = inputs[j]
         for j in range(self.config.decoder.max_ast_depth):
-            feed[self.reverse_encoder.nodes[j].name] = nodes[config.decoder.max_ast_depth - 1 - j]
-            feed[self.reverse_encoder.edges[j].name] = edges[config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
 
         psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma_sqr = \
                     sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)
