@@ -144,7 +144,10 @@ class BayesianReverseEncoder(object):
             self.projection_zw = tf.get_variable('projection_zw', [self.cell1.output_size,
                                                                  config.latent_size])
             self.projection_zb = tf.get_variable('projection_zb', [config.latent_size])
-
+           
+            self.projection_zws = tf.get_variable('projection_zws', [self.cell1.output_size,1])
+            self.projection_zbs = tf.get_variable('projection_zbs', [1])
+            
             tf.summary.histogram("projection_zw", self.projection_zw)
             tf.summary.histogram("projection_zb", self.projection_zb)
 
@@ -172,7 +175,15 @@ class BayesianReverseEncoder(object):
                     output = tf.where(self.edges[i], output1, output2)
                     self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.reverse_encoder.num_layers)]
 
-        self.psi_mean = tf.nn.xw_plus_b(output, self.projection_zw, self.projection_zb, name="Mean")
+        
+        d = tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Denom")
+        d = 1. / tf.square(d) #should be batch_size,1
+        d = 1. +  d
+        denom = tf.tile(d, [1, config.latent_size])
         I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
-        self.psi_covariance = I  
+
+        with tf.name_scope("Mean"):
+            self.psi_mean = tf.nn.xw_plus_b(output, self.projection_zw, self.projection_zb) 
+        with tf.name_scope("Covariance"):
+            self.psi_covariance = I / denom  
 #self.psi_covariance = tf.ones) #1 + tf.square(tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Covariance"))

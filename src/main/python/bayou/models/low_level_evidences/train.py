@@ -115,10 +115,7 @@ def train(clargs):
         # training
         for i in range(config.num_epochs):
             reader.reset_batches()
-            avg_loss = 0
-            avg_gen_loss = 0
-            avg_KL_loss = 0
-
+            avg_loss, avg_gen_loss, avg_KL_loss = 0,0,0
             for b in range(config.num_batches):
                 start = time.time()
 
@@ -135,12 +132,15 @@ def train(clargs):
                     feed[model.reverse_encoder.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
 
                 # run the optimizer
-                loss, gen_loss, KL_loss,  mean, other_mean, _ \
+                loss, gen_loss, KL_loss,  \
+                mean, other_mean, covar, other_covar, _ \
                     = sess.run([model.loss,
                                 model.gen_loss,
                                 model.KL_loss,
                                 model.encoder.psi_mean,
                                 model.reverse_encoder.psi_mean,
+                                model.encoder.psi_covariance,
+                                model.reverse_encoder.psi_covariance,
                                 model.train_op], feed)
 
 
@@ -151,16 +151,20 @@ def train(clargs):
                 avg_loss += np.mean(loss)
                 avg_gen_loss += np.mean(gen_loss)
                 avg_KL_loss += np.mean(KL_loss)
+                
+                
                 step = i * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f},, KL_loss: {:.3f}, mean: {:.3f}, other_mean: {:.3f}, time: {:.3f}'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, mean: {:.3f}, other_mean: {:.3f}, covar: {:.3f}, other_covar: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i,
                            avg_loss/(b+1),
                            avg_gen_loss/(b+1),
                            KL_loss/(b+1),
                            np.mean(mean),
                            np.mean(other_mean),
+                           np.mean(covar),
+                           np.mean(other_covar),
                            end - start))
 
             if (i+1) % config.checkpoint_step == 0 and i > 0:
