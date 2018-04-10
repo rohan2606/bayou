@@ -73,9 +73,6 @@ Config options should be given as a JSON file (see config.json for example):
 """
 #%%
 
-PATH = os.getcwd()
-LOG_DIR = PATH + '/save'
-
 def train(clargs):
     config_file = clargs.config if clargs.continue_from is None \
                                 else os.path.join(clargs.continue_from, 'config.json')
@@ -90,16 +87,16 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config)
+    model = Model(config, infer=False , bayou_mode = False)
     merged_summary = tf.summary.merge_all()
 
 
     with tf.Session() as sess:
-        writer = tf.summary.FileWriter(LOG_DIR)
+        writer = tf.summary.FileWriter(clargs.save)
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
 
-        
+
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pbtxt')
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pb', as_text=False)
         saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
@@ -151,8 +148,8 @@ def train(clargs):
                 avg_loss += np.mean(loss)
                 avg_gen_loss += np.mean(gen_loss)
                 avg_KL_loss += np.mean(KL_loss)
-                
-                
+
+
                 step = i * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
@@ -160,7 +157,7 @@ def train(clargs):
                           (step, config.num_epochs * config.num_batches, i,
                            avg_loss/(b+1),
                            avg_gen_loss/(b+1),
-                           KL_loss/(b+1),
+                           avg_KL_loss/(b+1),
                            np.mean(mean),
                            np.mean(other_mean),
                            np.mean(covar),
@@ -193,10 +190,10 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-    ['--continue_from', '..\low_level_evidences\save',                           
-#    ['--config','config.json',
-     '..\..\..\..\..\..\data\DATA-training-top.json'])
-    # '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
+    # ['--continue_from', 'save',
+   ['--config','config.json',
+     # '..\..\..\..\..\..\data\DATA-training-top.json'])
+    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:

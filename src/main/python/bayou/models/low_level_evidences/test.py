@@ -153,9 +153,9 @@ if __name__ == '__main__':
     #clargs = parser.parse_args()
     clargs = parser.parse_args(['--save',
     #'/home/ubuntu/bayou/src/main/python/bayou/models/low_level_evidences/save',
-    '..\low_level_evidences\save1',
-    '..\..\..\..\..\..\data\DATA-training-top.json'])
-    #'/home/ubuntu/bayou/data/DATA-training.json'])
+    'save1',
+    #'..\..\..\..\..\..\data\DATA-training-top.json'])
+    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
 
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

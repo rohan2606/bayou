@@ -1,40 +1,40 @@
 {
     "model": "lle",
-    "latent_size": 4,
-    "batch_size": 20,
+    "latent_size": 32,
+    "batch_size": 50,
     "num_epochs": 20000,
     "learning_rate": 0.0006,
-    "print_step": 10,
-    "checkpoint_step": 5000,
+    "print_step": 5000,
+    "checkpoint_step": 15,
     "alpha": 0.0,
     "beta": 0.0,
     "evidence": [
         {
             "name": "apicalls",
-            "units": 8,
+            "units": 64,
             "num_layers": 1,
             "tile": 1
         },
         {
             "name": "types",
-            "units": 8,
+            "units": 64,
             "num_layers": 1,
             "tile": 1
         },
         {
             "name": "keywords",
-            "units": 8,
+            "units": 64,
             "num_layers": 1,
             "tile": 1
         }
     ],
     "decoder": {
-        "units": 16,
+        "units": 128,
         "num_layers": 1,
         "max_ast_depth": 4
     },
     "reverse_encoder": {
-        "units": 16,
+        "units": 128,
         "num_layers": 1,
         "max_ast_depth": 4
     }

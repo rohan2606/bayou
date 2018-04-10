@@ -14,7 +14,7 @@
 
 import tensorflow as tf
 from itertools import chain
-
+from Tree import TreeEncoder
 
 class BayesianEncoder(object):
     def __init__(self, config):
@@ -63,7 +63,7 @@ class BayesianDecoder(object):
             cell2 = tf.nn.rnn_cell.GRUCell(config.decoder.units)
             cells1.append(cell1)
             cells2.append(cell2)
-            
+
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
 
@@ -120,70 +120,20 @@ class BayesianDecoder(object):
 
 
 class BayesianReverseEncoder(object):
-    # IT IS WRONG TO INCLUDE psi_covariance HERE BUT FOR NOW ITS OK
     def __init__(self, config, emb):
-        cells1 = []
-        cells2 = []
-        for _ in range(config.reverse_encoder.num_layers):
-            cells1.append(tf.nn.rnn_cell.GRUCell(config.reverse_encoder.units))
-            cells2.append(tf.nn.rnn_cell.GRUCell(config.reverse_encoder.units))
 
-        self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
-        self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
+        with tf.name_scope("Reverse_Encoder"):
+            Mean_Tree = TreeEncoder(emb, config.batch_size, config.reverse_encoder.num_layers, \
+                                config.reverse_encoder.units, config.reverse_encoder.depth, config.latent_size)
 
-        # placeholders
-        # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
-        self.initial_state = [tf.truncated_normal([config.batch_size,config.reverse_encoder.units] , stddev=0.001 ) ] * config.decoder.num_layers
-        self.nodes = [tf.placeholder(tf.int32, [config.batch_size], name='node{0}'.format(i))
-                      for i in range(config.reverse_encoder.max_ast_depth)]
-        self.edges = [tf.placeholder(tf.bool, [config.batch_size], name='edge{0}'.format(i))
-                      for i in range(config.reverse_encoder.max_ast_depth)]
+            Covariance_Tree = TreeEncoder(emb, config.batch_size, config.reverse_encoder.num_layers, \
+                                config.reverse_encoder.units, config.reverse_encoder.depth, 1)
 
-        # projection matrices for output
-        with tf.variable_scope("projections"):
-            self.projection_zw = tf.get_variable('projection_zw', [self.cell1.output_size,
-                                                                 config.latent_size])
-            self.projection_zb = tf.get_variable('projection_zb', [config.latent_size])
-           
-            self.projection_zws = tf.get_variable('projection_zws', [self.cell1.output_size,1])
-            self.projection_zbs = tf.get_variable('projection_zbs', [1])
-            
-            tf.summary.histogram("projection_zw", self.projection_zw)
-            tf.summary.histogram("projection_zb", self.projection_zb)
-
-
-        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
-        self.emb_inp = emb_inp
-
-        # setup embedding
-        # setting this variable scope to decoder helps you use the same embedding as in decoder
-        with tf.variable_scope('reverse_encoder_network'):
-
-            emb_inp = self.emb_inp
-            # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
-            # TODO: update with dynamic decoder (being implemented in tf) once it is released
-            with tf.variable_scope('rnn'):
-                self.state = self.initial_state
-                for i, inp in enumerate(emb_inp):
-                    if i > 0:
-                        tf.get_variable_scope().reuse_variables()
-                    with tf.variable_scope('cell1'):  # handles CHILD_EDGE
-                        output1, state1 = self.cell1(inp, self.state)
-                    with tf.variable_scope('cell2'): # handles SIBLING EDGE
-                        output2, state2 = self.cell2(inp, self.state)
-
-                    output = tf.where(self.edges[i], output1, output2)
-                    self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(config.reverse_encoder.num_layers)]
-
-        
-        d = tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Denom")
-        d = 1. / tf.square(d) #should be batch_size,1
-        d = 1. +  d
-        denom = tf.tile(d, [1, config.latent_size])
-        I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
-
-        with tf.name_scope("Mean"):
-            self.psi_mean = tf.nn.xw_plus_b(output, self.projection_zw, self.projection_zb) 
-        with tf.name_scope("Covariance"):
-            self.psi_covariance = I / denom  
-#self.psi_covariance = tf.ones) #1 + tf.square(tf.nn.xw_plus_b(output, self.projection_zws, self.projection_zbs, name="Covariance"))
+            with tf.name_scope("Mean"):
+                self.psi_mean = Mean_Tree.last_op
+            with tf.name_scope("Covariance"):
+                d = tf.square(Covariance_Tree.last_op)
+                d = 1. +  d
+                denom = tf.tile(d, [1, config.latent_size])
+                I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
+                self.psi_covariance = I / denom

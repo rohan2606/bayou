@@ -45,7 +45,7 @@ class BayesianPredictor(object):
         self.sess = sess
 
 
-        self.model = Model(config, True)
+        self.model = Model(config, infer=True, bayou_mode=False)
 
         # load the callmap
         with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:

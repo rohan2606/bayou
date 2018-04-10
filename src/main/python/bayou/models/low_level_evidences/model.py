@@ -21,7 +21,7 @@ from bayou.models.low_level_evidences.data_reader import CHILD_EDGE, SIBLING_EDG
 from bayou.models.low_level_evidences.utils import get_var_list
 
 class Model():
-    def __init__(self, config, infer=False):
+    def __init__(self, config, infer=False, bayou_mode=False):
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
         self.config = config
 #        if infer:
@@ -52,7 +52,11 @@ class Model():
         with tf.variable_scope("Decoder"):
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
-            self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+            if bayou_mode:
+                self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
+            else:
+                self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
+                
             self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
 
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
@@ -75,7 +79,8 @@ class Model():
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                               , axis=1)
             self.KL_loss = tf.reduce_mean(KL_loss)
-            self.loss =  self.gen_loss + self.KL_loss # #+
+            self.loss = self.KL_loss #self.gen_loss
+            #self.loss = self.gen_loss
 
             tf.summary.scalar('loss', self.loss)
             tf.summary.scalar('gen_loss', self.gen_loss)
@@ -83,8 +88,11 @@ class Model():
         # The optimizer
 
         with tf.name_scope("train"):
-            train_ops = get_var_list()['rev_encoder_vars']
-#            train_ops = get_var_list()['bayou_vars']
+            if bayou_mode:
+                train_ops = get_var_list()['bayou_vars']
+            else:
+                train_ops = get_var_list()['rev_encoder_vars']
+
             opt = tf.train.AdamOptimizer(config.learning_rate)
             self.train_op = opt.minimize(self.loss, var_list=train_ops)
 
