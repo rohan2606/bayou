@@ -56,7 +56,7 @@ class Model():
                 self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
                 self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
-                
+
             self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
 
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
@@ -129,8 +129,11 @@ class Model():
         for j, ev in enumerate(self.config.evidence):
             feed[self.encoder.inputs[j].name] = inputs[j]
         for j in range(self.config.decoder.max_ast_depth):
-            feed[self.reverse_encoder.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
-            feed[self.reverse_encoder.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.Mean_Tree.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.Covariance_Tree.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
+
+            feed[self.reverse_encoder.Mean_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.Covariance_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
 
         psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma_sqr = \
                     sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)

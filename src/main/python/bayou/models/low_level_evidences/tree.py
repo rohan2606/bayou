@@ -1,3 +1,18 @@
+# Copyright 2017 Rice University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import tensorflow as tf
 
 class TreeEncoder(object):
     def __init__(self, emb, batch_size, num_layers, units, depth, output_units):
@@ -18,8 +33,8 @@ class TreeEncoder(object):
 
         # projection matrices for output
         with tf.name_scope("projections"):
-            self.projection_w = tf.Variable('projection_w', [self.cell1.output_size, output_units])
-            self.projection_b = tf.Variable('projection_b', [output_units])
+            self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size, output_units])
+            self.projection_b = tf.get_variable('projection_b', [output_units])
 
             tf.summary.histogram("projection_w", self.projection_w)
             tf.summary.histogram("projection_b", self.projection_b)
@@ -50,4 +65,4 @@ class TreeEncoder(object):
 
 
         with tf.name_scope("Output"):
-            self.last_op = tf.nn.xw_plus_b(output, self.projection_zw, self.projection_zb)
+            self.last_output = tf.nn.xw_plus_b(output, self.projection_w, self.projection_b)

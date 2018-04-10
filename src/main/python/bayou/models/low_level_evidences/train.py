@@ -125,8 +125,11 @@ def train(clargs):
                     feed[model.decoder.nodes[j].name] = n[j]
                     feed[model.decoder.edges[j].name] = e[j]
                     # Feeding value into reverse encoder
-                    feed[model.reverse_encoder.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
-                    feed[model.reverse_encoder.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
+                    feed[model.reverse_encoder.Mean_Tree.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
+                    feed[model.reverse_encoder.Covariance_Tree.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
+
+                    feed[model.reverse_encoder.Mean_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
+                    feed[model.reverse_encoder.Covariance_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
 
                 # run the optimizer
                 loss, gen_loss, KL_loss,  \
