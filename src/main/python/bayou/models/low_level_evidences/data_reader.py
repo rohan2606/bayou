@@ -210,7 +210,6 @@ class Reader():
         print('{:8d} data points total'.format(len(data_points)))
 
         # randomly shuffle to avoid bias towards initial data points during training
-        # COMMENTING THIS IS WRONG
         #print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")
         random.shuffle(data_points)
 

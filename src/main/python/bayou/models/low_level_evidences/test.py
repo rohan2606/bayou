@@ -25,7 +25,7 @@ import textwrap
 
 #import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
-from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs
+from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic
 from bayou.models.low_level_evidences.data_reader import Reader
 
 HELP = """\
@@ -114,25 +114,22 @@ def test(clargs):
         b2s = np.concatenate(b2s, axis=0)
 
         normalize_log_probs(prob_Y)
-
+        hits2, hits5, hits10, hits100 = 0,0,0,0
         for i in range(config.num_batches):
             prob_Y_X = []
             for j in range(config.num_batches):
                 prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j], b2s[j]) + prob_Y[j]
                 prob_Y_X.append(prob_Y_X_i)
-            array = np.array(prob_Y_X)
-            array *= -1
-            temp = array.argsort()
-            ranks = np.empty_like(temp)
-            ranks[temp] = np.arange(len(array))
 
-            if ranks[i] < 10:
-                print(str(array[i])  + ' Success ' + str(ranks[i]) + ' ' + str(config.num_batches))
-            else:
-                print(str(array[i]) + ' Fail ' + str(ranks[i]) + ' ' + str(config.num_batches))
-
-
-
+            _rank = find_my_rank(prob_Y_X, i)
+            hits2, prctg2 = rank_statistic(_rank, i + 1, hits2, cutoff=1)
+            hits5, prctg5 = rank_statistic(_rank, i + 1, hits5, cutoff=4)
+            hits10, prctg10 = rank_statistic(_rank, i + 1, hits10, cutoff=9)
+            hits100, prctg100 = rank_statistic(_rank, i + 1, hits100, cutoff=99)
+            print('Searched {}/{} (Max Rank {})'
+                  'Hits In Top 2: {:.3f}, Top 5: {:.3f}, Top 10: {:.3f}, Top 100: {:.3f}'.format
+                  (i +1, config.num_batches, config.num_batches,
+                   prctg2, prctg5, prctg10, prctg100))
 
 #%%
 if __name__ == '__main__':
@@ -151,9 +148,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save',
-    #'/home/ubuntu/bayou/src/main/python/bayou/models/low_level_evidences/save',
-    'save1',
+    clargs = parser.parse_args(['--save', 'save2',
     #'..\..\..\..\..\..\data\DATA-training-top.json'])
     '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
 

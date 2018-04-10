@@ -14,7 +14,7 @@
 
 import tensorflow as tf
 from itertools import chain
-from tree import TreeEncoder
+from gru_tree import TreeEncoder
 
 class BayesianEncoder(object):
     def __init__(self, config):
@@ -135,4 +135,4 @@ class BayesianReverseEncoder(object):
             with tf.variable_scope("Mean"):
                 self.Mean_Tree = TreeEncoder(emb, config.batch_size, config.reverse_encoder.num_layers, \
                                     config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, config.latent_size)
-                self.psi_mean = self.Mean_Tree.last_output 
+                self.psi_mean = self.Mean_Tree.last_output

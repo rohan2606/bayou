@@ -87,7 +87,7 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False , bayou_mode = False)
+    model = Model(config, infer=False, bayou_mode = True, full_model_train=False)
     merged_summary = tf.summary.merge_all()
 
 
@@ -96,10 +96,9 @@ def train(clargs):
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
 
-
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pbtxt')
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pb', as_text=False)
-        saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
+        saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
 
         # restore model
         if clargs.continue_from is not None:
@@ -132,15 +131,10 @@ def train(clargs):
                     feed[model.reverse_encoder.Covariance_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
 
                 # run the optimizer
-                loss, gen_loss, KL_loss,  \
-                mean, other_mean, covar, other_covar, _ \
-                    = sess.run([model.loss,
-                                model.gen_loss,
-                                model.KL_loss,
-                                model.encoder.psi_mean,
-                                model.reverse_encoder.psi_mean,
-                                model.encoder.psi_covariance,
-                                model.reverse_encoder.psi_covariance,
+                loss, gen_loss, KL_loss, mean, other_mean, covar, other_covar, _ \
+                    = sess.run([model.loss, model.gen_loss, model.KL_loss,
+                                model.encoder.psi_mean, model.reverse_encoder.psi_mean,
+                                model.encoder.psi_covariance, model.reverse_encoder.psi_covariance,
                                 model.train_op], feed)
 
 
@@ -158,12 +152,8 @@ def train(clargs):
                     print('{}/{} (epoch {}) '
                           'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, mean: {:.3f}, other_mean: {:.3f}, covar: {:.3f}, other_covar: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i,
-                           avg_loss/(b+1),
-                           avg_gen_loss/(b+1),
-                           avg_KL_loss/(b+1),
-                           np.mean(mean),
-                           np.mean(other_mean),
-                           np.mean(covar),
+                           avg_loss/(b+1),avg_gen_loss/(b+1), avg_KL_loss/(b+1),
+                           np.mean(mean), np.mean(other_mean), np.mean(covar),
                            np.mean(other_covar),
                            end - start))
 
@@ -185,7 +175,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save1',
+    parser.add_argument('--save', type=str, default='save',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -193,8 +183,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save',
-     #['--config','config.json',
+     #['--continue_from', 'save1',
+     ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
     '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
     # '/home/ubuntu/bayou/data/DATA-training.json'])

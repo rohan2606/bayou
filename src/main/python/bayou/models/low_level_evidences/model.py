@@ -21,15 +21,12 @@ from bayou.models.low_level_evidences.data_reader import CHILD_EDGE, SIBLING_EDG
 from bayou.models.low_level_evidences.utils import get_var_list
 
 class Model():
-    def __init__(self, config, infer=False, bayou_mode=False):
+    def __init__(self, config, infer=False, bayou_mode=False, full_model_train=False):
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
         self.config = config
-#        if infer:
-#            config.batch_size = 1
 
+        assert (bayou_mode * full_model_train == 0)
 
-        #setup the encode, however remember that the Encoder is there only for KL-divergence
-        # Also note that no samples were generated from it
         with tf.variable_scope("Encoder"):
             self.encoder = BayesianEncoder(config)
             # Note that psi_encoder and samples2 are only used in inference
@@ -82,6 +79,8 @@ class Model():
 
             if bayou_mode:
                self.loss = self.gen_loss
+            elif full_model_train:
+               self.loss = self.gen_loss + self.KL_loss
             else:
                self.loss = self.KL_loss
 
@@ -93,6 +92,8 @@ class Model():
         with tf.name_scope("train"):
             if bayou_mode:
                 train_ops = get_var_list()['bayou_vars']
+            elif full_model_train:
+                train_ops = get_var_list()['all_vars']
             else:
                 train_ops = get_var_list()['rev_encoder_vars']
 
