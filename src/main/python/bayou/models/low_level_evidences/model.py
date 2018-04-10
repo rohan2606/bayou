@@ -33,9 +33,9 @@ class Model():
         with tf.variable_scope("Encoder"):
             self.encoder = BayesianEncoder(config)
             # Note that psi_encoder and samples2 are only used in inference
-            samples_2 = tf.random_normal([config.batch_size, config.latent_size],
+            samples_1 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
-            self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_2
+            self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
 
 
         with tf.variable_scope('Embedding'):
@@ -44,9 +44,9 @@ class Model():
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
             self.reverse_encoder = BayesianReverseEncoder(config, emb)
-            samples = tf.random_normal([config.batch_size, config.latent_size],
+            samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
-            self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples
+            self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
@@ -55,7 +55,7 @@ class Model():
             if bayou_mode:
                 self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
-                self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
+                self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
 
             self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
 
@@ -79,8 +79,11 @@ class Model():
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                               , axis=1)
             self.KL_loss = tf.reduce_mean(KL_loss)
-            self.loss = self.KL_loss #self.gen_loss
-            #self.loss = self.gen_loss
+
+            if bayou_mode:
+               self.loss = self.gen_loss
+            else:
+               self.loss = self.KL_loss
 
             tf.summary.scalar('loss', self.loss)
             tf.summary.scalar('gen_loss', self.gen_loss)
@@ -129,11 +132,11 @@ class Model():
         for j, ev in enumerate(self.config.evidence):
             feed[self.encoder.inputs[j].name] = inputs[j]
         for j in range(self.config.decoder.max_ast_depth):
-            feed[self.reverse_encoder.Mean_Tree.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
-            feed[self.reverse_encoder.Covariance_Tree.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.Mean_Tree.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.Covariance_Tree.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
 
-            feed[self.reverse_encoder.Mean_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
-            feed[self.reverse_encoder.Covariance_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.Mean_Tree.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.Covariance_Tree.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
 
         psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma_sqr = \
                     sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)
