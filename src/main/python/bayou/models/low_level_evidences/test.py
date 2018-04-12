@@ -113,8 +113,12 @@ def test(clargs):
         a2s = np.concatenate(a2s, axis=0)
         b2s = np.concatenate(b2s, axis=0)
 
+        
         normalize_log_probs(prob_Y)
-        hits2, hits5, hits10, hits100 = 0,0,0,0
+        config.num_batches = config.num_batches*config.batch_size
+        config.batch_size = 1
+        hit_points = [2,5,10,50,100,500]
+        hit_counts = np.zeros(len(hit_points))
         for i in range(config.num_batches):
             prob_Y_X = []
             for j in range(config.num_batches):
@@ -122,15 +126,28 @@ def test(clargs):
                 prob_Y_X.append(prob_Y_X_i)
 
             _rank = find_my_rank(prob_Y_X, i)
-            hits2, prctg2 = rank_statistic(_rank, i + 1, hits2, cutoff=1)
-            hits5, prctg5 = rank_statistic(_rank, i + 1, hits5, cutoff=4)
-            hits10, prctg10 = rank_statistic(_rank, i + 1, hits10, cutoff=9)
-            hits100, prctg100 = rank_statistic(_rank, i + 1, hits100, cutoff=99)
-            print('Searched {}/{} (Max Rank {})'
-                  'Hits In Top 2: {:.3f}, Top 5: {:.3f}, Top 10: {:.3f}, Top 100: {:.3f}'.format
-                  (i +1, config.num_batches, config.num_batches,
-                   prctg2, prctg5, prctg10, prctg100))
+            hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
+            
+            
+            if i % 1 == 0:
+                
+                print('Searched {}/{} (Max Rank {})'
+                      'Hit_Points {} :: Percentage Hits {}'.format
+                      (i + 1, config.num_batches, config.num_batches,
+                       ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 
+                
+# Create a function to easily repeat on many lists:
+def ListToFormattedString(alist, Type):
+    # Each item is right-adjusted, width=3
+    if Type == 'float':
+        formatted_list = ['{:.2f}' for item in alist] 
+        s = ','.join(formatted_list)
+    elif Type == 'int':
+        formatted_list = ['{:>3}' for item in alist] 
+        s = ','.join(formatted_list)
+    return s.format(*alist)
+    
 #%%
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -148,9 +165,9 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save2',
-    #'..\..\..\..\..\..\data\DATA-training-top.json'])
-    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
+    clargs = parser.parse_args(['--save', 'save',
+    '..\..\..\..\..\..\data\DATA-training-top.json'])
+#    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
 
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

@@ -149,7 +149,6 @@ class Model():
 
         state = sess.run(self.initial_state, {self.psi_reverse_encoder: psi})
         state = [state] * self.config.decoder.num_layers
-        prob = 0
         feed = {}
         for j in range(self.config.decoder.max_ast_depth):
             feed[self.decoder.nodes[j].name] = nodes[j]
@@ -158,9 +157,19 @@ class Model():
         for i in range(self.config.decoder.num_layers):
             feed[self.decoder.initial_state[i].name] = state[i]
 
-        [ln_probs, state] = sess.run([self.ln_probs, self.decoder.state], feed)
+        ln_probs = sess.run(self.ln_probs, feed)
+        ln_probs = tf.reshape(ln_probs,\
+                    shape=[self.config.batch_size, self.config.max_ast_depth, self.decoder.vocab_size])
+        
+        flat_target = tf.reshape(self.targets, [-1])
+        indices = tf.stack([ [i,j] for i,j in enumerate(tf.unstack(flat_target))])
+        valid_probs = tf.reshape(tf.gather_nd(self.ln_probs, indices), [self.batch_size, -1])
+        batch_prob = tf.reduce_sum(valid_probs, axis = 1)
+        
 
-        for j in range(self.config.decoder.max_ast_depth):
-            prob += ln_probs[j][targets[0][j]]
+        return batch_prob 
 
-        return prob # this is assumed to be for batch_size = 1
+        
+        
+
+           

@@ -46,16 +46,18 @@ def split_camel(s):
 
 
 def get_sum_in_log(probs):
-    lnsum = probs[0]
-    for prob in probs[1:]:
+    lnsum = probs[:,0]
+    for prob in probs[:,1:]:
         lnsum = np.logaddexp(lnsum, prob)
     return lnsum
 
 def normalize_log_probs(probs):
+    probs = np.expand_dims(probs, axis=0)
     lnsum = get_sum_in_log(probs)
     probs -= lnsum
 
 def rank_statistic(_rank, total, prev_hits, cutoff):
+    cutoff = np.array(cutoff)
     hits = prev_hits + (_rank <= cutoff)
     prctg = hits / total
     return hits, prctg

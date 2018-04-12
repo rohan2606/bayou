@@ -87,7 +87,7 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False, bayou_mode = True, full_model_train=False)
+    model = Model(config, infer=False, bayou_mode = False, full_model_train=True)
     merged_summary = tf.summary.merge_all()
 
 
@@ -151,7 +151,7 @@ def train(clargs):
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
                           'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, mean: {:.3f}, other_mean: {:.3f}, covar: {:.3f}, other_covar: {:.3f}, time: {:.3f}'.format
-                          (step, config.num_epochs * config.num_batches, i,
+                          (step, config.num_epochs * config.num_batches, i + 1 ,
                            avg_loss/(b+1),avg_gen_loss/(b+1), avg_KL_loss/(b+1),
                            np.mean(mean), np.mean(other_mean), np.mean(covar),
                            np.mean(other_covar),
@@ -162,8 +162,8 @@ def train(clargs):
                 saver.save(sess, checkpoint_dir)
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
-                      (checkpoint_dir,
-                       avg_loss / config.num_batches))
+                      (checkpoint_dir, avg_loss / config.num_batches))
+
 
 
 
@@ -185,8 +185,8 @@ if __name__ == '__main__':
     clargs = parser.parse_args(
      #['--continue_from', 'save1',
      ['--config','config.json',
-     # '..\..\..\..\..\..\data\DATA-training-top.json'])
-    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
+     '..\..\..\..\..\..\data\DATA-training-top.json'])
+    # '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:

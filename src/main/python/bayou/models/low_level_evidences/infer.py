@@ -69,17 +69,14 @@ class BayesianPredictor(object):
             psi, psi_mean, psi_Sigma = self.model.infer_psi_encoder(self.sess, evidences)
             # the prob that we get here is the P(Y|Z) where Z~P(Z|X). It still needs to multiplied by P(Z)/P(Z|X) to get the correct value
             prob = self.model.infer_lnprobY_given_psi(self.sess, psi, nodes, edges, targets)
-            #prob is now scalar but in ideal case it will be [batch_size]
-            prob +=  self.get_psi_lnprob(psi) - self.get_psi_lnprob(psi, psi_mean, psi_Sigma)
+            prob =  prob + self.get_psi_lnprob(psi) - self.get_psi_lnprob(psi, psi_mean, psi_Sigma)
             #also get_psi_lnprob is of size [batch_size] so they should add up.
             probs.append(prob)
-
-        # probs should be concatenated when batch is used
-        # probs = np.transpose(np.array(probs))
-
+        
+        probs = np.stack(probs, axis=1)
         # in batch case probs is [batch_size , num_psi_samples]
         avg_prob = get_sum_in_log(probs) - np.log(len(probs))
-        return avg_prob
+        return avg_prob # np array of size batch_size
 
     def get_psi_lnprob(self, x, mu=None , Sigma=None ):
 
@@ -90,11 +87,11 @@ class BayesianPredictor(object):
 
         # mu is a vector of size [batch_size, latent_size]
         #sigma is another vector of size [batch_size, latent size] denoting a diagonl matrix
-        ln_nume =  -0.5 * np.sum( np.square(x-mu) /Sigma, axis=1 )
+        ln_nume =  -0.5 * np.sum( np.square(x-mu) / Sigma, axis=1 )
         ln_deno = x.shape[1]/2 * np.log(2 * np.pi ) + 0.5 * np.sum(np.log(Sigma), axis=1)
         val = ln_nume - ln_deno
 
-        return val[0] # take the first batch
+        return val 
 
 
     def get_encoder_ab(self, evidences):
