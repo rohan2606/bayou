@@ -44,17 +44,31 @@ def split_camel(s):
     split = s1.split('#')
     return [s.lower() for s in split]
 
-
+# Create a function to easily repeat on many lists:
+def ListToFormattedString(alist, Type):
+    # Each item is right-adjusted, width=3
+    if Type == 'float':
+        formatted_list = ['{:.2f}' for item in alist] 
+        s = ','.join(formatted_list)
+    elif Type == 'int':
+        formatted_list = ['{:>3}' for item in alist] 
+        s = ','.join(formatted_list)
+    return s.format(*alist)
+    
+    
 def get_sum_in_log(probs):
+    assert (len(list(probs.shape)) == 2)
     lnsum = probs[:,0]
-    for prob in probs[:,1:]:
-        lnsum = np.logaddexp(lnsum, prob)
+    for i in range(len(probs[0]) - 1):
+        lnsum = np.logaddexp(lnsum, probs[:,i+1])
     return lnsum
 
 def normalize_log_probs(probs):
-    probs = np.expand_dims(probs, axis=0)
+    probs = np.expand_dims(probs,0)
     lnsum = get_sum_in_log(probs)
+    probs = np.squeeze(probs, axis=0)
     probs -= lnsum
+    return probs
 
 def rank_statistic(_rank, total, prev_hits, cutoff):
     cutoff = np.array(cutoff)

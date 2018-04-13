@@ -51,11 +51,6 @@ class Reader():
         
         raw_targets = raw_targets[:sz]
 
-        if test_mode:
-            config.num_batches = sz
-            config.batch_size = 1
-
-
         # setup input and target chars/vocab
         if clargs.continue_from is None:
             for ev, data in zip(config.evidence, raw_evidences):

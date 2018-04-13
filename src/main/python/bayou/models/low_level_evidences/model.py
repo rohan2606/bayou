@@ -17,7 +17,6 @@ from tensorflow.contrib import legacy_seq2seq as seq2seq
 import numpy as np
 
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder
-from bayou.models.low_level_evidences.data_reader import CHILD_EDGE, SIBLING_EDGE
 from bayou.models.low_level_evidences.utils import get_var_list
 
 class Model():
@@ -65,9 +64,15 @@ class Model():
             logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
             self.ln_probs = tf.nn.log_softmax(logits)
 
+
             # 1. generation loss: log P(X | \Psi)
             self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
                                                   [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
+            if infer:
+                flat_target = tf.reshape(self.targets, [-1])
+                indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
+                valid_probs = tf.reshape(tf.gather_nd(self.ln_probs, indices), [self.config.batch_size, -1])
+                self.batch_prob = tf.reduce_sum(valid_probs, axis = 1)
 
             # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
             #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
@@ -149,7 +154,8 @@ class Model():
 
         state = sess.run(self.initial_state, {self.psi_reverse_encoder: psi})
         state = [state] * self.config.decoder.num_layers
-        feed = {}
+
+        feed = {self.targets: targets}
         for j in range(self.config.decoder.max_ast_depth):
             feed[self.decoder.nodes[j].name] = nodes[j]
             feed[self.decoder.edges[j].name] = edges[j]
@@ -157,19 +163,6 @@ class Model():
         for i in range(self.config.decoder.num_layers):
             feed[self.decoder.initial_state[i].name] = state[i]
 
-        ln_probs = sess.run(self.ln_probs, feed)
-        ln_probs = tf.reshape(ln_probs,\
-                    shape=[self.config.batch_size, self.config.max_ast_depth, self.decoder.vocab_size])
+        batch_prob = sess.run(self.batch_prob, feed)
         
-        flat_target = tf.reshape(self.targets, [-1])
-        indices = tf.stack([ [i,j] for i,j in enumerate(tf.unstack(flat_target))])
-        valid_probs = tf.reshape(tf.gather_nd(self.ln_probs, indices), [self.batch_size, -1])
-        batch_prob = tf.reduce_sum(valid_probs, axis = 1)
-        
-
-        return batch_prob 
-
-        
-        
-
-           
+        return batch_prob

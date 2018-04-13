@@ -73,7 +73,7 @@ class BayesianPredictor(object):
             #also get_psi_lnprob is of size [batch_size] so they should add up.
             probs.append(prob)
         
-        probs = np.stack(probs, axis=1)
+        probs = np.transpose(np.stack(probs, axis=0))
         # in batch case probs is [batch_size , num_psi_samples]
         avg_prob = get_sum_in_log(probs) - np.log(len(probs))
         return avg_prob # np array of size batch_size
@@ -109,25 +109,44 @@ class BayesianPredictor(object):
         b = mu / Sigma
         return a, b
 
-    def get_c_minus_cstar(self, a1,b1, a2, b2):
-        """
-        """
-
-        t1 = np.sum(np.square(b1)/(4*a1)) + np.sum(np.square(b2)/(4*a2))
-        t2 = -0.5 * np.sum(np.log(-1/(2*a1))) -0.5 * np.sum(np.log(-1/(2*a2)))
-        t3 = - (3/2) * len(a1)* np.log(2*np.pi)
-
+    def get_c_minus_cstar(self, a1,b1, a2, b2, prob_Y):
+        t1 = np.sum(np.square(b1)/(4*a1), axis=0) + np.sum(np.square(b2)/(4*a2), axis=1)
+        t2 = -0.5 * np.sum(np.log(-1/(2*a1)), axis=0) -0.5 * np.sum(np.log(-1/(2*a2)), axis=1)
+        t3 = - (3/2) *  len(a1) * np.log(2*np.pi)
         c = t1+t2+t3
 
         b_star = b1 + b2
         a_star = a1 + a2 + 0.5
-
-        t1_star = np.sum(np.square(b_star)/(4*a_star))
-        t2_star = -0.5 * np.sum(np.log(-1/(2*a_star)))
+        t1_star = np.sum(np.square(b_star)/(4*a_star), axis=1)
+        t2_star = -0.5 * np.sum(np.log(-1/(2*a_star)), axis=1)
         t3_star = - (1/2) * len(a_star)* np.log(2*np.pi)
 
         c_star = t1_star + t2_star + t3_star
-
-
         prob = (c - c_star)
+        prob += np.array(prob_Y)
         return prob
+    
+    def similarity(self, _a1, _b1, _a2, _b2, prob_Y):
+        a1 = tf.placeholder(tf.float32,[self.model.config.latent_size])
+        b1 = tf.placeholder(tf.float32,[self.model.config.latent_size])
+        a2 = tf.placeholder(tf.float32,[self.model.config.batch_size,self.model.config.latent_size])
+        b2 = tf.placeholder(tf.float32,[self.model.config.batch_size,self.model.config.latent_size])
+        
+        t1 = tf.reduce_sum(tf.square(b1)/(4*a1), axis=0) + tf.reduce_sum(tf.square(b2)/(4*a2), axis=1)
+        t2 = -0.5 * tf.reduce_sum(tf.log(-1/(2*a1)), axis=0) - 0.5 * tf.reduce_sum(tf.log(-1/(2*a2)), axis=1)
+        t3 = - (3/2) * self.model.config.latent_size * tf.log(2*np.pi)
+        c = t1+t2+t3
+        
+        b_star = b1 + b2
+        a_star = a1 + a2 + 0.5
+        t1_star = tf.reduce_sum(tf.square(b_star)/(4*a_star), axis=1)
+        t2_star = -0.5 * tf.reduce_sum(tf.log(-1/(2*a_star)), axis=1)
+        t3_star = - (1/2) * self.model.config.latent_size * tf.log(2*np.pi)
+        c_star = t1_star + t2_star + t3_star
+        prob = (c - c_star)
+        
+        _prob = self.sess.run(prob, feed_dict={a1:_a1, b1:_b1, a2:_a2, b2:_b2})
+        
+        _prob += np.array(prob_Y)
+        return _prob
+        

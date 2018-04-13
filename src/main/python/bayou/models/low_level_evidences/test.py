@@ -22,54 +22,14 @@ import sys
 import json
 import textwrap
 
-
+import time 
 #import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
-from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic
+from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
 from bayou.models.low_level_evidences.data_reader import Reader
 
 HELP = """\
-Config options should be given as a JSON file (see config.json for example):
-{                                         |
-    "model": "lle"                        | The implementation id of this model (do not change)
-    "latent_size": 32,                    | Latent dimensionality
-    "batch_size": 50,                     | Minibatch size
-    "num_epochs": 100,                    | Number of training epochs
-    "learning_rate": 0.02,                | Learning rate
-    "print_step": 1,                      | Print training output every given steps
-    "alpha": 1e-05,                       | Hyper-param associated with KL-divergence loss
-    "beta": 1e-05,                        | Hyper-param associated with evidence loss
-    "evidence": [                         | Provide each evidence type in this list
-        {                                 |
-            "name": "apicalls",           | Name of evidence ("apicalls")
-            "units": 64,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        },                                |
-        {                                 |
-            "name": "types",              | Name of evidence ("types")
-            "units": 32,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        },                                |
-        {                                 |
-            "name": "keywords",           | Name of evidence ("keywords")
-            "units": 64,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        }                                 |
-    ],                                    |
-    "decoder": {                          | Provide parameters for the decoder here
-        "units": 256,                     | Size of the decoder hidden state
-        "num_layers": 3,                  | Number of layers in the decoder
-        "max_ast_depth": 32               | Maximum depth of the AST (length of the longest path)
-    }
-    "reverse_encoder": {
-        "units": 256,
-        "num_layers": 3,
-        "max_ast_depth": 32
-    }                                   |
-}                                         |
+May God help you son/daughter!
 """
 #%%
 
@@ -101,53 +61,36 @@ def test(clargs):
             ev_data, n, e, y = reader.next_batch()
             prob_Y.append(predictor.get_lnProb_Y_i(ev_data, n, e, y))
             a1, b1 = predictor.get_encoder_ab(ev_data)
-            a1s.append(a1)
-            b1s.append(b1)
             a2, b2 = predictor.get_rev_encoder_ab(n,e, ev_data)
-            a2s.append(a2)
-            b2s.append(b2)
+            a1s.append(a1), b1s.append(b1)
+            a2s.append(a2), b2s.append(b2)
 
 
-        a1s = np.concatenate(a1s, axis=0)
-        b1s = np.concatenate(b1s, axis=0)
-        a2s = np.concatenate(a2s, axis=0)
-        b2s = np.concatenate(b2s, axis=0)
+        a1s,b1s,a2s,b2s = np.concatenate(a1s, axis=0), np.concatenate(b1s, axis=0), \
+                            np.concatenate(a2s, axis=0) , np.concatenate(b2s, axis=0)
+        prob_Y = normalize_log_probs(np.concatenate(prob_Y, axis=0))
+       
 
-        
-        normalize_log_probs(prob_Y)
-        config.num_batches = config.num_batches*config.batch_size
-        config.batch_size = 1
         hit_points = [2,5,10,50,100,500]
         hit_counts = np.zeros(len(hit_points))
-        for i in range(config.num_batches):
+        for i in range(config.num_batches * config.batch_size):
             prob_Y_X = []
             for j in range(config.num_batches):
-                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j], b2s[j]) + prob_Y[j]
-                prob_Y_X.append(prob_Y_X_i)
-
+                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j:j+config.batch_size], b2s[j:j+config.batch_size], prob_Y[j:j+config.batch_size]) 
+                prob_Y_X.extend(prob_Y_X_i)
+            
+            assert(len(prob_Y_X) == config.num_batches * config.batch_size)
             _rank = find_my_rank(prob_Y_X, i)
             hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
             
-            
-            if i % 1 == 0:
-                
+            if i % 1 == 0:           
                 print('Searched {}/{} (Max Rank {})'
                       'Hit_Points {} :: Percentage Hits {}'.format
-                      (i + 1, config.num_batches, config.num_batches,
+                      (i + 1, config.num_batches*config.batch_size, config.num_batches*config.batch_size,
                        ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 
-                
-# Create a function to easily repeat on many lists:
-def ListToFormattedString(alist, Type):
-    # Each item is right-adjusted, width=3
-    if Type == 'float':
-        formatted_list = ['{:.2f}' for item in alist] 
-        s = ','.join(formatted_list)
-    elif Type == 'int':
-        formatted_list = ['{:>3}' for item in alist] 
-        s = ','.join(formatted_list)
-    return s.format(*alist)
-    
+        end = time.time()
+
 #%%
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
