@@ -22,7 +22,7 @@ import sys
 import json
 import textwrap
 
-import time 
+import time
 #import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
@@ -64,32 +64,34 @@ def test(clargs):
             a2, b2 = predictor.get_rev_encoder_ab(n,e, ev_data)
             a1s.append(a1), b1s.append(b1)
             a2s.append(a2), b2s.append(b2)
+            if i % 100 == 0:
+                print('Completed Processing {}/{} batches'.format
+                (i+1, config.num_batches))
 
 
         a1s,b1s,a2s,b2s = np.concatenate(a1s, axis=0), np.concatenate(b1s, axis=0), \
                             np.concatenate(a2s, axis=0) , np.concatenate(b2s, axis=0)
         prob_Y = normalize_log_probs(np.concatenate(prob_Y, axis=0))
-       
+
 
         hit_points = [2,5,10,50,100,500]
         hit_counts = np.zeros(len(hit_points))
         for i in range(config.num_batches * config.batch_size):
             prob_Y_X = []
             for j in range(config.num_batches):
-                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j:j+config.batch_size], b2s[j:j+config.batch_size], prob_Y[j:j+config.batch_size]) 
+                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j:j+config.batch_size], b2s[j:j+config.batch_size], prob_Y[j:j+config.batch_size])
                 prob_Y_X.extend(prob_Y_X_i)
-            
+
             assert(len(prob_Y_X) == config.num_batches * config.batch_size)
             _rank = find_my_rank(prob_Y_X, i)
             hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
-            
-            if i % 1 == 0:           
+
+            if i % 100 == 0:
                 print('Searched {}/{} (Max Rank {})'
                       'Hit_Points {} :: Percentage Hits {}'.format
                       (i + 1, config.num_batches*config.batch_size, config.num_batches*config.batch_size,
                        ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 
-        end = time.time()
 
 #%%
 if __name__ == '__main__':
@@ -108,8 +110,9 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save',
-    '..\..\..\..\..\..\data\DATA-training-top.json'])
+    clargs = parser.parse_args(['--save', 'save1',
+    '/home/ubuntu/bayou/data/DATA-training.json'])
+    #'..\..\..\..\..\..\data\DATA-training.json'])
 #    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
 
 

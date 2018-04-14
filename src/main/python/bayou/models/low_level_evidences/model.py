@@ -66,8 +66,11 @@ class Model():
 
 
             # 1. generation loss: log P(X | \Psi)
-            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
+            gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
                                                   [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
+
+            self.gen_loss = gen_loss * config.decoder.max_ast_depth
+
             if infer:
                 flat_target = tf.reshape(self.targets, [-1])
                 indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
@@ -80,7 +83,8 @@ class Model():
                                               - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                               , axis=1)
-            self.KL_loss = tf.reduce_mean(KL_loss)
+            self.KL_loss = tf.reduce_mean(KL_loss) * config.latent_size
+            
 
             if bayou_mode:
                self.loss = self.gen_loss
@@ -164,5 +168,5 @@ class Model():
             feed[self.decoder.initial_state[i].name] = state[i]
 
         batch_prob = sess.run(self.batch_prob, feed)
-        
+
         return batch_prob
