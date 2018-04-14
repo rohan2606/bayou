@@ -185,9 +185,9 @@ if __name__ == '__main__':
     clargs = parser.parse_args(
      #['--continue_from', 'save1',
      ['--config','config.json',
-     '..\..\..\..\..\..\data\DATA-training-top.json'])
+     # '..\..\..\..\..\..\data\DATA-training-top.json'])
     # '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
-    # '/home/ubuntu/bayou/data/DATA-training.json'])
+    '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

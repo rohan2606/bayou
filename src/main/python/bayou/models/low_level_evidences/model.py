@@ -84,7 +84,7 @@ class Model():
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                               , axis=1)
             self.KL_loss = tf.reduce_mean(KL_loss) * config.latent_size
-            
+
 
             if bayou_mode:
                self.loss = self.gen_loss
@@ -130,7 +130,6 @@ class Model():
         psi_encoder, psi_encoder_mean, psi_encoder_Sigma = \
                     sess.run([self.psi_encoder, self.encoder.psi_mean, self.encoder.psi_covariance], feed)
 
-        #sigma is diag of covar, ie std.dev ^ 2
         return psi_encoder, psi_encoder_mean, psi_encoder_Sigma
 
 
@@ -139,8 +138,6 @@ class Model():
         # setup initial states and feed
         inputs = evidences
         feed = {}
-        for j, ev in enumerate(self.config.evidence):
-            feed[self.encoder.inputs[j].name] = inputs[j]
         for j in range(self.config.decoder.max_ast_depth):
             feed[self.reverse_encoder.Mean_Tree.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
             feed[self.reverse_encoder.Covariance_Tree.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
@@ -148,11 +145,10 @@ class Model():
             feed[self.reverse_encoder.Mean_Tree.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
             feed[self.reverse_encoder.Covariance_Tree.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
 
-        psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma_sqr = \
+        psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_Sigma = \
                     sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)
-        psi_reverse_encoder_sigma = np.sqrt(psi_reverse_encoder_sigma_sqr)
 
-        return psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_sigma
+        return psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_Sigma
 
     def infer_lnprobY_given_psi(self, sess, psi, nodes, edges, targets):
 
