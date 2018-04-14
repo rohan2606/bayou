@@ -22,6 +22,8 @@ import org.eclipse.jdt.core.dom.*;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -194,11 +196,10 @@ public class DAPICall extends DASTNode
         String className = qualifiedName.substring(0, qualifiedName.lastIndexOf("."));
         Type type;
         try {
-            type = className.contains("Tau_")? new Type(constructor.getDeclaringClass())
+            type = hasTypeVariable(className)? new Type(constructor.getDeclaringClass())
                     : Type.fromString(className, env.ast());
         } catch (Type.TypeParseException e) {
-            System.out.println(className);
-            throw new SynthesisException(SynthesisException.TypeParseException);
+            throw new SynthesisException(SynthesisException.TypeParseException, className);
         }
         type.concretizeType(env);
         creation.setType(type.simpleT(ast, null));
@@ -252,13 +253,12 @@ public class DAPICall extends DASTNode
             String className = qualifiedName.substring(0, qualifiedName.lastIndexOf("."));
             Type type;
             try {
-                type = className.contains("Tau_")? new Type(method.getDeclaringClass())
+                type = hasTypeVariable(className)? new Type(method.getDeclaringClass())
                         : Type.fromString(className, env.ast());
             } catch (Type.TypeParseException e) {
-                System.out.println(className);
-                throw new SynthesisException(SynthesisException.TypeParseException);
+                throw new SynthesisException(SynthesisException.TypeParseException, className);
             }
-            object = env.search(new SearchTarget(type));
+            object = primitiveWrapper(env.search(new SearchTarget(type)), env);
         }
         invocation.setExpression(object.getExpression());
 
@@ -354,7 +354,7 @@ public class DAPICall extends DASTNode
                 return e;
         }
 
-        throw new SynthesisException(SynthesisException.MethodOrConstructorNotFound);
+        throw new SynthesisException(SynthesisException.MethodOrConstructorNotFound, _call);
     }
 
     /**
@@ -373,7 +373,7 @@ public class DAPICall extends DASTNode
                 break;
             }
         if (typeVar == null)
-            throw new SynthesisException(SynthesisException.GenericTypeVariableMismatch);
+            throw new SynthesisException(SynthesisException.GenericTypeVariableMismatch, cls.getName());
         java.lang.reflect.Type bound = typeVar.getBounds()[0]; // first bound is the class
         return (Class) bound;
     }
@@ -389,5 +389,41 @@ public class DAPICall extends DASTNode
             if (s.contains("("))
                 return s.replaceAll("\\$", ".");
         return null;
+    }
+
+    /**
+     * Creates and returns a primitive wrapper expression (e.g., Integer.valueOf(i), Boolean.valueOf(b))
+     *
+     * @param object the TypedExpression for the variable name that goes in the valueOf method call
+     * @param env the current environment
+     * @return a TypedExpression that wraps the primitive
+     */
+    private TypedExpression primitiveWrapper(TypedExpression object, Environment env) {
+        Class cls = object.getType().C();
+        if (! cls.isPrimitive())
+            return object;
+
+        AST ast = env.ast();
+        Class wrapperClass = Type.primitiveToWrapperClass.get(cls);
+        MethodInvocation invocation = ast.newMethodInvocation();
+        invocation.setExpression(ast.newSimpleName(wrapperClass.getSimpleName()));
+        invocation.setName(ast.newSimpleName("valueOf"));
+        invocation.arguments().add(object.getExpression());
+
+        Type wrapperType = new Type(wrapperClass);
+        wrapperType.concretizeType(env);
+
+        return new TypedExpression(invocation, wrapperType)
+                .addReferencedVariables(object.getReferencedVariables())
+                .addAssociatedImports(object.getAssociatedImports());
+    }
+
+    private boolean hasTypeVariable(String className) {
+        if (className.contains("Tau_"))
+            return true;
+
+        // commonly used type variable names in Java API
+        Matcher typeVars = Pattern.compile("\\b[EKNTVSU][0-9]?\\b").matcher(className);
+        return typeVars.find();
     }
 }

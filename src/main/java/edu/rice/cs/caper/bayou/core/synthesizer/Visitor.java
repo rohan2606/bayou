@@ -24,6 +24,8 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.Document;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Main class that implements the visitor pattern on the draft program's AST
@@ -49,6 +51,12 @@ public class Visitor extends ASTVisitor {
      * Temporary store for the synthesized program. Gets updated with every invocation of visitor.
      */
     String synthesizedProgram;
+
+    /**
+     * Temporary store for the number of $ variables (variables needed from environment).
+     * Gets updated with every invocation of visitor.
+     */
+    int num$Variables;
 
     /**
      * The rewriter for the document
@@ -129,8 +137,12 @@ public class Visitor extends ASTVisitor {
         Block body = method.getBody();
         for (Object o : body.statements()) {
             Statement stmt = (Statement) o;
-            if (!(stmt instanceof VariableDeclarationStatement))
-                break; // stop at the first non-variable declaration
+            if (!(stmt instanceof VariableDeclarationStatement)) {
+                if (stmt instanceof Block)
+                    break; // stop at the first non-variable declaration
+                else
+                    throw new SynthesisException(SynthesisException.IrrelevantCodeInBody);
+            }
             VariableDeclarationStatement varDecl = (VariableDeclarationStatement) stmt;
             for (Object f : varDecl.fragments()) {
                 VariableDeclarationFragment frag = (VariableDeclarationFragment) f;
@@ -162,7 +174,7 @@ public class Visitor extends ASTVisitor {
     public boolean visit(MethodInvocation invocation) throws SynthesisException {
         IMethodBinding binding = invocation.resolveMethodBinding();
         if (binding == null)
-            throw new SynthesisException(SynthesisException.CouldNotResolveBinding);
+            throw new SynthesisException(SynthesisException.CouldNotResolveBinding, invocation.getName().getIdentifier());
 
         ITypeBinding cls = binding.getDeclaringClass();
         if (cls == null || !cls.getQualifiedName().equals("edu.rice.cs.caper.bayou.annotations.Evidence"))
@@ -183,7 +195,7 @@ public class Visitor extends ASTVisitor {
 
         String name = binding.getName();
         if (!(name.equals("apicalls") || name.equals("types") || name.equals("keywords")))
-            throw new SynthesisException(SynthesisException.InvalidEvidenceType);
+            throw new SynthesisException(SynthesisException.InvalidEvidenceType, name);
 
         Environment env = new Environment(invocation.getAST(), currentScope, mode);
         Block body = sketch.synthesize(env);
@@ -195,6 +207,7 @@ public class Visitor extends ASTVisitor {
             return false;
 
         /* make rewrites to the local method body */
+        num$Variables = 0;
         body = postprocessLocal(method.getAST(), env, body, dce.getEliminatedVars());
         rewriter.replace(evidenceBlock, body, null);
 
@@ -259,11 +272,28 @@ public class Visitor extends ASTVisitor {
             // add the variable declaration to either the method's formal params or the body
             org.eclipse.jdt.core.dom.Type varDeclType = var.getType().simpleT(ast, env);
             if (var.isDefaultInit()) {
-                SingleVariableDeclaration varDecl = ast.newSingleVariableDeclaration();
-                varDecl.setType(varDeclType);
-                varDecl.setName(var.createASTNode(ast));
-                var.refactor("$" + var.getName());
-                paramsRewriter.insertLast(varDecl, null);
+                /* Dirty hack: need to check if body references the variable, because DCE might have removed
+                 * statements that use the variable. The right way would be to keep track of such variables,
+                 * but the hack is to simply check if the variable name appears in body's toString().
+                 */
+                Matcher m = Pattern.compile("\\b" + var.getName() + "\\b").matcher(body.toString());
+                if (m.find()) {
+                    SingleVariableDeclaration varDecl = ast.newSingleVariableDeclaration();
+                    varDecl.setType(varDeclType);
+                    varDecl.setName(var.createASTNode(ast));
+
+                    // refactor by prefixing with _ (until there is no name clash)
+                    boolean exists;
+                    do {
+                        exists = false;
+                        var.refactor("_" + var.getName());
+                        for (Variable v : toDeclare)
+                            exists |= !v.equals(var) && v.getName().equals(var.getName());
+                    } while (exists);
+
+                    paramsRewriter.insertLast(varDecl, null);
+                    num$Variables++;
+                }
             } else {
                 VariableDeclarationFragment varDeclFrag = ast.newVariableDeclarationFragment();
                 varDeclFrag.setName(var.createASTNode(ast));

@@ -28,6 +28,7 @@ public class Environment {
     final AST ast;
     final Synthesizer.Mode mode;
     final Reflections reflections;
+    final PredefinedConstants predefinedConstants;
 
     public AST ast() {
         return ast;
@@ -39,6 +40,7 @@ public class Environment {
         this.scopes.push(new Scope(variables));
         this.mode = mode;
         this.reflections = new Reflections("java.io", "java.util");
+        this.predefinedConstants = new PredefinedConstants();
         imports = new HashSet<>();
     }
 
@@ -102,7 +104,7 @@ public class Environment {
         Enumerator enumerator = new Enumerator(ast, this, mode);
         TypedExpression tExpr = enumerator.search(target);
         if (tExpr == null)
-            throw new SynthesisException(SynthesisException.TypeNotFoundDuringSearch);
+            throw new SynthesisException(SynthesisException.TypeNotFoundDuringSearch, target.getType().C().getName());
         imports.addAll(tExpr.getAssociatedImports());
         return tExpr;
     }
@@ -124,7 +126,7 @@ public class Environment {
         try {
             return ClassUtils.getClass(Synthesizer.classLoader, name);
         } catch (ClassNotFoundException e) {
-            throw new SynthesisException(SynthesisException.ClassNotFoundInLoader);
+            throw new SynthesisException(SynthesisException.ClassNotFoundInLoader, name);
         }
     }
 

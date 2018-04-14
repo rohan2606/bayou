@@ -36,6 +36,20 @@ public class EvidenceExtractor extends ASTVisitor {
         }
     }
 
+    private static Map<String, String> primitives;
+    static {
+        Map<String, String> map = new HashMap<>();
+        map.put("byte", "Byte");
+        map.put("short", "Short");
+        map.put("int", "Integer");
+        map.put("long", "Long");
+        map.put("float", "Float");
+        map.put("double", "Double");
+        map.put("boolean", "Boolean");
+        map.put("char", "Character");
+        primitives = Collections.unmodifiableMap(map);
+    }
+
     JSONOutputWrapper output = new JSONOutputWrapper();
     Block evidenceBlock;
 
@@ -52,7 +66,7 @@ public class EvidenceExtractor extends ASTVisitor {
 
         IMethodBinding binding = declaration.resolveBinding();
         if (binding == null)
-            throw new SynthesisException(SynthesisException.CouldNotResolveBinding);
+            throw new SynthesisException(SynthesisException.CouldNotResolveBinding, declaration.getName().getIdentifier());
 
         // add formal parameters to types evidence
         output.types.clear();
@@ -61,7 +75,21 @@ public class EvidenceExtractor extends ASTVisitor {
             String p = param.getName();
             Matcher matcher = pattern.matcher(p);
             while (matcher.find())
-                output.types.add(matcher.group());
+                output.types.add(checkPrimitive(matcher.group()));
+        }
+
+        // add local variable declarations to types evidence
+        Block body = declaration.getBody();
+        for (Object o : body.statements()) {
+            Statement stmt = (Statement) o;
+            if (! (stmt instanceof VariableDeclarationStatement))
+                break;
+            VariableDeclarationStatement varDecl = (VariableDeclarationStatement) stmt;
+            ITypeBinding type = varDecl.getType().resolveBinding();
+            String t = type.getName();
+            Matcher matcher = pattern.matcher(t);
+            while (matcher.find())
+                output.types.add(checkPrimitive(matcher.group()));
         }
 
         return true;
@@ -71,7 +99,7 @@ public class EvidenceExtractor extends ASTVisitor {
     public boolean visit(MethodInvocation invocation) throws SynthesisException {
         IMethodBinding binding = invocation.resolveMethodBinding();
         if (binding == null)
-            throw new SynthesisException(SynthesisException.CouldNotResolveBinding);
+            throw new SynthesisException(SynthesisException.CouldNotResolveBinding, invocation.getName().getIdentifier());
 
         ITypeBinding cls = binding.getDeclaringClass();
         if (cls == null || !cls.getQualifiedName().equals("edu.rice.cs.caper.bayou.annotations.Evidence"))
@@ -97,14 +125,14 @@ public class EvidenceExtractor extends ASTVisitor {
         } else if (binding.getName().equals("types")) {
             for (Object arg : invocation.arguments()) {
                 StringLiteral a = (StringLiteral) arg;
-                output.types.add(a.getLiteralValue());
+                output.types.add(checkPrimitive(a.getLiteralValue()));
             }
         } else if (binding.getName().equals("keywords")) {
             for (Object arg : invocation.arguments()) {
                 StringLiteral a = (StringLiteral) arg;
                 output.keywords.add(a.getLiteralValue().toLowerCase());
             }
-        } else throw new SynthesisException(SynthesisException.InvalidEvidenceType);
+        } else throw new SynthesisException(SynthesisException.InvalidEvidenceType, binding.getName());
 
         return false;
     }
@@ -119,7 +147,7 @@ public class EvidenceExtractor extends ASTVisitor {
 
                 IMethodBinding binding = invocation.resolveMethodBinding();
                 if (binding == null)
-                    throw new SynthesisException(SynthesisException.CouldNotResolveBinding);
+                    throw new SynthesisException(SynthesisException.CouldNotResolveBinding, invocation.getName().getIdentifier());
 
                 ITypeBinding cls = binding.getDeclaringClass();
                 if (cls == null || !cls.getQualifiedName().equals("edu.rice.cs.caper.bayou.annotations.Evidence"))
@@ -130,6 +158,10 @@ public class EvidenceExtractor extends ASTVisitor {
         }
 
         return true;
+    }
+
+    String checkPrimitive(String type) {
+        return primitives.getOrDefault(type, type);
     }
 }
 
