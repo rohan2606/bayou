@@ -15,7 +15,7 @@
 import tensorflow as tf
 
 class TreeEncoder(object):
-    def __init__(self, emb, batch_size, num_layers, units, depth, output_units):
+    def __init__(self, emb, batch_size, nodes, edges, num_layers, units, depth, output_units):
         cells1 = []
         cells2 = []
         for _ in range(num_layers):
@@ -28,8 +28,6 @@ class TreeEncoder(object):
         # placeholders
         # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
         self.initial_state = [tf.truncated_normal([batch_size, units] , stddev=0.001 ) ] * num_layers
-        self.nodes = [tf.placeholder(tf.int32, [batch_size], name='node{0}'.format(i)) for i in range(depth)]
-        self.edges = [tf.placeholder(tf.bool, [batch_size], name='edge{0}'.format(i)) for i in range(depth)]
 
         # projection matrices for output
         with tf.name_scope("projections"):
@@ -40,7 +38,7 @@ class TreeEncoder(object):
             tf.summary.histogram("projection_b", self.projection_b)
 
 
-        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in nodes)
         self.emb_inp = emb_inp
 
         # setup embedding
@@ -60,8 +58,8 @@ class TreeEncoder(object):
                     with tf.variable_scope('cell2'): # handles SIBLING EDGE
                         output2, state2 = self.cell2(inp, self.state)
 
-                    output = tf.where(self.edges[i], output1, output2)
-                    self.state = [tf.where(self.edges[i], state1[j], state2[j]) for j in range(num_layers)]
+                    output = tf.where(edges[i], output1, output2)
+                    self.state = [tf.where(edges[i], state1[j], state2[j]) for j in range(num_layers)]
 
 
         with tf.name_scope("Output"):

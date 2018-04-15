@@ -76,6 +76,7 @@ Config options should be given as a JSON file (see config.json for example):
 def train(clargs):
     config_file = clargs.config if clargs.continue_from is None \
                                 else os.path.join(clargs.continue_from, 'config.json')
+
     with open(config_file) as f:
         config = read_config(json.load(f), chars_vocab=clargs.continue_from)
     reader = Reader(clargs, config)
@@ -87,7 +88,7 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False, bayou_mode = False, full_model_train=True)
+    model = Model(config, infer=False, bayou_mode = False, full_model_train=False)
     merged_summary = tf.summary.merge_all()
 
 
@@ -114,7 +115,6 @@ def train(clargs):
             avg_loss, avg_gen_loss, avg_KL_loss = 0,0,0
             for b in range(config.num_batches):
                 start = time.time()
-
                 # setup the feed dict
                 ev_data, n, e, y = reader.next_batch()
                 feed = {model.targets: y}
@@ -124,14 +124,11 @@ def train(clargs):
                     feed[model.decoder.nodes[j].name] = n[j]
                     feed[model.decoder.edges[j].name] = e[j]
                     # Feeding value into reverse encoder
-                    feed[model.reverse_encoder.Mean_Tree.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
-                    feed[model.reverse_encoder.Covariance_Tree.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
-
-                    feed[model.reverse_encoder.Mean_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
-                    feed[model.reverse_encoder.Covariance_Tree.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
+                    feed[model.reverse_encoder.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
+                    feed[model.reverse_encoder.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
 
                 # run the optimizer
-                loss, gen_loss, KL_loss, mean, other_mean, covar, other_covar, _ \
+                loss, gen_loss, KL_loss, E_mean, RE_mean, E_covar, RE_covar, _ \
                     = sess.run([model.loss, model.gen_loss, model.KL_loss,
                                 model.encoder.psi_mean, model.reverse_encoder.psi_mean,
                                 model.encoder.psi_covariance, model.reverse_encoder.psi_covariance,
@@ -147,14 +144,14 @@ def train(clargs):
                 avg_KL_loss += np.mean(KL_loss)
 
 
-                step = i * config.num_batches + b
+                step = (i+1) * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, mean: {:.3f}, other_mean: {:.3f}, covar: {:.3f}, other_covar: {:.3f}, time: {:.3f}'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, E_mean: {:.3f}, RE_mean: {:.3f}, E_covar: {:.3f}, RE_covar: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i + 1 ,
                            avg_loss/(b+1),avg_gen_loss/(b+1), avg_KL_loss/(b+1),
-                           np.mean(mean), np.mean(other_mean), np.mean(covar),
-                           np.mean(other_covar),
+                           np.mean(E_mean), np.mean(RE_mean), np.mean(E_covar),
+                           np.mean(RE_covar),
                            end - start))
 
             if (i+1) % config.checkpoint_step == 0 and i > 0:
@@ -175,7 +172,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save',
+    parser.add_argument('--save', type=str, default='save1',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -183,11 +180,11 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     #['--continue_from', 'save1',
-     ['--config','config.json',
+     ['--continue_from', 'save',
+     #['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
-    # '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
-    '/home/ubuntu/bayou/data/DATA-training.json'])
+    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
+    # '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

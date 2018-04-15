@@ -35,7 +35,7 @@ class Reader():
     def __init__(self, clargs, config, test_mode=False):
         self.config = config
 
-        random.seed(2)
+        random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
         raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
@@ -43,7 +43,7 @@ class Reader():
                          enumerate(config.evidence)]
 
         # align with number of batches
-        config.num_batches = int(len(raw_targets) / config.batch_size)
+        config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):

@@ -69,16 +69,16 @@ class BayesianPredictor(object):
             psi, psi_mean, psi_Sigma = self.model.infer_psi_encoder(self.sess, evidences)
             # the prob that we get here is the P(Y|Z) where Z~P(Z|X). It still needs to multiplied by P(Z)/P(Z|X) to get the correct value
             prob = self.model.infer_lnprobY_given_psi(self.sess, psi, nodes, edges, targets)
-            prob =  prob + self.get_psi_lnprob(psi) - self.get_psi_lnprob(psi, psi_mean, psi_Sigma)
-            #also get_psi_lnprob is of size [batch_size] so they should add up.
+            prob =  prob + self.get_multinormal_prob(psi) - self.get_multinormal_prob(psi, psi_mean, psi_Sigma)
+            #also get_multinormal_prob is of size [batch_size] so they should add up.
             probs.append(prob)
 
         probs = np.transpose(np.stack(probs, axis=0))
         # in batch case probs is [batch_size , num_psi_samples]
-        avg_prob = get_sum_in_log(probs) - np.log(len(probs))
+        avg_prob = get_sum_in_log(probs) - np.log(num_psi_samples)
         return avg_prob # np array of size batch_size
 
-    def get_psi_lnprob(self, x, mu=None , Sigma=None ):
+    def get_multinormal_prob(self, x, mu=None , Sigma=None ):
 
         if mu is None:
             mu = np.zeros(x.shape)
@@ -110,18 +110,23 @@ class BayesianPredictor(object):
         return a, b
 
     def get_c_minus_cstar(self, a1,b1, a2, b2, prob_Y):
-        t1 = np.sum(np.square(b1)/(4*a1), axis=0) + np.sum(np.square(b2)/(4*a2), axis=1)
-        t2 = -0.5 * np.sum(np.log(-1/(2*a1)), axis=0) -0.5 * np.sum(np.log(-1/(2*a2)), axis=1)
-        t3 = - (3/2) *  self.model.config.latent_size * np.log(2*np.pi)
-        c = t1+t2+t3
-
-        b_star = b1 + b2
         a_star = a1 + a2 + 0.5
-        t1_star = np.sum(np.square(b_star)/(4*a_star), axis=1)
-        t2_star = -0.5 * np.sum(np.log(-1/(2*a_star)), axis=1)
-        t3_star = - (1/2) * self.model.config.latent_size * np.log(2*np.pi)
+        b_star = b1 + b2
 
-        c_star = t1_star + t2_star + t3_star
-        prob = (c - c_star)
+        ab1 = get_contribs(a1, b1)
+        ab2 = get_contribs(a2, b2)
+        ab_star = get_contribs(a_star, b_star)
+        cons = 0.5* self.model.config.latent_size * log( 2*np.pi )
+
+        prob = ab1 + ab2 - ab_star - cons
         prob += np.array(prob_Y)
         return prob
+
+    def get_contribs(a , b):
+        assert(a.shape == b.shape)
+        assert(a.shape <= 2)
+        if len(a.shape == 2):
+            temp = np.sum(np.square(b)/(4*a), axis=1) + 0.5 * np.sum(np.log(-a/np.pi), axis=1)
+        else:
+            temp = np.sum(np.square(b)/(4*a), axis=0) + 0.5 * np.sum(np.log(-a/np.pi), axis=0)
+        return temp

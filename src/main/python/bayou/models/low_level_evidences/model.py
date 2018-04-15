@@ -75,7 +75,7 @@ class Model():
                 flat_target = tf.reshape(self.targets, [-1])
                 indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
                 valid_probs = tf.reshape(tf.gather_nd(self.ln_probs, indices), [self.config.batch_size, -1])
-                self.batch_prob = tf.reduce_sum(valid_probs, axis = 1)
+                self.target_prob = tf.reduce_sum(valid_probs, axis = 1)
 
             # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
             #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
@@ -139,11 +139,8 @@ class Model():
         inputs = evidences
         feed = {}
         for j in range(self.config.decoder.max_ast_depth):
-            feed[self.reverse_encoder.Mean_Tree.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
-            feed[self.reverse_encoder.Covariance_Tree.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
-
-            feed[self.reverse_encoder.Mean_Tree.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
-            feed[self.reverse_encoder.Covariance_Tree.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
 
         psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_Sigma = \
                     sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)
@@ -159,10 +156,9 @@ class Model():
         for j in range(self.config.decoder.max_ast_depth):
             feed[self.decoder.nodes[j].name] = nodes[j]
             feed[self.decoder.edges[j].name] = edges[j]
-
         for i in range(self.config.decoder.num_layers):
             feed[self.decoder.initial_state[i].name] = state[i]
 
-        batch_prob = sess.run(self.batch_prob, feed)
+        target_prob = sess.run(self.target_prob, feed)
 
-        return batch_prob
+        return target_prob
