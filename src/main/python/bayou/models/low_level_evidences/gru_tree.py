@@ -41,8 +41,7 @@ class TreeEncoder(object):
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in nodes)
         self.emb_inp = emb_inp
 
-        # setup embedding
-        # setting this variable scope to decoder helps you use the same embedding as in decoder
+    
         with tf.variable_scope('Tree_network'):
 
             emb_inp = self.emb_inp

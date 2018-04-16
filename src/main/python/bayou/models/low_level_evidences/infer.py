@@ -113,19 +113,19 @@ class BayesianPredictor(object):
         a_star = a1 + a2 + 0.5
         b_star = b1 + b2
 
-        ab1 = get_contribs(a1, b1)
-        ab2 = get_contribs(a2, b2)
-        ab_star = get_contribs(a_star, b_star)
-        cons = 0.5* self.model.config.latent_size * log( 2*np.pi )
+        ab1 = self.get_contribs(a1, b1)
+        ab2 = self.get_contribs(a2, b2)
+        ab_star = self.get_contribs(a_star, b_star)
+        cons = 0.5* self.model.config.latent_size * np.log( 2*np.pi )
 
         prob = ab1 + ab2 - ab_star - cons
         prob += np.array(prob_Y)
         return prob
 
-    def get_contribs(a , b):
+    def get_contribs(self, a , b):
         assert(a.shape == b.shape)
-        assert(a.shape <= 2)
-        if len(a.shape == 2):
+        assert(len(list(a.shape)) <= 2)
+        if (len(list(a.shape)) == 2):
             temp = np.sum(np.square(b)/(4*a), axis=1) + 0.5 * np.sum(np.log(-a/np.pi), axis=1)
         else:
             temp = np.sum(np.square(b)/(4*a), axis=0) + 0.5 * np.sum(np.log(-a/np.pi), axis=0)

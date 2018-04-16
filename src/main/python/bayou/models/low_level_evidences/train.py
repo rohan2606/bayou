@@ -123,9 +123,9 @@ def train(clargs):
                 for j in range(config.decoder.max_ast_depth):
                     feed[model.decoder.nodes[j].name] = n[j]
                     feed[model.decoder.edges[j].name] = e[j]
-                    # Feeding value into reverse encoder
-                    feed[model.reverse_encoder.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
-                    feed[model.reverse_encoder.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
+                for j in range(config.reverse_encoder.max_ast_depth):
+                    feed[model.reverse_encoder.nodes[j].name] = n[config.reverse_encoder.max_ast_depth - 1 - j]
+                    feed[model.reverse_encoder.edges[j].name] = e[config.reverse_encoder.max_ast_depth - 1 - j]
 
                 # run the optimizer
                 loss, gen_loss, KL_loss, E_mean, RE_mean, E_covar, RE_covar, _ \
@@ -147,7 +147,7 @@ def train(clargs):
                 step = (i+1) * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, E_mean: {:.3f}, RE_mean: {:.3f}, E_covar: {:.3f}, RE_covar: {:.3f}, time: {:.3f}'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, \n E_mean: {:.3f}, RE_mean: {:.3f}, E_covar: {:.3f}, RE_covar: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i + 1 ,
                            avg_loss/(b+1),avg_gen_loss/(b+1), avg_KL_loss/(b+1),
                            np.mean(E_mean), np.mean(RE_mean), np.mean(E_covar),

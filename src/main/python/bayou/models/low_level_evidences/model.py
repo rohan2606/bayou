@@ -51,7 +51,7 @@ class Model():
             if bayou_mode:
                 self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
-                self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+                self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
 
             self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
 
@@ -116,10 +116,6 @@ class Model():
 
     # called from infer only when the model is used in inference
     def infer_psi_encoder(self, sess, evidences):
-        # Qs: What is evidences. I believe a JSON with headings as keywords, apicalls etc
-        # read and wrangle (with batch_size 1) the data
-        ## NO NEED TO WRANGLE THE INPUTS ANYMORE
-        # inputs = [ev.wrangle(evidences) for ev in self.config.evidence]
 
         inputs = evidences
         # setup initial states and feed
@@ -138,9 +134,11 @@ class Model():
         # setup initial states and feed
         inputs = evidences
         feed = {}
-        for j in range(self.config.decoder.max_ast_depth):
-            feed[self.reverse_encoder.nodes[j].name] = nodes[self.config.decoder.max_ast_depth - 1 - j]
-            feed[self.reverse_encoder.edges[j].name] = edges[self.config.decoder.max_ast_depth - 1 - j]
+        for j,ev in enumerate(self.config.evidence):
+            feed[self.encoder.inputs[j].name] = inputs[j]
+        for j in range(self.config.reverse_encoder.max_ast_depth):
+            feed[self.reverse_encoder.nodes[j].name] = nodes[self.config.reverse_encoder.max_ast_depth - 1 - j]
+            feed[self.reverse_encoder.edges[j].name] = edges[self.config.reverse_encoder.max_ast_depth - 1 - j]
 
         psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_Sigma = \
                     sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)
