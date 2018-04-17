@@ -27,12 +27,12 @@ import textwrap
 import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.data_reader import Reader
 from tensorflow.contrib.tensorboard.plugins import projector
-from bayou.models.low_level_evidences.utils import read_config
+from bayou.models.low_level_evidences.utils import read_config, get_var_list
 
 
 PATH = os.getcwd()
-#LOG_DIR = PATH + '/emedding'
-LOG_DIR = PATH + '\\embedding'
+LOG_DIR = PATH + '/embedding'
+# LOG_DIR = PATH + '\\embedding'
 
 _classes = ['java.util', 'android.app', 'android.view', 'android.widget', 'java.io', 'javax.xml', 'java.net', \
 'android.graphics', 'android.content', 'android.webkit']
@@ -85,7 +85,7 @@ def get_class_label(y, _rev_dict):
        if flag == 0:
           _labels_batch.append('other_API')
     return _labels_batch
-    
+
 #%%
 def embed(clargs):
     #set clargs.continue_from = True which ignores config options and starts
@@ -107,7 +107,7 @@ def embed(clargs):
 
 
     with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save, sess, config, bayou_mode = True) # goes to infer.BayesianPredictor
         reader.reset_batches()
 
         _psi_encoders = []
@@ -130,8 +130,8 @@ def embed(clargs):
             _labels.extend(get_class_label(y,_rev_dict))
             # run the optimizer
             _psi_encoder \
-                = sess.run(predictor.model.psi_reverse_encoder, feed)
-            
+                = sess.run(predictor.model.psi_encoder, feed)
+
             _psi_encoders.append(_psi_encoder)
 
         _psi_encoders_agg = np.concatenate(_psi_encoders, axis = 0)
@@ -155,11 +155,10 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save',
-    #'/home/ubuntu/bayou/src/main/python/bayou/models/low_level_evidences/save',
-    '..\low_level_evidences\save',
-    '..\..\..\..\..\..\data\DATA-training-top.json'])
-    #'/home/ubuntu/bayou/data/DATA-training.json'])
+    clargs = parser.parse_args(['--save', 'save1',
+    #'..\low_level_evidences\save',
+    #'..\..\..\..\..\..\data\DATA-training-top.json'])
+    '/home/ubuntu/bayou/data/DATA-training.json'])
 
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

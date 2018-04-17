@@ -52,7 +52,7 @@ def test(clargs):
     reader = Reader(clargs, config, test_mode=True)
 
     with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
 
         # testing
         reader.reset_batches()

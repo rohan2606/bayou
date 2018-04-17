@@ -20,7 +20,7 @@ import os
 import pickle
 
 from bayou.models.low_level_evidences.model import Model
-from bayou.models.low_level_evidences.utils import get_sum_in_log
+from bayou.models.low_level_evidences.utils import get_sum_in_log, get_var_list
 
 
 MAX_GEN_UNTIL_STOP = 20
@@ -41,11 +41,11 @@ class InvalidSketchError(Exception):
 
 class BayesianPredictor(object):
 
-    def __init__(self, save, sess, config):
+    def __init__(self, save, sess, config, bayou_mode=False):
         self.sess = sess
 
 
-        self.model = Model(config, infer=True, bayou_mode=False)
+        self.model = Model(config, infer=True, bayou_mode=bayou_mode)
 
         # load the callmap
         with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:
@@ -53,7 +53,11 @@ class BayesianPredictor(object):
 
         # restore the saved model
         tf.global_variables_initializer().run()
-        saver = tf.train.Saver(tf.global_variables())
+        if bayou_mode == True:
+            bayou_vars = get_var_list()['bayou_vars']
+            saver = tf.train.Saver(bayou_vars)
+        else:
+            saver = tf.train.Saver(tf.global_variables())
         ckpt = tf.train.get_checkpoint_state(save)
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 

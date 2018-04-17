@@ -88,7 +88,7 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False, bayou_mode = False, full_model_train=False)
+    model = Model(config, infer=False, bayou_mode = True, full_model_train=False)
     merged_summary = tf.summary.merge_all()
 
 
@@ -147,7 +147,7 @@ def train(clargs):
                 step = (i+1) * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, \n E_mean: {:.3f}, RE_mean: {:.3f}, E_covar: {:.3f}, RE_covar: {:.3f}, time: {:.3f}'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, \n\t\t E_mean: {:.3f}, RE_mean: {:.3f}, E_covar: {:.3f}, RE_covar: {:.3f}, time: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i + 1 ,
                            avg_loss/(b+1),avg_gen_loss/(b+1), avg_KL_loss/(b+1),
                            np.mean(E_mean), np.mean(RE_mean), np.mean(E_covar),
@@ -180,11 +180,11 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save',
-     #['--config','config.json',
+     #['--continue_from', 'save',
+     ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
-    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
-    # '/home/ubuntu/bayou/data/DATA-training.json'])
+    #'/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
+     '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')
