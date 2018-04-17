@@ -35,7 +35,7 @@ class Reader():
     def __init__(self, clargs, config, test_mode=False):
         self.config = config
 
-        random.seed(12)
+        #random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
         raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
@@ -206,7 +206,7 @@ class Reader():
 
         # randomly shuffle to avoid bias towards initial data points during training
         #print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")
-        random.shuffle(data_points)
+        #random.shuffle(data_points)
 
 
         evidences, targets = zip(*data_points)

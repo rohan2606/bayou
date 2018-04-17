@@ -99,7 +99,7 @@ def train(clargs):
 
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pbtxt')
         tf.train.write_graph(sess.graph_def, clargs.save, 'model.pb', as_text=False)
-        saver = tf.train.Saver(tf.global_variables(), max_to_keep=1)
+        saver = tf.train.Saver(tf.global_variables(), max_to_keep=3)
 
         # restore model
         if clargs.continue_from is not None:

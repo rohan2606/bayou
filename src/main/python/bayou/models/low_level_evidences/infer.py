@@ -23,10 +23,6 @@ from bayou.models.low_level_evidences.model import Model
 from bayou.models.low_level_evidences.utils import get_sum_in_log, get_var_list
 
 
-MAX_GEN_UNTIL_STOP = 20
-MAX_AST_DEPTH = 5
-
-
 class TooLongPathError(Exception):
     pass
 

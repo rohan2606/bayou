@@ -51,7 +51,7 @@ class Model():
             if bayou_mode:
                 self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
-                self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
+                self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
 
             self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
 
@@ -69,7 +69,7 @@ class Model():
             gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
                                                   [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
-            self.gen_loss = gen_loss * config.decoder.max_ast_depth
+            self.gen_loss = gen_loss #* config.decoder.max_ast_depth
 
             if infer:
                 flat_target = tf.reshape(self.targets, [-1])
@@ -83,7 +83,7 @@ class Model():
                                               - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                               , axis=1)
-            self.KL_loss = tf.reduce_mean(KL_loss) * config.latent_size
+            self.KL_loss = tf.reduce_mean(KL_loss) #* config.latent_size
 
 
             if bayou_mode:
