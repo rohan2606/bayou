@@ -69,7 +69,7 @@ class Model():
             gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
                                                   [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
-            self.gen_loss = gen_loss #* config.decoder.max_ast_depth
+            self.gen_loss = gen_loss #*
 
             if infer:
                 flat_target = tf.reshape(self.targets, [-1])
@@ -83,7 +83,7 @@ class Model():
                                               - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
                                               , axis=1)
-            self.KL_loss = tf.reduce_mean(KL_loss) #* config.latent_size
+            self.KL_loss = tf.reduce_mean(KL_loss) #* config.latent_size / config.decoder.max_ast_depth
 
 
             if bayou_mode:

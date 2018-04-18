@@ -73,20 +73,21 @@ def test(clargs):
                             np.concatenate(a2s, axis=0) , np.concatenate(b2s, axis=0)
         prob_Y = normalize_log_probs(np.concatenate(prob_Y, axis=0))
 
-
         hit_points = [2,5,10,50,100,500]
         hit_counts = np.zeros(len(hit_points))
         for i in range(config.num_batches * config.batch_size):
             prob_Y_X = []
             for j in range(config.num_batches):
-                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[j:j+config.batch_size], b2s[j:j+config.batch_size], prob_Y[j:j+config.batch_size])
+                sid = j * config.batch_size
+                eid = (j+1) * config.batch_size
+                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[sid:eid], b2s[sid:eid], prob_Y[sid:eid])
                 prob_Y_X.extend(prob_Y_X_i)
 
             assert(len(prob_Y_X) == config.num_batches * config.batch_size)
             _rank = find_my_rank(prob_Y_X, i)
             hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
 
-            if i % 100 == 0:
+            if (i+1) % 100 == 0:
                 print('Searched {}/{} (Max Rank {})'
                       'Hit_Points {} :: Percentage Hits {}'.format
                       (i + 1, config.num_batches*config.batch_size, config.num_batches*config.batch_size,
@@ -110,7 +111,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save1',
+    clargs = parser.parse_args(['--save', 'save2',
     '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
 #    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
