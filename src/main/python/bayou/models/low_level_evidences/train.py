@@ -25,7 +25,7 @@ import textwrap
 
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.model import Model
-from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list
+from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot
 
 
 HELP = """\
@@ -88,7 +88,7 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False, bayou_mode = False, full_model_train= False)
+    model = Model(config, infer=False, bayou_mode = False, full_model_train = True)
     merged_summary = tf.summary.merge_all()
 
 
@@ -108,11 +108,11 @@ def train(clargs):
             ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
             old_saver.restore(sess, ckpt.model_checkpoint_path)
 
-
         # training
+        epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
             reader.reset_batches()
-            avg_loss, avg_gen_loss, avg_KL_loss = 0,0,0
+            avg_loss, avg_gen_loss, avg_KL_loss = 0.,0.,0.
             for b in range(config.num_batches):
                 start = time.time()
                 # setup the feed dict
@@ -154,14 +154,14 @@ def train(clargs):
                            np.mean(RE_covar),
                            end - start))
 
+            epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
             if (i+1) % config.checkpoint_step == 0 and i > 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
                       (checkpoint_dir, avg_loss / config.num_batches))
-
-
+        static_plot(epocLoss , epocGenL , epocKlLoss)
 
 
 #%%
@@ -172,7 +172,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save2',
+    parser.add_argument('--save', type=str, default='save1',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -180,8 +180,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save1',
-     # ['--config','config.json',
+     # ['--continue_from', 'save1',
+     ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
     #'/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
      '/home/ubuntu/bayou/data/DATA-training.json'])

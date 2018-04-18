@@ -18,6 +18,7 @@ import re
 import tensorflow as tf
 from itertools import chain
 import numpy as np
+import os
 
 CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',
                   'learning_rate', 'print_step', 'checkpoint_step', 'alpha', 'beta']
@@ -31,6 +32,20 @@ UNK = '_UNK_'
 CHILD_EDGE = 'V'
 SIBLING_EDGE = 'H'
 
+
+def static_plot(totL, genL, KlLoss):
+    plot_path = os.path.join(os.getcwd(),'plots')
+    if not os.path.exists(plot_path):
+        os.makedirs(plot_path)
+    plt.grid()
+    plt.title("Losses")
+    plt.plot(a),plt.plot(b),plt.plot(c)
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss Value")
+    fig_name ="Loss_w_Epochs.pdf"
+    plt.savefig(os.path.join(plot_path, fig_name), bbox_inches='tight')
+
+    return
 
 def length(tensor):
     elems = tf.sign(tf.reduce_max(tensor, axis=2))
@@ -48,14 +63,14 @@ def split_camel(s):
 def ListToFormattedString(alist, Type):
     # Each item is right-adjusted, width=3
     if Type == 'float':
-        formatted_list = ['{:.2f}' for item in alist] 
+        formatted_list = ['{:.2f}' for item in alist]
         s = ','.join(formatted_list)
     elif Type == 'int':
-        formatted_list = ['{:>3}' for item in alist] 
+        formatted_list = ['{:>3}' for item in alist]
         s = ','.join(formatted_list)
     return s.format(*alist)
-    
-    
+
+
 def get_sum_in_log(probs):
     assert (len(list(probs.shape)) == 2)
     lnsum = probs[:,0]

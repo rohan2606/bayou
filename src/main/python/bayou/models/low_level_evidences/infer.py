@@ -57,9 +57,8 @@ class BayesianPredictor(object):
         ckpt = tf.train.get_checkpoint_state(save)
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
-    def get_lnProb_Y_i(self, evidences, nodes, edges, targets, num_psi_samples=10):
+    def get_lnProbY(self, evidences, nodes, edges, targets, num_psi_samples=1):
         """
-
         :param evidences: the input evidences
         :param num_psi_samples: number of samples of the intent, averaged before AST construction
         :return: probabilities
