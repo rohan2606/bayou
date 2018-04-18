@@ -56,22 +56,21 @@ def test(clargs):
 
         # testing
         reader.reset_batches()
-        prob_Y, a1s, b1s, a2s, b2s = [], [], [], [], []
+        prob_Ys, a1s, b1s, a2s, b2s = [], [], [], [], []
         for i in range(config.num_batches):
             ev_data, n, e, y = reader.next_batch()
-            prob_Y.append(predictor.get_lnProbY(ev_data, n, e, y))
-            a1, b1 = predictor.get_encoder_ab(ev_data)
-            a2, b2 = predictor.get_rev_encoder_ab(n,e, ev_data)
+            prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
+            prob_Ys.append(prob_Y)
             a1s.append(a1), b1s.append(b1)
             a2s.append(a2), b2s.append(b2)
-            if i % 100 == 0:
+            if (i+1) % 100 == 0:
                 print('Completed Processing {}/{} batches'.format
                 (i+1, config.num_batches))
 
 
         a1s,b1s,a2s,b2s = np.concatenate(a1s, axis=0), np.concatenate(b1s, axis=0), \
                             np.concatenate(a2s, axis=0) , np.concatenate(b2s, axis=0)
-        prob_Y = normalize_log_probs(np.concatenate(prob_Y, axis=0))
+        prob_Ys = normalize_log_probs(np.concatenate(prob_Ys, axis=0))
 
         hit_points = [2,5,10,50,100,500]
         hit_counts = np.zeros(len(hit_points))
@@ -80,7 +79,7 @@ def test(clargs):
             for j in range(config.num_batches):
                 sid = j * config.batch_size
                 eid = (j+1) * config.batch_size
-                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[sid:eid], b2s[sid:eid], prob_Y[sid:eid])
+                prob_Y_X_i = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[sid:eid], b2s[sid:eid], prob_Ys[sid:eid])
                 prob_Y_X.extend(prob_Y_X_i)
 
             assert(len(prob_Y_X) == config.num_batches * config.batch_size)

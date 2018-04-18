@@ -57,56 +57,25 @@ class BayesianPredictor(object):
         ckpt = tf.train.get_checkpoint_state(save)
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
-    def get_lnProbY(self, evidences, nodes, edges, targets, num_psi_samples=1):
-        """
-        :param evidences: the input evidences
-        :param num_psi_samples: number of samples of the intent, averaged before AST construction
-        :return: probabilities
-        """
-        probs = []
-        for i in range(num_psi_samples):
-            psi, psi_mean, psi_Sigma = self.model.infer_psi_encoder(self.sess, evidences)
-            # the prob that we get here is the P(Y|Z) where Z~P(Z|X). It still needs to multiplied by P(Z)/P(Z|X) to get the correct value
-            prob = self.model.infer_lnprobY_given_psi(self.sess, psi, nodes, edges, targets)
-            prob =  prob + self.get_multinormal_prob(psi) - self.get_multinormal_prob(psi, psi_mean, psi_Sigma)
-            #also get_multinormal_prob is of size [batch_size] so they should add up.
-            probs.append(prob)
 
-        probs = np.transpose(np.stack(probs, axis=0))
-        # in batch case probs is [batch_size , num_psi_samples]
-        avg_prob = get_sum_in_log(probs) - np.log(num_psi_samples)
-        return avg_prob # np array of size batch_size
-
-    def get_multinormal_prob(self, x, mu=None , Sigma=None ):
-
-        if mu is None:
-            mu = np.zeros(x.shape)
-        if Sigma is None:
-            Sigma = np.ones(x.shape)
-
-        # mu is a vector of size [batch_size, latent_size]
-        #sigma is another vector of size [batch_size, latent size] denoting a diagonl matrix
-        ln_nume =  -0.5 * np.sum( np.square(x-mu) / Sigma, axis=1 )
-        ln_deno = x.shape[1]/2 * np.log(2 * np.pi ) + 0.5 * np.sum(np.log(Sigma), axis=1)
-        val = ln_nume - ln_deno
-
-        return val
+    def get_all_params_inago(self, evidences, nodes, edges, targets):
+        # setup initial states and feed
+        inputs = evidences
+        feed = {self.model.targets: targets}
+        for j,ev in enumerate(self.model.config.evidence):
+            feed[self.model.encoder.inputs[j].name] = inputs[j]
+        for j in range(self.model.config.decoder.max_ast_depth):
+            feed[self.model.decoder.nodes[j].name] = nodes[j]
+            feed[self.model.decoder.edges[j].name] = edges[j]
+        for j in range(self.model.config.reverse_encoder.max_ast_depth):
+            feed[self.model.reverse_encoder.nodes[j].name] = nodes[self.model.config.reverse_encoder.max_ast_depth - 1 - j]
+            feed[self.model.reverse_encoder.edges[j].name] = edges[self.model.config.reverse_encoder.max_ast_depth - 1 - j]
 
 
-    def get_encoder_ab(self, evidences):
-        psi_e, psi_e_mu, psi_e_Sigma = self.model.infer_psi_encoder(self.sess, evidences)
-        a1, b1 = self.calculate_ab(psi_e_mu, psi_e_Sigma)
-        return a1, b1
+        [probY, EncA, EncB, RevEncA, RevEncB] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
+                                                        self.model.RevEncA, self.model.RevEncB], feed)
 
-    def get_rev_encoder_ab(self, nodes, edges, evidences):
-        psi_re, psi_re_mu, psi_re_Sigma = self.model.infer_psi_reverse_encoder(self.sess, nodes, edges, evidences)
-        a2, b2= self.calculate_ab(psi_re_mu, psi_re_Sigma)
-        return a2, b2
-
-    def calculate_ab(self, mu, Sigma):
-        a = -1 /(2*Sigma)
-        b = mu / Sigma
-        return a, b
+        return probY, EncA, EncB, RevEncA, RevEncB
 
     def get_c_minus_cstar(self, a1,b1, a2, b2, prob_Y):
         a_star = a1 + a2 + 0.5

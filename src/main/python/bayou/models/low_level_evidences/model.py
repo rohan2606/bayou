@@ -69,16 +69,21 @@ class Model():
             gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
                                                   [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
-            self.gen_loss = gen_loss #*
+            self.gen_loss = gen_loss
 
             if infer:
                 flat_target = tf.reshape(self.targets, [-1])
                 indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
                 valid_probs = tf.reshape(tf.gather_nd(self.ln_probs, indices), [self.config.batch_size, -1])
-                self.target_prob = tf.reduce_sum(valid_probs, axis = 1)
+                target_prob = tf.reduce_sum(valid_probs, axis = 1)
+                # self.target_prob is  P(Y|Z) where Z~P(Z|X)
+                self.probY = target_prob + self.get_multinormal_lnprob(self.psi_encoder) \
+                                            - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
+                # self.probY hence is P(Y|Z) where Z~P(Z) by importace_sampling
+                self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
+                self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
             # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
-            #remember, we are minimizing the loss, but derivations were to maximize the lower bound and hence no negative sign
             KL_loss = 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
                                               - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
                                               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
@@ -114,49 +119,22 @@ class Model():
                           for var in tf.trainable_variables()]
             print('Model parameters: {}'.format(np.sum(var_params)))
 
-    # called from infer only when the model is used in inference
-    def infer_psi_encoder(self, sess, evidences):
 
-        inputs = evidences
-        # setup initial states and feed
-        feed = {}
-        for j, ev in enumerate(self.config.evidence):
-            feed[self.encoder.inputs[j].name] = inputs[j]
+    def get_multinormal_lnprob(self, x, mu=None , Sigma=None ):
+        if mu is None:
+            mu = tf.zeros(x.shape)
+        if Sigma is None:
+            Sigma = tf.ones(x.shape)
 
-        psi_encoder, psi_encoder_mean, psi_encoder_Sigma = \
-                    sess.run([self.psi_encoder, self.encoder.psi_mean, self.encoder.psi_covariance], feed)
+        # mu is a vector of size [batch_size, latent_size]
+        #sigma is another vector of size [batch_size, latent size] denoting a diagonl matrix
+        ln_nume =  -0.5 * tf.reduce_sum( tf.square(x-mu) / Sigma, axis=1 )
+        ln_deno = self.config.latent_size / 2 * tf.log(2 * np.pi ) + 0.5 * tf.reduce_sum(tf.log(Sigma), axis=1)
+        val = ln_nume - ln_deno
 
-        return psi_encoder, psi_encoder_mean, psi_encoder_Sigma
+        return val
 
-
-    def infer_psi_reverse_encoder(self, sess, nodes, edges, evidences):
-
-        # setup initial states and feed
-        inputs = evidences
-        feed = {}
-        for j,ev in enumerate(self.config.evidence):
-            feed[self.encoder.inputs[j].name] = inputs[j]
-        for j in range(self.config.reverse_encoder.max_ast_depth):
-            feed[self.reverse_encoder.nodes[j].name] = nodes[self.config.reverse_encoder.max_ast_depth - 1 - j]
-            feed[self.reverse_encoder.edges[j].name] = edges[self.config.reverse_encoder.max_ast_depth - 1 - j]
-
-        psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_Sigma = \
-                    sess.run([self.psi_reverse_encoder, self.reverse_encoder.psi_mean, self.reverse_encoder.psi_covariance], feed)
-
-        return psi_reverse_encoder, psi_reverse_encoder_mean, psi_reverse_encoder_Sigma
-
-    def infer_lnprobY_given_psi(self, sess, psi, nodes, edges, targets):
-
-        state = sess.run(self.initial_state, {self.psi_reverse_encoder: psi})
-        state = [state] * self.config.decoder.num_layers
-
-        feed = {self.targets: targets}
-        for j in range(self.config.decoder.max_ast_depth):
-            feed[self.decoder.nodes[j].name] = nodes[j]
-            feed[self.decoder.edges[j].name] = edges[j]
-        for i in range(self.config.decoder.num_layers):
-            feed[self.decoder.initial_state[i].name] = state[i]
-
-        target_prob = sess.run(self.target_prob, feed)
-
-        return target_prob
+    def calculate_ab(self, mu, Sigma):
+        a = -1 /(2*Sigma)
+        b = mu / Sigma
+        return a, b
