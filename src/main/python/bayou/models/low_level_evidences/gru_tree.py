@@ -25,7 +25,6 @@ class TreeEncoder(object):
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
 
-        # placeholders
         # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
         self.initial_state = [tf.truncated_normal([batch_size, units] , stddev=0.001 ) ] * num_layers
 
@@ -41,7 +40,7 @@ class TreeEncoder(object):
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in nodes)
         self.emb_inp = emb_inp
 
-    
+
         with tf.variable_scope('Tree_network'):
 
             emb_inp = self.emb_inp

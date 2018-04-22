@@ -63,7 +63,7 @@ def test(clargs):
             prob_Ys.append(prob_Y)
             a1s.append(a1), b1s.append(b1)
             a2s.append(a2), b2s.append(b2)
-            if (i+1) % 100 == 0:
+            if (i+1) % 1000 == 0:
                 print('Completed Processing {}/{} batches'.format
                 (i+1, config.num_batches))
 
@@ -72,7 +72,7 @@ def test(clargs):
                             np.concatenate(a2s, axis=0) , np.concatenate(b2s, axis=0)
         prob_Ys = normalize_log_probs(np.concatenate(prob_Ys, axis=0))
 
-        hit_points = [2,5,10,50,100,500]
+        hit_points = [2,5,10,50,100,500,1000,5000,10000]
         hit_counts = np.zeros(len(hit_points))
         for i in range(config.num_batches * config.batch_size):
             prob_Y_X = []

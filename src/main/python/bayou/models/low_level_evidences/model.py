@@ -48,7 +48,7 @@ class Model():
         with tf.variable_scope("Decoder"):
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
-            if bayou_mode:
+            if bayou_mode or infer:
                 self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
                 self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
@@ -75,11 +75,12 @@ class Model():
                 flat_target = tf.reshape(self.targets, [-1])
                 indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
                 valid_probs = tf.reshape(tf.gather_nd(self.ln_probs, indices), [self.config.batch_size, -1])
-                target_prob = tf.reduce_sum(valid_probs, axis = 1)
                 # self.target_prob is  P(Y|Z) where Z~P(Z|X)
+                target_prob = tf.reduce_sum(valid_probs, axis = 1)
+                # self.probY hence is P(Y|Z) where Z~P(Z) by importace_sampling
+                # this self.prob_Y is approximate however and you need to introduce one more tensor dimension to do this efficiently over multiple samples
                 self.probY = target_prob + self.get_multinormal_lnprob(self.psi_encoder) \
                                             - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
-                # self.probY hence is P(Y|Z) where Z~P(Z) by importace_sampling
                 self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
                 self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
