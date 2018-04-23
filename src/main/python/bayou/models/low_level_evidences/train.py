@@ -139,9 +139,8 @@ def train(clargs):
                 writer.add_summary(s,i)
 
                 end = time.time()
-                avg_loss += np.mean(loss)
-                avg_gen_loss += np.mean(gen_loss)
-                avg_KL_loss += np.mean(KL_loss)
+                avg_loss += np.mean(loss), avg_gen_loss += np.mean(gen_loss), avg_KL_loss += np.mean(KL_loss)
+                
 
                 step = (i+1) * config.num_batches + b
                 if step % config.print_step == 0:

@@ -206,7 +206,7 @@ class Reader():
 
         # randomly shuffle to avoid bias towards initial data points during training
         #print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")
-        #random.shuffle(data_points)
+        random.shuffle(data_points)
 
 
         evidences, targets = zip(*data_points)
