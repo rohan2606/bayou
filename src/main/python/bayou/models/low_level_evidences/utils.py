@@ -91,13 +91,13 @@ def rank_statistic(_rank, total, prev_hits, cutoff):
     prctg = hits / total
     return hits, prctg
 
-def find_my_rank(prob_Y_X, i):
-    array = np.array(prob_Y_X)
-    array *= -1
-    temp = array.argsort()
-    ranks = np.empty_like(temp)
-    ranks[temp] = np.arange(len(array))
-    return ranks[i]
+def find_my_rank(arr, i):
+    pivot = arr[i]
+    rank = 0
+    for val in arr:
+        if val > pivot:
+            rank += 1
+    return rank
 
 
 def get_var_list():

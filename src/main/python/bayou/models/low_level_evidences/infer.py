@@ -77,24 +77,48 @@ class BayesianPredictor(object):
 
         return probY, EncA, EncB, RevEncA, RevEncB
 
-    def get_c_minus_cstar(self, a1,b1, a2, b2, prob_Y):
-        a_star = a1 + a2 + 0.5
-        b_star = b1 + b2
+    def similarity(self, _a1, _b1, _a2, _b2, prob_Y):
+            # a1 = tf.placeholder(tf.float32,[self.model.config.latent_size])
+            a1_in = tf.placeholder(tf.float32,[])
+            a1 = tf.tile(tf.reshape(a1_in,[1]),[self.model.config.latent_size])
 
-        ab1 = self.get_contribs(a1, b1)
-        ab2 = self.get_contribs(a2, b2)
-        ab_star = self.get_contribs(a_star, b_star)
-        cons = 0.5* self.model.config.latent_size * np.log( 2*np.pi )
+            b1_in = tf.placeholder(tf.float32,[self.model.config.latent_size])
+            b1 = b1_in
+            # a2 = tf.placeholder(tf.float32,[self.model.config.batch_size,self.model.config.latent_size])
+            a2_in = tf.placeholder(tf.float32,[self.model.config.batch_size])
+            a2 = tf.tile(tf.expand_dims(a2_in,axis=1),[1,self.model.config.latent_size])
+
+            b2_in = tf.placeholder(tf.float32,[self.model.config.batch_size,self.model.config.latent_size])
+            b2 = b2_in
+            t1 = tf.reduce_sum(tf.square(b1)/(4*a1), axis=0) + 0.5 * tf.reduce_sum(tf.log(-a1/np.pi), axis=0)
+            t2 = tf.reduce_sum(tf.square(b2)/(4*a2), axis=1) + 0.5 * tf.reduce_sum(tf.log(-a2/np.pi), axis=1)
+            t3 = 0.5 * self.model.config.latent_size * tf.log(2*np.pi)
+            c = t1 + t2 - t3
+
+            b_star = b1 + b2
+            a_star = a1 + a2 + 0.5
+            c_star = tf.reduce_sum(tf.square(b_star)/(4*a_star), axis=1) + 0.5 * tf.reduce_sum(tf.log(-a_star/np.pi), axis=1)
+            prob = (c - c_star)
+
+            _prob = self.sess.run(prob, feed_dict={a1_in:_a1, b1_in:_b1, a2_in:_a2, b2_in:_b2})
+
+            _prob += np.array(prob_Y)
+            return _prob
+
+    def get_c_minus_cstar(self, a1, b1, a2, b2, prob_Y):
+        a_star = a1 + a2 + 0.5 # shape is [batch_size]
+        b_star = np.expand_dims(b1,axis=0) + b2  # shape is [batch_size, latent_size]
+
+        ab1 = np.sum(np.square(b1)/(4*a1), axis=0) + 0.5 * self.model.config.latent_size * np.log(-a1/np.pi) # shape is ()
+
+        ab2 = np.sum(np.square(b2)/(4*np.tile(np.expand_dims(a2,1), [1,self.model.config.latent_size])), axis=1) \
+                            + 0.5 *  self.model.config.latent_size * np.log(-a2/np.pi)
+                            # shape is [batch_size]
+        ab_star = np.sum(np.square(b_star)/(4* np.tile(np.expand_dims(a_star,1), [1,self.model.config.latent_size])), axis=1) \
+                            + 0.5 *  self.model.config.latent_size * np.log(-a_star/np.pi)
+                            # shape is [batch_size]
+        cons = 0.5 * self.model.config.latent_size * np.log( 2*np.pi )
 
         prob = ab1 + ab2 - ab_star - cons
         prob += np.array(prob_Y)
         return prob
-
-    def get_contribs(self, a , b):
-        assert(a.shape == b.shape)
-        assert(len(list(a.shape)) <= 2)
-        if (len(list(a.shape)) == 2):
-            temp = np.sum(np.square(b)/(4*a), axis=1) + 0.5 * np.sum(np.log(-a/np.pi), axis=1)
-        else:
-            temp = np.sum(np.square(b)/(4*a), axis=0) + 0.5 * np.sum(np.log(-a/np.pi), axis=0)
-        return temp

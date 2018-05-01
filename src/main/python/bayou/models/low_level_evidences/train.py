@@ -88,7 +88,7 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False, bayou_mode = False, full_model_train = True)
+    model = Model(config, infer=False, bayou_mode = False, full_model_train = False)
     merged_summary = tf.summary.merge_all()
 
 
@@ -103,7 +103,7 @@ def train(clargs):
 
         # restore model
         if clargs.continue_from is not None:
-            bayou_vars = get_var_list()['all_vars']
+            bayou_vars = get_var_list()['bayou_vars']
             old_saver = tf.train.Saver(bayou_vars, max_to_keep=None)
             ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
             old_saver.restore(sess, ckpt.model_checkpoint_path)
@@ -139,8 +139,10 @@ def train(clargs):
                 writer.add_summary(s,i)
 
                 end = time.time()
-                avg_loss += np.mean(loss), avg_gen_loss += np.mean(gen_loss), avg_KL_loss += np.mean(KL_loss)
-                
+                avg_loss += np.mean(loss)
+                avg_gen_loss += np.mean(gen_loss)
+                avg_KL_loss += np.mean(KL_loss)
+
 
                 step = (i+1) * config.num_batches + b
                 if step % config.print_step == 0:
@@ -177,11 +179,11 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     # ['--continue_from', 'save1',
-     ['--config','config.json',
+     ['--continue_from', 'save',
+     #['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
-    #'/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
-     '/home/ubuntu/bayou/data/DATA-training.json'])
+    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training-top.json'])
+#     '/home/ubuntu/bayou/data/DATA-training.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

@@ -83,6 +83,7 @@ class Model():
                 self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
                 self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
+
             # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
             KL_loss = 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
                                               - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
@@ -111,10 +112,10 @@ class Model():
             else:
                 train_ops = get_var_list()['rev_encoder_vars']
 
+        if not infer:
             opt = tf.train.AdamOptimizer(config.learning_rate)
             self.train_op = opt.minimize(self.loss, var_list=train_ops)
 
-        if not infer:
             var_params = [np.prod([dim.value for dim in var.get_shape()])
                           for var in tf.trainable_variables()]
             print('Model parameters: {}'.format(np.sum(var_params)))
@@ -135,6 +136,6 @@ class Model():
         return val
 
     def calculate_ab(self, mu, Sigma):
-        a = -1 /(2*Sigma)
+        a = -1 /(2*Sigma[:,0]) # slicing a so that a is now of shape (batch_size, 1)
         b = mu / Sigma
         return a, b

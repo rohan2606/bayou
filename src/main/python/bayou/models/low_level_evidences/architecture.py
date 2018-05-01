@@ -14,7 +14,7 @@
 
 import tensorflow as tf
 from itertools import chain
-from gru_tree import TreeEncoder
+from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 
 class BayesianEncoder(object):
     def __init__(self, config):
