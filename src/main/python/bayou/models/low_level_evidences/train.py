@@ -116,7 +116,7 @@ def train(clargs):
             for b in range(config.num_batches):
                 start = time.time()
                 # setup the feed dict
-                ev_data, n, e, y = reader.next_batch()
+                prog_ids, ev_data, n, e, y = reader.next_batch()
                 feed = {model.targets: y}
                 for j, ev in enumerate(config.evidence):
                     feed[model.encoder.inputs[j].name] = ev_data[j]
@@ -133,7 +133,6 @@ def train(clargs):
                                 model.encoder.psi_mean, model.reverse_encoder.psi_mean,
                                 model.encoder.psi_covariance, model.reverse_encoder.psi_covariance,
                                 model.train_op], feed)
-
 
                 s = sess.run(merged_summary, feed)
                 writer.add_summary(s,i)

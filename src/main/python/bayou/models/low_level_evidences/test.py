@@ -56,23 +56,40 @@ def test(clargs):
 
         # testing
         reader.reset_batches()
-        prob_Ys, Ys, a1s, b1s, a2s, b2s = [], [], [], [], [], []
+        num_progs = reader.num_progs
+        prob_Ys = np.full((num_progs, config.latent_size), -1 * np.inf, dtype=np.float32)
+        a1s = np.zeros((num_progs), dtype=np.float32)
+        a2s = np.zeros((num_progs), dtype=np.float32)
+        b1s = np.zeros((num_progs, config.latent_size), dtype=np.float32)
+        b2s = np.zeros((num_progs, config.latent_size), dtype=np.float32)
+        count_prog_ids = np.zeros((num_progs), dtype=np.int32)
+
+        # prob_Ys,  a1s, b1s, a2s, b2s = [],  [], [], [], []
+        list_prog_ids = []
+
         for i in range(config.num_batches):
-            ev_data, n, e, y = reader.next_batch()
+            _prog_ids, ev_data, n, e, y = reader.next_batch()
             prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
-            prob_Ys += list(prob_Y)
-            a1s += list(a1)
-            a2s += list(a2)
-            b1s += list(b1)
-            b2s += list(b2)
+            list_prog_ids += list(_prog_ids)
+            for prog_id in _prog_ids:
+                a1s[prog_id] = a1
+                a2s[prog_id] = a2
+                b1s[prog_id] += b1
+                b2s[prog_id] += b2
+                prob_Ys[prog_id] = np.logaddexp( prob_Ys[prog_id] , prob_Y[prog_id] )
+                count_prog_ids[prog_id] += 1
             #Ys.append(y)
             if (i+1) % 1000 == 0:
                 print('Completed Processing {}/{} batches'.format(i+1, config.num_batches))
-    # a1s,b1s,a2s,b2s = np.concatenate(a1s, axis=0), np.concatenate(b1s, axis=0), \
-    #                     np.concatenate(a2s, axis=0) , np.concatenate(b2s, axis=0)
+
+    for prog_id in _prog_ids:
+        b1s[prog_id] /= count_prog_ids[prog_id]
+        b2s[prog_id] /= count_prog_ids[prog_id]
+        prob_Ys[prog_id] -= prob_Ys[prog_id] - log(count_prog_ids[prog_id])
+
+
     prob_Ys = normalize_log_probs(prob_Ys)
     #Ys = np.concatenate(Ys, axis=0)
-
     #Search_Data = [Ys, a2, b2, prob_Ys]
     #np.save('Search_Data', Search_Data)
 
@@ -80,20 +97,23 @@ def test(clargs):
     hit_counts = np.zeros(len(hit_points))
     for i in range(config.num_batches * config.batch_size):
         prob_Y_Xs = []
-        for j in range(config.num_batches):
+        prog_id = list_prog_ids[i]
+        for j in range(num_progs):
             sid = j * config.batch_size
-            eid = (j+1) * config.batch_size
-            prob_Y_X = predictor.get_c_minus_cstar(np.array(a1s[i]), np.array(b1s[i]), np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]))
-            prob_Y_Xs.extend(prob_Y_X)
+            eid = min( (j+1) * config.batch_size , num_progs )
+            
+            prob_Y_X = predictor.get_c_minus_cstar(np.array(a1s[prog_id]), np.array(b1s[prog_id]),\
+                                    np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]))
+            prob_Y_Xs += list(prob_Y_X)
 
-        assert(len(prob_Y_Xs) == config.num_batches * config.batch_size)
-        _rank = find_my_rank(prob_Y_Xs, i)
+        assert(len(prob_Y_Xs) == num_progs)
+        _rank = find_my_rank( prob_Y_Xs , prog_id )
         hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
 
         if (i+1) % 100 == 0:
             print('Searched {}/{} (Max Rank {})'
                   'Hit_Points {} :: Percentage Hits {}'.format
-                  (i + 1, config.num_batches*config.batch_size, config.num_batches*config.batch_size,
+                  (i + 1, config.num_batches*config.batch_size, num_progs,
                    ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 
 

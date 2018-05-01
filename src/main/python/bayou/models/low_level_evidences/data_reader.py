@@ -38,7 +38,7 @@ class Reader():
         #random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
+        prog_ids, raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
 
@@ -50,6 +50,7 @@ class Reader():
             raw_evidences[i] = raw_evidences[i][:sz]
 
         raw_targets = raw_targets[:sz]
+        prog_ids = prog_ids[:sz]
 
         # setup input and target chars/vocab
         if clargs.continue_from is None:
@@ -72,16 +73,19 @@ class Reader():
         self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
         self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
         self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+        self.prog_ids = np.zeros(sz, dtype=np.int32)
         for i, path in enumerate(raw_targets):
             self.nodes[i, :len(path)] = list(map(config.decoder.vocab.get, [p[0] for p in path]))
             self.edges[i, :len(path)] = [p[1] == CHILD_EDGE for p in path]
             self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
+            self.prog_ids[i] = prog_ids[i]
 
         # split into batches
         self.inputs = [np.split(ev_data, config.num_batches, axis=0) for ev_data in self.inputs]
         self.nodes = np.split(self.nodes, config.num_batches, axis=0)
         self.edges = np.split(self.edges, config.num_batches, axis=0)
         self.targets = np.split(self.targets, config.num_batches, axis=0)
+        self.prog_ids = np.split(self.prog_ids, config.num_batches, axis=0)
 
         # reset batches
         self.reset_batches()
@@ -183,7 +187,7 @@ class Reader():
         callmap = dict()
         ignored, done = 0, 0
 
-        for program in js['programs']:
+        for _id, program in enumerate(js['programs']):
             if 'ast' not in program:
                 continue
             try:
@@ -192,7 +196,7 @@ class Reader():
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    data_points.append((evidence, path))
+                    data_points.append((_id, evidence, path))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
@@ -204,30 +208,31 @@ class Reader():
         print('{:8d} programs ignored by given config'.format(ignored))
         print('{:8d} data points total'.format(len(data_points)))
 
+        self.num_progs = done
         # randomly shuffle to avoid bias towards initial data points during training
         #print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")
         random.shuffle(data_points)
 
 
-        evidences, targets = zip(*data_points)
+        _ids, evidences, targets = zip(*data_points) #unzip
 
         # save callmap if save location is given
         if save is not None:
             with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
                 pickle.dump(callmap, f)
 
-        return evidences, targets
+        return _ids, evidences, targets
 
     def next_batch(self):
         batch = next(self.batches)
-        n, e, y = batch[:3]
-        ev_data = batch[3:]
+        prog_ids, n, e, y = batch[:4] 
+        ev_data = batch[4:]
 
         # reshape the batch into required format
-        rn = np.transpose(n)
-        re = np.transpose(e)
+        rn = np.transpose(n) # these are in depth first format
+        re = np.transpose(e) # these are in depth first format
 
-        return ev_data, rn, re, y
+        return prog_ids, ev_data, rn, re, y
 
     def reset_batches(self):
-        self.batches = iter(zip(self.nodes, self.edges, self.targets, *self.inputs))
+        self.batches = iter(zip(self.prog_ids, self.nodes, self.edges, self.targets, *self.inputs))
