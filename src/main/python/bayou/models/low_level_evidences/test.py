@@ -60,41 +60,41 @@ def test(clargs):
         for i in range(config.num_batches):
             ev_data, n, e, y = reader.next_batch()
             prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
-            prob_Ys.append(prob_Y)
-            a1s.append(a1), b1s.append(b1)
-            a2s.append(a2), b2s.append(b2)
-            Ys.append(y)
+            prob_Ys += list(prob_Y)
+            a1s += list(a1)
+            a2s += list(a2)
+            b1s += list(b1)
+            b2s += list(b2)
+            #Ys.append(y)
             if (i+1) % 1000 == 0:
                 print('Completed Processing {}/{} batches'.format(i+1, config.num_batches))
+    # a1s,b1s,a2s,b2s = np.concatenate(a1s, axis=0), np.concatenate(b1s, axis=0), \
+    #                     np.concatenate(a2s, axis=0) , np.concatenate(b2s, axis=0)
+    prob_Ys = normalize_log_probs(prob_Ys)
+    #Ys = np.concatenate(Ys, axis=0)
 
+    #Search_Data = [Ys, a2, b2, prob_Ys]
+    #np.save('Search_Data', Search_Data)
 
-        a1s,b1s,a2s,b2s = np.concatenate(a1s, axis=0), np.concatenate(b1s, axis=0), \
-                            np.concatenate(a2s, axis=0) , np.concatenate(b2s, axis=0)
-        prob_Ys = normalize_log_probs(np.concatenate(prob_Ys, axis=0))
-        Ys = np.concatenate(Ys, axis=0)
+    hit_points = [2,5,10,50,100,500,1000,5000,10000]
+    hit_counts = np.zeros(len(hit_points))
+    for i in range(config.num_batches * config.batch_size):
+        prob_Y_Xs = []
+        for j in range(config.num_batches):
+            sid = j * config.batch_size
+            eid = (j+1) * config.batch_size
+            prob_Y_X = predictor.get_c_minus_cstar(np.array(a1s[i]), np.array(b1s[i]), np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]))
+            prob_Y_Xs.extend(prob_Y_X)
 
-        Search_Data = [Ys, a2, b2, prob_Ys]
-        np.save('Search_Data', Search_Data)
+        assert(len(prob_Y_Xs) == config.num_batches * config.batch_size)
+        _rank = find_my_rank(prob_Y_Xs, i)
+        hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
 
-        hit_points = [2,5,10,50,100,500,1000,5000,10000]
-        hit_counts = np.zeros(len(hit_points))
-        for i in range(config.num_batches * config.batch_size):
-            prob_Y_Xs = []
-            for j in range(config.num_batches):
-                sid = j * config.batch_size
-                eid = (j+1) * config.batch_size
-                prob_Y_X = predictor.get_c_minus_cstar(a1s[i], b1s[i], a2s[sid:eid], b2s[sid:eid], prob_Ys[sid:eid])
-                prob_Y_Xs.extend(prob_Y_X)
-
-            #assert(len(prob_Y_Xs) == config.num_batches * config.batch_size)
-            _rank = find_my_rank(prob_Y_Xs, i)
-            hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
-
-            if (i+1) % 100 == 0:
-                print('Searched {}/{} (Max Rank {})'
-                      'Hit_Points {} :: Percentage Hits {}'.format
-                      (i + 1, config.num_batches*config.batch_size, config.num_batches*config.batch_size,
-                       ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
+        if (i+1) % 100 == 0:
+            print('Searched {}/{} (Max Rank {})'
+                  'Hit_Points {} :: Percentage Hits {}'.format
+                  (i + 1, config.num_batches*config.batch_size, config.num_batches*config.batch_size,
+                   ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 
 
 #%%

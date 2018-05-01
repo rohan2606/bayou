@@ -106,6 +106,7 @@ class BayesianPredictor(object):
             return _prob
 
     def get_c_minus_cstar(self, a1, b1, a2, b2, prob_Y):
+        # all inputs are np.arrays
         a_star = a1 + a2 + 0.5 # shape is [batch_size]
         b_star = np.expand_dims(b1,axis=0) + b2  # shape is [batch_size, latent_size]
 
@@ -120,5 +121,5 @@ class BayesianPredictor(object):
         cons = 0.5 * self.model.config.latent_size * np.log( 2*np.pi )
 
         prob = ab1 + ab2 - ab_star - cons
-        prob += np.array(prob_Y)
+        prob += prob_Y
         return prob
