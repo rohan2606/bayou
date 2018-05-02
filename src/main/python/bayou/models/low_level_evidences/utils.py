@@ -71,18 +71,13 @@ def ListToFormattedString(alist, Type):
     return s.format(*alist)
 
 
-def get_sum_in_log(probs):
-    assert (len(list(probs.shape)) == 2)
-    lnsum = probs[:,0]
-    for i in range(len(probs[0]) - 1):
-        lnsum = np.logaddexp(lnsum, probs[:,i+1])
-    return lnsum
-
 def normalize_log_probs(probs):
-    probs = np.expand_dims(probs,0)
-    lnsum = get_sum_in_log(probs)
-    probs = np.squeeze(probs, axis=0)
-    probs -= lnsum
+    sum = -1*np.inf
+    for prob in probs:
+        sum = np.logaddexp(sum, prob)
+
+    for i in range(len(probs)):
+        probs[i] -= sum
     return probs
 
 def rank_statistic(_rank, total, prev_hits, cutoff):

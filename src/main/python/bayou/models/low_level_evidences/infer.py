@@ -20,7 +20,7 @@ import os
 import pickle
 
 from bayou.models.low_level_evidences.model import Model
-from bayou.models.low_level_evidences.utils import get_sum_in_log, get_var_list
+from bayou.models.low_level_evidences.utils import get_var_list
 
 
 class TooLongPathError(Exception):

@@ -54,76 +54,84 @@ def test_get_vals(clargs):
 
     with tf.Session() as sess:
         predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
-
         # testing
         reader.reset_batches()
-        num_progs = reader.num_progs
-        prob_Ys = np.full((num_progs), -1 * np.inf, dtype=np.float32)
-        a1s = np.zeros((num_progs), dtype=np.float32)
-        a2s = np.zeros((num_progs), dtype=np.float32)
-        b1s = np.zeros((num_progs, config.latent_size), dtype=np.float32)
-        b2s = np.zeros((num_progs, config.latent_size), dtype=np.float32)
-        count_prog_ids = np.zeros((num_progs), dtype=np.int32)
-
-        # Ys = []
-        list_prog_ids = []
-
+        infer_vars = {}
         for j in range(config.num_batches):
             _prog_ids, ev_data, n, e, y = reader.next_batch()
-            list_prog_ids += list(_prog_ids)
             # Ys += list(y)
             prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
             for i in range(config.batch_size):
                 prog_id = _prog_ids[i]
-                a1s[prog_id] = a1[i]
-                a2s[prog_id] = a2[i]
-                b1s[prog_id] += b1[i]
-                b2s[prog_id] += b2[i]
-                prob_Ys[prog_id] = np.logaddexp( prob_Ys[prog_id] , prob_Y[i] )
-                count_prog_ids[prog_id] += 1
+                if prog_id not in infer_vars:
+                    infer_vars[prog_id] = {}
+                    infer_vars[prog_id]['a1'] = a1[i]
+                    infer_vars[prog_id]['a2'] = a2[i]
+                    infer_vars[prog_id]['b1'] = b1[i]
+                    infer_vars[prog_id]['b2'] = b2[i]
+                    infer_vars[prog_id]['ProbY'] = prob_Y[i]
+                    infer_vars[prog_id]['count_prog_ids'] = 1
+                else:
+                    infer_vars[prog_id]['b1'] += b1[i]
+                    infer_vars[prog_id]['b2'] += b2[i]
+                    infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i] )
+                    infer_vars[prog_id]['count_prog_ids'] += 1
 
             if (j+1) % 1000 == 0:
                 print('Completed Processing {}/{} batches'.format(j+1, config.num_batches))
 
     print('Batch Processing Completed')
-    for prog_id in range(num_progs):
-        if count_prog_ids[prog_id] != 0:
-            b1s[prog_id] /= count_prog_ids[prog_id]
-            b2s[prog_id] /= count_prog_ids[prog_id]
-            prob_Ys[prog_id] -= np.log(count_prog_ids[prog_id])# prob_Ys are added and it should not be averaged
+    for prog_id in list(infer_vars.keys()):
+        infer_vars[prog_id]['b1'] /= infer_vars[prog_id]['count_prog_ids']
+        infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
+        infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
+
+    a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
+    for prog_id in list(infer_vars.keys()):
+        a1s += [infer_vars[prog_id]['a1']]
+        a2s += [infer_vars[prog_id]['a2']]
+        b1s += [list(infer_vars[prog_id]['b1'])]
+        b2s += [list(infer_vars[prog_id]['b2'])]
+        prob_Ys += [infer_vars[prog_id]['ProbY']]
 
     print('Program Average done')
     prob_Ys = normalize_log_probs(prob_Ys)
     print('Normalizing done')
     # Search_Data = [Ys, a2, b2, prob_Ys]
     # np.save('Search_Data', Search_Data)
-    return a1s, b1s, a2s, b2s, prob_Ys, list_prog_ids, config.batch_size, config.num_batches, config.latent_size, num_progs
+    return a1s, b1s, a2s, b2s, prob_Ys
 
 
 
 def test(clargs):
-    a1s, b1s, a2s, b2s, prob_Ys, list_prog_ids, batch_size, num_batches, latent_size, num_progs = test_get_vals(clargs)
+    a1s, b1s, a2s, b2s, prob_Ys = test_get_vals(clargs)
+    latent_size = len(b1s[0])
+
+    batch_size = 1000
+    num_progs = len(a1s)
     hit_points = [2,5,10,50,100,500,1000,5000,10000]
     hit_counts = np.zeros(len(hit_points))
     for i in range(num_progs):
         prob_Y_Xs = []
-        prog_id = list_prog_ids[i]
-        for j in range(num_progs):
-            sid = j * batch_size
-            eid = min( (j+1) * batch_size , num_progs )
 
-            prob_Y_X = get_c_minus_cstar(np.array(a1s[prog_id]), np.array(b1s[prog_id]),\
+        for j in range(int(np.ceil(num_progs / batch_size))):
+            sid = j * batch_size
+            eid = min( (j+1) * batch_size , num_progs)
+
+            prob_Y_X = get_c_minus_cstar(np.array(a1s[i]), np.array(b1s[i]),\
                                     np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]), latent_size)
             prob_Y_Xs += list(prob_Y_X)
 
-        #assert(len(prob_Y_Xs) == num_progs)
-        _rank = find_my_rank( prob_Y_Xs , prog_id )
+        if i == 0:
+            assert(len(prob_Y_Xs) == num_progs)
+        _rank = find_my_rank( prob_Y_Xs , i )
+        
         hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
 
-        if (i+1) % 1 == 0:
+        if (((i+1) % 1000 == 0) or (i == (num_progs - 1))):
             print('Searched {}/{} (Max Rank {})'
                   'Hit_Points {} :: Percentage Hits {}'.format
-                  (i + 1, num_batches*batch_size, num_progs,
+                  (i + 1, num_progs, num_progs,
                    ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 
 
@@ -142,6 +150,7 @@ def get_c_minus_cstar(a1, b1, a2, b2, prob_Y, latent_size):
     prob = ab1 + ab2 - ab_star - cons
     prob += prob_Y
     return prob
+
 #%%
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,

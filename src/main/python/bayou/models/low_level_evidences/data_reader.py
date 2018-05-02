@@ -54,7 +54,7 @@ class Reader():
 
         #self.num_progs = min(self.num_progs , prog_ids[-1] + 1) #self.num_progs = done before in self.read_data, also not reqd for full data and makes no sense with Shuffle
         #print(self.num_progs)
-        
+
         # setup input and target chars/vocab
         if clargs.continue_from is None:
             for ev, data in zip(config.evidence, raw_evidences):
@@ -210,13 +210,11 @@ class Reader():
         print('{:8d} programs in training data'.format(done))
         print('{:8d} programs ignored by given config'.format(ignored))
         print('{:8d} data points total'.format(len(data_points)))
+        print('{:8d} programs to search over'.format(done - ignored))
 
-        self.num_progs = done - ignored
         # randomly shuffle to avoid bias towards initial data points during training
         #print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")
         random.shuffle(data_points)
-
-
         _ids, evidences, targets = zip(*data_points) #unzip
 
         # save callmap if save location is given
