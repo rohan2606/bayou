@@ -28,12 +28,13 @@ import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
 from bayou.models.low_level_evidences.data_reader import Reader
 
+
 HELP = """\
 May God help you son/daughter!
 """
 #%%
 
-def test(clargs):
+def test_get_vals(clargs):
     #set clargs.continue_from = True which ignores config options and starts
     #training
     clargs.continue_from = True
@@ -67,10 +68,10 @@ def test(clargs):
         # Ys = []
         list_prog_ids = []
 
-        for i in range(config.num_batches):
+        for j in range(config.num_batches):
             _prog_ids, ev_data, n, e, y = reader.next_batch()
             list_prog_ids += list(_prog_ids)
-            #Ys += list(y)
+            # Ys += list(y)
             prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
             for i in range(config.batch_size):
                 prog_id = _prog_ids[i]
@@ -81,43 +82,66 @@ def test(clargs):
                 prob_Ys[prog_id] = np.logaddexp( prob_Ys[prog_id] , prob_Y[i] )
                 count_prog_ids[prog_id] += 1
 
-            if (i+1) % 1000 == 0:
-                print('Completed Processing {}/{} batches'.format(i+1, config.num_batches))
+            if (j+1) % 1000 == 0:
+                print('Completed Processing {}/{} batches'.format(j+1, config.num_batches))
 
+    print('Batch Processing Completed')
     for prog_id in range(num_progs):
-        b1s[prog_id] /= count_prog_ids[prog_id]
-        b2s[prog_id] /= count_prog_ids[prog_id]
-        prob_Ys[prog_id] -= np.log(count_prog_ids[prog_id])# prob_Ys are added and it should not be averaged
+        if count_prog_ids[prog_id] != 0:
+            b1s[prog_id] /= count_prog_ids[prog_id]
+            b2s[prog_id] /= count_prog_ids[prog_id]
+            prob_Ys[prog_id] -= np.log(count_prog_ids[prog_id])# prob_Ys are added and it should not be averaged
 
+    print('Program Average done')
     prob_Ys = normalize_log_probs(prob_Ys)
-    #Ys = np.concatenate(Ys, axis=0)
-    #Search_Data = [Ys, a2, b2, prob_Ys]
-    #np.save('Search_Data', Search_Data)
+    print('Normalizing done')
+    # Search_Data = [Ys, a2, b2, prob_Ys]
+    # np.save('Search_Data', Search_Data)
+    return a1s, b1s, a2s, b2s, prob_Ys, list_prog_ids, config.batch_size, config.num_batches, config.latent_size, num_progs
 
+
+
+def test(clargs):
+    a1s, b1s, a2s, b2s, prob_Ys, list_prog_ids, batch_size, num_batches, latent_size, num_progs = test_get_vals(clargs)
     hit_points = [2,5,10,50,100,500,1000,5000,10000]
     hit_counts = np.zeros(len(hit_points))
-    for i in range(config.num_batches * config.batch_size):
+    for i in range(num_progs):
         prob_Y_Xs = []
         prog_id = list_prog_ids[i]
         for j in range(num_progs):
-            sid = j * config.batch_size
-            eid = min( (j+1) * config.batch_size , num_progs )
+            sid = j * batch_size
+            eid = min( (j+1) * batch_size , num_progs )
 
-            prob_Y_X = predictor.get_c_minus_cstar(np.array(a1s[prog_id]), np.array(b1s[prog_id]),\
-                                    np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]))
+            prob_Y_X = get_c_minus_cstar(np.array(a1s[prog_id]), np.array(b1s[prog_id]),\
+                                    np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]), latent_size)
             prob_Y_Xs += list(prob_Y_X)
 
-        assert(len(prob_Y_Xs) == num_progs)
+        #assert(len(prob_Y_Xs) == num_progs)
         _rank = find_my_rank( prob_Y_Xs , prog_id )
         hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
 
-        if (i+1) % 100 == 0:
+        if (i+1) % 1 == 0:
             print('Searched {}/{} (Max Rank {})'
                   'Hit_Points {} :: Percentage Hits {}'.format
-                  (i + 1, config.num_batches*config.batch_size, num_progs,
+                  (i + 1, num_batches*batch_size, num_progs,
                    ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 
 
+def get_c_minus_cstar(a1, b1, a2, b2, prob_Y, latent_size):
+    # all inputs are np.arrays
+    a_star = a1 + a2 + 0.5 # shape is [batch_size]
+    b_star = np.expand_dims(b1,axis=0) + b2  # shape is [batch_size, latent_size]
+
+    ab1 = np.sum(np.square(b1)/(4*a1), axis=0) + 0.5 * latent_size * np.log(-a1/np.pi) # shape is ()
+    ab2 = np.sum(np.square(b2)/(4*np.tile(np.expand_dims(a2,1), [1,latent_size])), axis=1) \
+                        + 0.5 *  latent_size * np.log(-a2/np.pi) # shape is [batch_size]
+    ab_star = np.sum(np.square(b_star)/(4* np.tile(np.expand_dims(a_star,1), [1,latent_size])), axis=1) \
+                        + 0.5 *  latent_size * np.log(-a_star/np.pi) # shape is [batch_size]
+    cons = 0.5 * latent_size * np.log( 2*np.pi )
+
+    prob = ab1 + ab2 - ab_star - cons
+    prob += prob_Y
+    return prob
 #%%
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -135,7 +159,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save1',
+    clargs = parser.parse_args(['--save', 'save_REontop',
     '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
 #    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
