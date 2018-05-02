@@ -57,36 +57,37 @@ def test(clargs):
         # testing
         reader.reset_batches()
         num_progs = reader.num_progs
-        prob_Ys = np.full((num_progs, config.latent_size), -1 * np.inf, dtype=np.float32)
+        prob_Ys = np.full((num_progs), -1 * np.inf, dtype=np.float32)
         a1s = np.zeros((num_progs), dtype=np.float32)
         a2s = np.zeros((num_progs), dtype=np.float32)
         b1s = np.zeros((num_progs, config.latent_size), dtype=np.float32)
         b2s = np.zeros((num_progs, config.latent_size), dtype=np.float32)
         count_prog_ids = np.zeros((num_progs), dtype=np.int32)
 
-        # prob_Ys,  a1s, b1s, a2s, b2s = [],  [], [], [], []
+        # Ys = []
         list_prog_ids = []
 
         for i in range(config.num_batches):
             _prog_ids, ev_data, n, e, y = reader.next_batch()
-            prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
             list_prog_ids += list(_prog_ids)
-            for prog_id in _prog_ids:
-                a1s[prog_id] = a1
-                a2s[prog_id] = a2
-                b1s[prog_id] += b1
-                b2s[prog_id] += b2
-                prob_Ys[prog_id] = np.logaddexp( prob_Ys[prog_id] , prob_Y[prog_id] )
+            #Ys += list(y)
+            prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
+            for i in range(config.batch_size):
+                prog_id = _prog_ids[i]
+                a1s[prog_id] = a1[i]
+                a2s[prog_id] = a2[i]
+                b1s[prog_id] += b1[i]
+                b2s[prog_id] += b2[i]
+                prob_Ys[prog_id] = np.logaddexp( prob_Ys[prog_id] , prob_Y[i] )
                 count_prog_ids[prog_id] += 1
-            #Ys.append(y)
+
             if (i+1) % 1000 == 0:
                 print('Completed Processing {}/{} batches'.format(i+1, config.num_batches))
 
-    for prog_id in _prog_ids:
+    for prog_id in range(num_progs):
         b1s[prog_id] /= count_prog_ids[prog_id]
         b2s[prog_id] /= count_prog_ids[prog_id]
-        prob_Ys[prog_id] -= prob_Ys[prog_id] - log(count_prog_ids[prog_id])
-
+        prob_Ys[prog_id] -= np.log(count_prog_ids[prog_id])# prob_Ys are added and it should not be averaged
 
     prob_Ys = normalize_log_probs(prob_Ys)
     #Ys = np.concatenate(Ys, axis=0)
@@ -101,7 +102,7 @@ def test(clargs):
         for j in range(num_progs):
             sid = j * config.batch_size
             eid = min( (j+1) * config.batch_size , num_progs )
-            
+
             prob_Y_X = predictor.get_c_minus_cstar(np.array(a1s[prog_id]), np.array(b1s[prog_id]),\
                                     np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]))
             prob_Y_Xs += list(prob_Y_X)
