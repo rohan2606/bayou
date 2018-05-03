@@ -1,0 +1,37 @@
+{
+  "programs": [
+    {
+      "apicalls": [
+        "println"
+      ],
+      "keywords": [
+        "stream",
+        "java",
+        "print",
+        "println",
+        "io"
+      ],
+      "types": [
+        "PrintStream",
+        "String"
+      ],
+      "ast": {
+        "node": "DSubTree",
+        "_nodes": [
+          {
+            "node": "DAPICall",
+            "_call": "java.io.PrintStream.println(java.lang.String)"
+          }
+        ]
+      },
+      "sequences": [
+        {
+          "calls": [
+            "java.io.PrintStream.println(java.lang.String)",
+            "java.io.PrintStream.println(java.lang.String)"
+          ]
+        }
+      ]
+    }
+  ]
+}

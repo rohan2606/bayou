@@ -81,7 +81,7 @@ def test_get_vals(clargs):
             prob_Ys += [infer_vars[prog_id]['ProbY']]
             Ys += [infer_vars[prog_id]['Y']]
 
-        print('Program Average done')
+        print('New arrays saving done')
         prob_Ys = normalize_log_probs(prob_Ys)
         print('Normalizing done')
 
@@ -146,6 +146,7 @@ def forward_pass(clargs):
         infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
         infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
 
+    print('Program Average done')
     return infer_vars
 
 
