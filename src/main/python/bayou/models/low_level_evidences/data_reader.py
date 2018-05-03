@@ -32,7 +32,7 @@ class InvalidSketchError(Exception):
 
 
 class Reader():
-    def __init__(self, clargs, config, test_mode=False):
+    def __init__(self, clargs, config):
         self.config = config
 
         #random.seed(12)
@@ -43,7 +43,7 @@ class Reader():
                          enumerate(config.evidence)]
 
         # align with number of batches
-        config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
+        config.num_batches = int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -68,8 +68,6 @@ class Reader():
             config.reverse_encoder.chars = config.decoder.chars
             config.reverse_encoder.vocab = config.decoder.vocab
             config.reverse_encoder.vocab_size = config.decoder.vocab_size
-
-
 
         # wrangle the evidences and targets into numpy arrays
         self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
