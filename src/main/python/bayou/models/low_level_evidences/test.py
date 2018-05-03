@@ -29,95 +29,102 @@ from bayou.models.low_level_evidences.utils import read_config, normalize_log_pr
 from bayou.models.low_level_evidences.data_reader import Reader
 
 
-HELP = """\
-May God help you son/daughter!
-"""
+File_Name = 'Search_Data'
+
+HELP = """ Help me! :( """
 #%%
 
 def test_get_vals(clargs):
-    #set clargs.continue_from = True which ignores config options and starts
-    #training
-    clargs.continue_from = True
-
-    with open(os.path.join(clargs.save, 'config.json')) as f:
-        model_type = json.load(f)['model']
-
-    if model_type == 'lle':
-        model = bayou.models.low_level_evidences.infer.BayesianPredictor
+    if os.path.isfile(File_Name + '/a1s.npy') and os.path.isfile(File_Name + '/a2s.npy') \
+            and os.path.isfile(File_Name + '/b1s.npy') and os.path.isfile(File_Name + '/b2s.npy') and os.path.isfile(File_Name + '/prob_Ys.npy'):
+        a1s = np.load(File_Name  + '/a1s.npy')
+        b1s = np.load(File_Name  + '/b1s.npy')
+        a2s = np.load(File_Name  + '/a2s.npy')
+        b2s = np.load(File_Name  + '/b2s.npy')
+        prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
     else:
-        raise ValueError('Invalid model type in config: ' + model_type)
+        #set clargs.continue_from = True while testing, it continues from old saved config
+        clargs.continue_from = True
 
-    # load the saved config
-    with open(os.path.join(clargs.save, 'config.json')) as f:
-        config = read_config(json.load(f), chars_vocab=True)
-    reader = Reader(clargs, config, test_mode=True)
+        with open(os.path.join(clargs.save, 'config.json')) as f:
+            model_type = json.load(f)['model']
 
-    with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
-        # testing
-        reader.reset_batches()
-        infer_vars = {}
-        for j in range(config.num_batches):
-            _prog_ids, ev_data, n, e, y = reader.next_batch()
-            # Ys += list(y)
-            prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
-            for i in range(config.batch_size):
-                prog_id = _prog_ids[i]
-                if prog_id not in infer_vars:
-                    infer_vars[prog_id] = {}
-                    infer_vars[prog_id]['a1'] = a1[i]
-                    infer_vars[prog_id]['a2'] = a2[i]
-                    infer_vars[prog_id]['b1'] = b1[i]
-                    infer_vars[prog_id]['b2'] = b2[i]
-                    infer_vars[prog_id]['ProbY'] = prob_Y[i]
-                    infer_vars[prog_id]['count_prog_ids'] = 1
-                else:
-                    infer_vars[prog_id]['b1'] += b1[i]
-                    infer_vars[prog_id]['b2'] += b2[i]
-                    infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i] )
-                    infer_vars[prog_id]['count_prog_ids'] += 1
+        if model_type == 'lle':
+            model = bayou.models.low_level_evidences.infer.BayesianPredictor
+        else:
+            raise ValueError('Invalid model type in config: ' + model_type)
 
-            if (j+1) % 1000 == 0:
-                print('Completed Processing {}/{} batches'.format(j+1, config.num_batches))
+        # load the saved config
+        with open(os.path.join(clargs.save, 'config.json')) as f:
+            config = read_config(json.load(f), chars_vocab=True)
+        reader = Reader(clargs, config, test_mode=True)
 
-    print('Batch Processing Completed')
-    for prog_id in list(infer_vars.keys()):
-        infer_vars[prog_id]['b1'] /= infer_vars[prog_id]['count_prog_ids']
-        infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
-        infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
+        with tf.Session() as sess:
+            predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
+            # testing
+            reader.reset_batches()
+            infer_vars = {}
+            for j in range(config.num_batches):
+                _prog_ids, ev_data, n, e, y = reader.next_batch()
+                # Ys += list(y)
+                prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
+                for i in range(config.batch_size):
+                    prog_id = _prog_ids[i]
+                    if prog_id not in infer_vars:
+                        infer_vars[prog_id] = {}
+                        infer_vars[prog_id]['a1'] = a1[i]
+                        infer_vars[prog_id]['a2'] = a2[i]
+                        infer_vars[prog_id]['b1'] = b1[i]
+                        infer_vars[prog_id]['b2'] = b2[i]
+                        infer_vars[prog_id]['ProbY'] = prob_Y[i]
+                        infer_vars[prog_id]['count_prog_ids'] = 1
+                    else:
+                        infer_vars[prog_id]['b1'] += b1[i]
+                        infer_vars[prog_id]['b2'] += b2[i]
+                        infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i] )
+                        infer_vars[prog_id]['count_prog_ids'] += 1
 
-    a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
-    for prog_id in list(infer_vars.keys()):
-        a1s += [infer_vars[prog_id]['a1']]
-        a2s += [infer_vars[prog_id]['a2']]
-        b1s += [list(infer_vars[prog_id]['b1'])]
-        b2s += [list(infer_vars[prog_id]['b2'])]
-        prob_Ys += [infer_vars[prog_id]['ProbY']]
+                if (j+1) % 1000 == 0:
+                    print('Completed Processing {}/{} batches'.format(j+1, config.num_batches))
 
-    print('Program Average done')
-    prob_Ys = normalize_log_probs(prob_Ys)
-    print('Normalizing done')
-    # Search_Data = [Ys, a2, b2, prob_Ys]
-    # np.save('Search_Data', Search_Data)
+        print('Batch Processing Completed')
+        for prog_id in list(infer_vars.keys()):
+            infer_vars[prog_id]['b1'] /= infer_vars[prog_id]['count_prog_ids']
+            infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
+            infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
+
+        a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
+        for prog_id in list(infer_vars.keys()):
+            a1s += [infer_vars[prog_id]['a1']]
+            a2s += [infer_vars[prog_id]['a2']]
+            b1s += [list(infer_vars[prog_id]['b1'])]
+            b2s += [list(infer_vars[prog_id]['b2'])]
+            prob_Ys += [infer_vars[prog_id]['ProbY']]
+
+        print('Program Average done')
+        prob_Ys = normalize_log_probs(prob_Ys)
+        print('Normalizing done')
+
+        np.save(File_Name + '/a1s', a1s)
+        np.save(File_Name + '/b1s', b1s)
+        np.save(File_Name + '/a2s', a2s)
+        np.save(File_Name + '/b2s', b2s)
+        np.save(File_Name + '/prob_Ys', prob_Ys)
+
     return a1s, b1s, a2s, b2s, prob_Ys
 
 
 
 def test(clargs):
-    a1s, b1s, a2s, b2s, prob_Ys = test_get_vals(clargs)
-    latent_size = len(b1s[0])
-
-    batch_size = 1000
-    num_progs = len(a1s)
+    [a1s, b1s, a2s, b2s, prob_Ys] = test_get_vals(clargs)
+    latent_size, num_progs, batch_size = len(b1s[0]), len(a1s), 1000
     hit_points = [2,5,10,50,100,500,1000,5000,10000]
     hit_counts = np.zeros(len(hit_points))
     for i in range(num_progs):
         prob_Y_Xs = []
 
         for j in range(int(np.ceil(num_progs / batch_size))):
-            sid = j * batch_size
-            eid = min( (j+1) * batch_size , num_progs)
-
+            sid, eid = j * batch_size, min( (j+1) * batch_size , num_progs)
             prob_Y_X = get_c_minus_cstar(np.array(a1s[i]), np.array(b1s[i]),\
                                     np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]), latent_size)
             prob_Y_Xs += list(prob_Y_X)
@@ -125,7 +132,7 @@ def test(clargs):
         if i == 0:
             assert(len(prob_Y_Xs) == num_progs)
         _rank = find_my_rank( prob_Y_Xs , i )
-        
+
         hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
 
         if (((i+1) % 1000 == 0) or (i == (num_progs - 1))):
