@@ -91,7 +91,7 @@ def test(clargs):
 def find_top_rank(array):
     _id = 0
     for i in range(len(array)):
-        if array[i] > [_id] :
+        if array[i] > array[_id] :
             _id = i
     return _id
 
