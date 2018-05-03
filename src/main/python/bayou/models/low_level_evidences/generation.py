@@ -28,6 +28,8 @@ import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
+from bayou.models.low_level_evidences.utils import plot_probs, find_top_rank_ids, normalize_log_probs
+
 
 File_Name = 'Search_Data_Basic'
 
@@ -56,19 +58,17 @@ def test(clargs):
 
     with tf.Session() as sess:
         predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
-        _prog_ids, ev_data, n, e, y = reader.next_batch()
+        _, ev_data, _, _, _ = reader.next_batch()
         feed = {}
         for j, ev in enumerate(config.evidence):
             feed[predictor.model.encoder.inputs[j].name] = ev_data[j]
 
         a1, b1 = sess.run([predictor.model.EncA, predictor.model.EncB], feed)
 
-
     [a2s, b2s, prob_Ys, Ys] = test_get_vals(clargs)
 
     latent_size, num_progs, batch_size = len(b2s[0]), len(a2s), 1000
-    hit_points = [2,5,10,50,100,500,1000,5000,10000]
-    hit_counts = np.zeros(len(hit_points))
+
     prob_Y_Xs = []
     for j in range(int(np.ceil(num_progs / batch_size))):
         sid, eid = j * batch_size, min( (j+1) * batch_size , num_progs)
@@ -77,26 +77,34 @@ def test(clargs):
         prob_Y_Xs += list(prob_Y_X)
 
 
-    jid = find_top_rank( prob_Y_Xs )
+    prob_Y_Xs = normalize_log_probs(prob_Y_Xs)
+    jids, sorted_probs = find_top_rank_ids( prob_Y_Xs )
     inv_map = {v: k for k, v in config.decoder.vocab.items()}
 
-    for i, prog_trace in enumerate(Ys[jid]):
-        print ('{}-th sequence'.format(i))
-        for call in prog_trace:
-            print(inv_map[call], end=',')
+    print()
+    for rank, jid in enumerate(jids):
+        print('Rank :: {}'.format(rank + 1))
+        for i, prog_trace in enumerate(Ys[jid]):
+            for call in prog_trace:
+                string = inv_map[call]
+                if string == 'STOP':
+                    print('' , end='')
+                else:
+                    print(string , end=',')
+            print()
         print()
+    print()
+    plot_probs(sorted_probs)
+    plot_probs(sorted_probs[:100], fig_name ="rankedProbtop100.pdf")
+    plot_probs(sorted_probs[:10], fig_name ="rankedProbtop10.pdf")
+
     return
 
 
-def find_top_rank(array):
-    _id = 0
-    for i in range(len(array)):
-        if array[i] > array[_id] :
-            _id = i
-    return _id
+
+
 
 def test_get_vals(clargs):
-
     a2s = np.load(File_Name  + '/a2s.npy')
     b2s = np.load(File_Name  + '/b2s.npy')
     prob_Ys = np.load(File_Name  + '/prob_Ys.npy')

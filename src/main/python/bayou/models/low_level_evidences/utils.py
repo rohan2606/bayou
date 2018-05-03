@@ -19,6 +19,7 @@ import tensorflow as tf
 from itertools import chain
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
 CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',
                   'learning_rate', 'print_step', 'checkpoint_step', 'alpha', 'beta']
@@ -33,18 +34,33 @@ CHILD_EDGE = 'V'
 SIBLING_EDGE = 'H'
 
 
+def plot_probs(prob_vals, fig_name ="rankedProb.pdf", logx = False):
+    plt.figure()
+    plot_path = os.path.join(os.getcwd(),'plots')
+    if not os.path.exists(plot_path):
+        os.makedirs(plot_path)
+    plt.grid()
+    plt.title("Probability With Ranks")
+    if logx:
+        plt.semilogx(prob_vals)
+    else:
+        plt.plot(prob_vals)
+    plt.xlabel("Ranks->")
+    plt.ylabel("Log Probabilities")
+    plt.savefig(os.path.join(plot_path, fig_name), bbox_inches='tight')
+    return
+
 def static_plot(totL, genL, KlLoss):
     plot_path = os.path.join(os.getcwd(),'plots')
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
     plt.grid()
     plt.title("Losses")
-    plt.plot(a),plt.plot(b),plt.plot(c)
+    plt.plot(totL),plt.plot(genL),plt.plot(KlLoss)
     plt.xlabel("Epochs")
     plt.ylabel("Loss Value")
     fig_name ="Loss_w_Epochs.pdf"
     plt.savefig(os.path.join(plot_path, fig_name), bbox_inches='tight')
-
     return
 
 def length(tensor):
@@ -94,6 +110,12 @@ def find_my_rank(arr, i):
             rank += 1
     return rank
 
+def find_top_rank_ids(arrin, cutoff = 10):
+    rank_ids =  (-np.array(arrin)).argsort()
+    vals = []
+    for rank in rank_ids:
+        vals.append(arrin[rank])
+    return rank_ids[:cutoff], vals
 
 def get_var_list():
     all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
