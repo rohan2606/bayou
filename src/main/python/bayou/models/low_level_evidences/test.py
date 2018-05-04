@@ -29,7 +29,7 @@ from bayou.models.low_level_evidences.utils import read_config, normalize_log_pr
 from bayou.models.low_level_evidences.data_reader import Reader
 
 
-File_Name = 'Search_Data'
+File_Name = 'Search_Data_Basic'
 
 HELP = """ Help me! :( """
 #%%
@@ -68,11 +68,12 @@ def test_get_vals(clargs):
         a2s = np.load(File_Name  + '/a2s.npy')
         b2s = np.load(File_Name  + '/b2s.npy')
         prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
-        #Ys = np.load(File_Name  + '/Ys.npy')
+        #Ys = np.load(File_Name  + '/Ys.npy'), Xs = np.load(File_Name  + '/Xs.npy')
     else:
-        infer_vars = forward_pass(clargs)
+        infer_vars, config = forward_pass(clargs)
 
-        a1s,a2s,b1s,b2s,prob_Ys, Ys  = [],[],[],[],[], []
+        a1s,a2s,b1s,b2s,prob_Ys, Ys  = [],[],[],[],[],[]
+        Xs = [[] for i in range(len(config.evidence))]
         for prog_id in list(infer_vars.keys()):
             a1s += [infer_vars[prog_id]['a1']]
             a2s += [infer_vars[prog_id]['a2']]
@@ -80,6 +81,8 @@ def test_get_vals(clargs):
             b2s += [list(infer_vars[prog_id]['b2'])]
             prob_Ys += [infer_vars[prog_id]['ProbY']]
             Ys += [infer_vars[prog_id]['Y']]
+            for j in range(len(config.evidence)):
+                Xs[j] += [infer_vars[prog_id]['X'][j]]
 
         print('New arrays saving done')
         prob_Ys = normalize_log_probs(prob_Ys)
@@ -88,6 +91,8 @@ def test_get_vals(clargs):
         np.save(File_Name + '/a1s', a1s), np.save(File_Name + '/b1s', b1s)
         np.save(File_Name + '/a2s', a2s), np.save(File_Name + '/b2s', b2s)
         np.save(File_Name + '/prob_Ys', prob_Ys), np.save(File_Name + '/Ys', Ys)
+        for j in range(len(config.evidence)):
+            np.save(File_Name + '/Xs'+str(j), Xs[j])
         print('Files Saved')
 
     return a1s, b1s, a2s, b2s, prob_Ys #, Ys
@@ -124,6 +129,9 @@ def forward_pass(clargs):
                     infer_vars[prog_id] = {}
                     infer_vars[prog_id]['a1'] = a1[i]
                     infer_vars[prog_id]['a2'] = a2[i]
+                    infer_vars[prog_id]['X'] = [[] for i in range(len(config.evidence))]
+                    for j in range(len(config.evidence)):
+                        infer_vars[prog_id]['X'][j] = [ev_data[j][i][0]]
                     infer_vars[prog_id]['b1'] = b1[i]
                     infer_vars[prog_id]['b2'] = b2[i]
                     infer_vars[prog_id]['ProbY'] = prob_Y[i]
@@ -147,7 +155,7 @@ def forward_pass(clargs):
         infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
 
     print('Program Average done')
-    return infer_vars
+    return infer_vars, config
 
 
 def get_c_minus_cstar(a1, b1, a2, b2, prob_Y, latent_size):
@@ -183,7 +191,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_REontop',
+    clargs = parser.parse_args(['--save', 'save_REontop_Basic',
     '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
 #    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
