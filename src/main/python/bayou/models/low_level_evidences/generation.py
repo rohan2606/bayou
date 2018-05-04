@@ -59,7 +59,6 @@ def get_a1b1(clargs):
     with tf.Session() as sess:
         predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
         prog_id, ev_data, _, _, y = reader.next_batch()
-        print(prog_id)
         feed = {}
         for j, ev in enumerate(config.evidence):
             feed[predictor.model.encoder.inputs[j].name] = ev_data[j]
@@ -84,6 +83,7 @@ def get_a1b1(clargs):
             print('' , end='')
         else:
             print(string , end=',')
+    print()
     return a1,b1, prog_id[0], config,
 
 def test_get_vals(clargs):
@@ -113,7 +113,7 @@ def test(clargs):
     pred_rank = find_my_rank(prob_Y_Xs, prog_id)
     inv_map = {v: k for k, v in config.decoder.vocab.items()}
 
-    #print('\nPredicted Rank is {}'.format(pred_rank))
+    #print('\nPredicted Rank is {}'.format(pred_rank)) # not possible as JSON is unordered object
     print()
     for rank, jid in enumerate(rank_ids):
         print('Rank :: {} , LogProb :: {}'.format(rank + 1, sorted_probs[rank]))
