@@ -36,7 +36,7 @@ SIBLING_EDGE = 'H'
 
 def plot_probs(prob_vals, fig_name ="rankedProb.pdf", logx = False):
     plt.figure()
-    plot_path = os.path.join(os.getcwd(),'plots')
+    plot_path = os.path.join(os.getcwd(),'generation')
     if not os.path.exists(plot_path):
         os.makedirs(plot_path)
     plt.grid()

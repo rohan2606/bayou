@@ -135,6 +135,8 @@ class APICalls(Evidence):
         name = name.split('<')[0]  # remove generics from call name
         return [name] if name[0].islower() else []  # Java convention
 
+    def print_ev(self):
+        print('---------------APICalls---Used-------------------------\n')
 
 class Types(Evidence):
 
@@ -222,6 +224,8 @@ class Types(Evidence):
 
         return list(set(types))
 
+    def print_ev(self):
+        print('----------------Types---Used-----------------------------\n')
 
 class Keywords(Evidence):
 
@@ -318,6 +322,8 @@ class Keywords(Evidence):
         # convert to lower case, omit stop words and take the set
         return list(set([k.lower() for k in keywords if k.lower() not in Keywords.STOP_WORDS]))
 
+    def print_ev(self):
+        print('-----------------------Keywords--Used-------------------\n')
 
 # TODO: handle Javadoc with word2vec
 class Javadoc(Evidence):
@@ -344,4 +350,5 @@ class Javadoc(Evidence):
         self.vocab = dict(zip(self.chars, range(len(self.chars))))
         self.vocab_size = len(self.vocab)
 
-
+    def print_ev(self):
+        print('--------------------------Javadoc--Used--------------------\n')

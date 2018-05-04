@@ -28,7 +28,7 @@ import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
-from bayou.models.low_level_evidences.utils import plot_probs, find_top_rank_ids, normalize_log_probs
+from bayou.models.low_level_evidences.utils import plot_probs, find_top_rank_ids, normalize_log_probs, find_my_rank
 
 
 File_Name = 'Search_Data_Basic'
@@ -37,8 +37,8 @@ HELP = """
  """
 #%%
 
-def test(clargs):
 
+def get_a1b1(clargs):
     clargs.continue_from = True
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
@@ -58,13 +58,44 @@ def test(clargs):
 
     with tf.Session() as sess:
         predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
-        _, ev_data, _, _, _ = reader.next_batch()
+        prog_id, ev_data, _, _, y = reader.next_batch()
+        print(prog_id)
         feed = {}
         for j, ev in enumerate(config.evidence):
             feed[predictor.model.encoder.inputs[j].name] = ev_data[j]
 
         a1, b1 = sess.run([predictor.model.EncA, predictor.model.EncB], feed)
 
+    for i, ev in enumerate(config.evidence):
+        print()
+        ev.print_ev()
+        arr = np.squeeze(ev_data[i])
+        assert(len(list(arr.shape)) == 1)
+        inv_map = {v: k for k, v in ev.vocab.items()}
+        for j, val in enumerate(arr):
+            if val == 1:
+                print(inv_map[j])
+
+    inv_map = {v: k for k, v in config.decoder.vocab.items()}
+    print('\nThe original sequence might be this (BEWARE :: However can also be seq from other program part)')
+    for call in y[0]:
+        string = inv_map[call]
+        if string == 'STOP':
+            print('' , end='')
+        else:
+            print(string , end=',')
+    return a1,b1, prog_id[0], config,
+
+def test_get_vals(clargs):
+    a2s = np.load(File_Name  + '/a2s.npy')
+    b2s = np.load(File_Name  + '/b2s.npy')
+    prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
+    Ys = np.load(File_Name  + '/Ys.npy')
+    return a2s, b2s, prob_Ys, Ys
+
+def test(clargs):
+
+    [a1, b1, prog_id, config] = get_a1b1(clargs)
     [a2s, b2s, prob_Ys, Ys] = test_get_vals(clargs)
 
     latent_size, num_progs, batch_size = len(b2s[0]), len(a2s), 1000
@@ -78,12 +109,14 @@ def test(clargs):
 
 
     prob_Y_Xs = normalize_log_probs(prob_Y_Xs)
-    jids, sorted_probs = find_top_rank_ids( prob_Y_Xs )
+    rank_ids, sorted_probs = find_top_rank_ids( prob_Y_Xs)
+    pred_rank = find_my_rank(prob_Y_Xs, prog_id)
     inv_map = {v: k for k, v in config.decoder.vocab.items()}
 
+    #print('\nPredicted Rank is {}'.format(pred_rank))
     print()
-    for rank, jid in enumerate(jids):
-        print('Rank :: {}'.format(rank + 1))
+    for rank, jid in enumerate(rank_ids):
+        print('Rank :: {} , LogProb :: {}'.format(rank + 1, sorted_probs[rank]))
         for i, prog_trace in enumerate(Ys[jid]):
             for call in prog_trace:
                 string = inv_map[call]
@@ -99,18 +132,6 @@ def test(clargs):
     plot_probs(sorted_probs[:10], fig_name ="rankedProbtop10.pdf")
 
     return
-
-
-
-
-
-def test_get_vals(clargs):
-    a2s = np.load(File_Name  + '/a2s.npy')
-    b2s = np.load(File_Name  + '/b2s.npy')
-    prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
-    Ys = np.load(File_Name  + '/Ys.npy')
-    return a2s, b2s, prob_Ys, Ys
-
 
 
 #%%
@@ -130,7 +151,11 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_REontop_Basic', 'generation/query.json'])
+    parseJSON = False
+    if parseJSON:
+        clargs = parser.parse_args(['--save', 'save_REontop_Basic', 'generation/query.json'])
+    else:
+        clargs = parser.parse_args(['--save', 'save_REontop_Basic', '/home/ubuntu/bayou/data/DATA-training.json'])
 
 
 
