@@ -457,28 +457,29 @@ class ast(Evidence):
     def wrangle(self, data):
         with tf.variable_scope("ast"):
             max_ast_length = self.tile
-            nodes = np.zeros((len(data), max_ast_length), dtype=np.int32)
-            edges = np.zeros((len(data), max_ast_length), dtype=np.bool)
+            #In the 3rd dimension, the 0-th col is node and 1-st col is edge
+            nodes_edges = np.zeros((len(data), max_ast_length, 2), dtype=np.int32)
+            #edges = np.zeros((len(data), max_ast_length), dtype=np.bool)
             for i, path in enumerate(data):
-                nodes[i, :len(path)] = list(map(self.vocab.get, [p[0] for p in path]))
-                edges[i, :len(path)] = [p[1] == CHILD_EDGE for p in path]
+                nodes_edges[i, :len(path), 0] = list(map(self.vocab.get, [p[0] for p in path]))
+                nodes_edges[i, :len(path), 1] = [p[1] == CHILD_EDGE for p in path]
 
-        return (nodes,edges)
+        return nodes_edges
 
-    def split(self, data, num_batches, axis=0):
-        nodes, edges = data
+    '''def split(self, data, num_batches, axis=0):
+        nodes_edges = data
         nodes = np.split(nodes, num_batches, axis)
         edges = np.split(edges, num_batches, axis)
         zipper = [(nodes[i], edges[i]) for i in range(num_batches)]
-        return zipper
+        return zipper'''
 
 
     def placeholder(self, config):
         # type: (object) -> object
         max_ast_length = self.tile
-        nodes = tf.placeholder(tf.int32, [config.batch_size, max_ast_length])
-        edges = tf.placeholder(tf.bool, [config.batch_size, max_ast_length])
-        return tf.tuple([nodes,edges])
+        nodes_edges = tf.placeholder(tf.int32, [config.batch_size, max_ast_length, 2])
+        #edges = tf.placeholder(tf.bool, [config.batch_size, max_ast_length])
+        return nodes_edges
 
     def exists(self, inputs):
         return True
@@ -494,9 +495,11 @@ class ast(Evidence):
         with tf.variable_scope('ast'):
             latent_encoding = tf.zeros([config.batch_size, config.latent_size])
             max_ast_depth = self.tile
-            nodes, edges = inputs
+            nodes_edges = inputs
+            nodes, edges = tf.unstack(nodes_edges, axis=2)
             nodes = tf.unstack(nodes, axis=1)
-            edges = tf.unstack(edges, axis=1)
+            edges = tf.cast(tf.unstack(edges, axis=1), dtype=tf.bool)
+
 
             Path_encoder = TreeEncoder(self.emb, config.batch_size, nodes, edges,self.num_layers, \
                                 self.units, max_ast_depth, self.units)
