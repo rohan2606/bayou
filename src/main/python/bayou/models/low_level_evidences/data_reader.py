@@ -43,7 +43,7 @@ class Reader():
                          enumerate(config.evidence)]
 
         # align with number of batches
-        config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
+        config.num_batches = int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -193,7 +193,7 @@ class Reader():
                 continue
             try:
                 evidences = [ev.read_data_point(program) for ev in self.config.evidence]
-                evidences = [evidences[:-1]+[seq] for seq in evidences[-1]]
+                evidences = [evidences[:-1]+[seq] for seq in evidences[-1]] #if self.config.evidence[-1].name == 'sequences' else evidences
 
                 ast_paths = self.get_ast_paths(program['ast']['_nodes'])
                 self.validate_sketch_paths(program, ast_paths)
@@ -208,10 +208,10 @@ class Reader():
             except (TooLongPathError, InvalidSketchError) as e:
                 ignored += 1
             done += 1
-        print('{:8d} programs in training data'.format(done))
-        print('{:8d} programs ignored by given config'.format(ignored))
+        print('{:8d} programs/asts in training data'.format(done))
+        print('{:8d} programs/asts ignored by given config'.format(ignored))
+        print('{:8d} programs/asts to search over'.format(done - ignored))
         print('{:8d} data points total'.format(len(data_points)))
-        print('{:8d} programs to search over'.format(done - ignored))
 
         # randomly shuffle to avoid bias towards initial data points during training
         #print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")

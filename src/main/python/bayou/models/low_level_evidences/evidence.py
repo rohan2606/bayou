@@ -360,12 +360,11 @@ class Javadoc(Evidence):
 class Sequences(Evidence):
 
     def read_data_point(self, program):
-        json_sequences = program['sequences'] if 'sequences' in program else []
+        json_sequences = program['sequences'] if 'sequences' in program else [[]]
         list_seqs = []
         for json_seq in json_sequences:
             seq = json_seq['calls']
-            if len(seq) > 2:
-                list_seqs.append(seq)
+            list_seqs.append(seq)
         return list_seqs
 
     def set_chars_vocab(self, data):
@@ -398,6 +397,8 @@ class Sequences(Evidence):
     def init_sigma(self, config):
         with tf.variable_scope('sequences'):
             self.sigma = tf.get_variable('sigma', [])
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
+
 
     def encode(self, inputs, config):
         with tf.variable_scope('sequences'):
@@ -405,9 +406,7 @@ class Sequences(Evidence):
             max_length = self.tile
             inp = tf.slice(inputs, [0, 0], [config.batch_size, max_length])
 
-            emb = tf.get_variable('emb', [self.vocab_size, self.units])
-            emb_inp = tf.nn.embedding_lookup(emb, inp)
-
+            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
             LSTM_Encoder = seqEncoder(self.num_layers, self.units, emb_inp)
             encoding = LSTM_Encoder.output
 
