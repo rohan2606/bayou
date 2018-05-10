@@ -1,7 +1,7 @@
 {
     "model": "lle",
     "latent_size": 32,
-    "batch_size": 50,
+    "batch_size": 1,
     "num_epochs": 500,
     "learning_rate": 0.001,
     "print_step": 500,
@@ -31,7 +31,13 @@
             "name": "sequences",
             "units": 64,
             "num_layers": 1,
-            "tile": 16
+            "tile": 32
+        },
+        {
+            "name": "ast",
+            "units": 64,
+            "num_layers": 1,
+            "tile": 32
         }
     ],
     "decoder": {

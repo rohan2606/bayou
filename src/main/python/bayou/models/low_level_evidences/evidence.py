@@ -20,8 +20,9 @@ import json
 from itertools import chain
 from collections import Counter
 
-from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK
+from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK, CHILD_EDGE, SIBLING_EDGE
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
+from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 
 class Evidence(object):
 
@@ -46,6 +47,8 @@ class Evidence(object):
                 e = Keywords()
             elif name == 'sequences':
                 e = Sequences()
+            elif name == 'ast':
+                e = ast()
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.init_config(evidence, chars_vocab)
@@ -76,6 +79,10 @@ class Evidence(object):
 
     def evidence_loss(self, psi, encoding, config):
         raise NotImplementedError('evidence_loss() has not been implemented')
+
+    def split(self, data, num_batches, axis=0):
+        return np.split(data, num_batches, axis)
+
 
 
 class APICalls(Evidence):
@@ -429,6 +436,84 @@ class Sequences(Evidence):
         name = call.split('(')[0].split('.')[-1]
         name = name.split('<')[0]  # remove generics from call name
         return [name] if name[0].islower() else []  # Java convention
+
+    def print_ev(self):
+        print('---------------Sequences--Used-------------------------\n')
+
+
+
+class ast(Evidence):
+
+    def read_data_point(self, program):
+        return []
+
+    def set_chars_vocab(self, data):
+        counts = Counter([n for path in data for (n, _) in path])
+        counts[C0] = 1
+        self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
+        self.vocab = dict(zip(self.chars, range(len(self.chars))))
+        self.vocab_size = len(self.vocab)
+
+    def wrangle(self, data):
+        with tf.variable_scope("ast"):
+            max_ast_length = self.tile
+            nodes = np.zeros((len(data), max_ast_length), dtype=np.int32)
+            edges = np.zeros((len(data), max_ast_length), dtype=np.bool)
+            for i, path in enumerate(data):
+                nodes[i, :len(path)] = list(map(self.vocab.get, [p[0] for p in path]))
+                edges[i, :len(path)] = [p[1] == CHILD_EDGE for p in path]
+
+        return (nodes,edges)
+
+    def split(self, data, num_batches, axis=0):
+        nodes, edges = data
+        nodes = np.split(nodes, num_batches, axis)
+        edges = np.split(edges, num_batches, axis)
+        zipper = [(nodes[i], edges[i]) for i in range(num_batches)]
+        return zipper
+
+
+    def placeholder(self, config):
+        # type: (object) -> object
+        max_ast_length = self.tile
+        nodes = tf.placeholder(tf.int32, [config.batch_size, max_ast_length])
+        edges = tf.placeholder(tf.bool, [config.batch_size, max_ast_length])
+        return tf.tuple([nodes,edges])
+
+    def exists(self, inputs):
+        return True
+
+
+    def init_sigma(self, config):
+        with tf.variable_scope('ast'):
+            self.sigma = tf.get_variable('sigma', [])
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
+
+
+    def encode(self, inputs, config):
+        with tf.variable_scope('ast'):
+            latent_encoding = tf.zeros([config.batch_size, config.latent_size])
+            max_ast_depth = self.tile
+            nodes, edges = inputs
+            nodes = tf.unstack(nodes, axis=1)
+            edges = tf.unstack(edges, axis=1)
+
+            Path_encoder = TreeEncoder(self.emb, config.batch_size, nodes, edges,self.num_layers, \
+                                self.units, max_ast_depth, self.units)
+
+            encoding = Path_encoder.last_output
+
+            w = tf.get_variable('w', [self.units, config.latent_size])
+            b = tf.get_variable('b', [config.latent_size])
+            latent_encoding += tf.nn.xw_plus_b(encoding, w, b)
+
+            return latent_encoding
+
+    def evidence_loss(self, psi, encoding, config):
+        sigma_sq = tf.square(self.sigma)
+        loss = 0.5 * (config.latent_size * tf.log(2 * np.pi * sigma_sq + 1e-10)
+                      + tf.square(encoding - psi) / sigma_sq)
+        return loss
 
     def print_ev(self):
         print('---------------Sequences--Used-------------------------\n')

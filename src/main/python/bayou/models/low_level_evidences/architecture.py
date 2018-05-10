@@ -59,10 +59,8 @@ class BayesianDecoder(object):
 
         cells1, cells2 = [], []
         for _ in range(config.decoder.num_layers):
-            cell1 = tf.nn.rnn_cell.GRUCell(config.decoder.units)
-            cell2 = tf.nn.rnn_cell.GRUCell(config.decoder.units)
-            cells1.append(cell1)
-            cells2.append(cell2)
+            cells1.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
+            cells2.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
 
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
