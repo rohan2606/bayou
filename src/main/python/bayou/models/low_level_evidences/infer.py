@@ -71,6 +71,13 @@ class BayesianPredictor(object):
             feed[self.model.reverse_encoder.nodes[j].name] = nodes[self.model.config.reverse_encoder.max_ast_depth - 1 - j]
             feed[self.model.reverse_encoder.edges[j].name] = edges[self.model.config.reverse_encoder.max_ast_depth - 1 - j]
 
+        # num_samples = 100
+        # probYs = np.zeros([self.model.config.batch_size])
+        # for i in range(num_samples):
+        #     probY = self.sess.run(self.model.probY, feed)
+        #     probYs += probY
+        #
+        # probY = probYs / num_samples
 
         [probY, EncA, EncB, RevEncA, RevEncB] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
                                                         self.model.RevEncA, self.model.RevEncB], feed)

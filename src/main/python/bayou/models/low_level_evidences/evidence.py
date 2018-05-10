@@ -21,7 +21,7 @@ from itertools import chain
 from collections import Counter
 
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK
-
+from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 
 class Evidence(object):
 
@@ -44,6 +44,8 @@ class Evidence(object):
                 e = Types()
             elif name == 'keywords':
                 e = Keywords()
+            elif name == 'sequences':
+                e = Sequences()
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.init_config(evidence, chars_vocab)
@@ -188,6 +190,7 @@ class Types(Evidence):
         loss = 0.5 * (config.latent_size * tf.log(2 * np.pi * sigma_sq + 1e-10)
                       + tf.square(encoding - psi) / sigma_sq)
         return loss
+
 
     @staticmethod
     def get_types_re(s):
@@ -352,3 +355,81 @@ class Javadoc(Evidence):
 
     def print_ev(self):
         print('--------------------------Javadoc--Used--------------------\n')
+
+# handle sequences as i/p
+class Sequences(Evidence):
+
+    def read_data_point(self, program):
+        json_sequences = program['sequences'] if 'sequences' in program else []
+        list_seqs = []
+        for json_seq in json_sequences:
+            seq = json_seq['calls']
+            if len(seq) > 2:
+                list_seqs.append(seq)
+        return list_seqs
+
+    def set_chars_vocab(self, data):
+        counts = Counter([c for seqs in data for seq in seqs for c in seq])
+        self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
+        self.vocab = dict(zip(self.chars, range(len(self.chars))))
+        self.vocab_size = len(self.vocab)
+
+    def wrangle(self, data):
+        with tf.variable_scope("sequences"):
+            max_length = self.tile
+            wrangled = np.zeros((len(data), max_length), dtype=np.int32)
+            for i, seq in enumerate(data):
+                for pos,c in enumerate(seq):
+                    if c in self.vocab and pos < max_length:
+                        wrangled[i, pos] = self.vocab[c]
+        return wrangled
+
+    def placeholder(self, config):
+        # type: (object) -> object
+        max_length = self.tile
+        return tf.placeholder(tf.int32, [config.batch_size, max_length])
+
+    def exists(self, inputs):
+        i = tf.reduce_sum(inputs, axis=1)
+        i = tf.expand_dims(i,axis=1)
+        return tf.not_equal(tf.count_nonzero(i, axis=1), 0)
+
+
+    def init_sigma(self, config):
+        with tf.variable_scope('sequences'):
+            self.sigma = tf.get_variable('sigma', [])
+
+    def encode(self, inputs, config):
+        with tf.variable_scope('sequences'):
+            latent_encoding = tf.zeros([config.batch_size, config.latent_size])
+            max_length = self.tile
+            inp = tf.slice(inputs, [0, 0], [config.batch_size, max_length])
+
+            emb = tf.get_variable('emb', [self.vocab_size, self.units])
+            emb_inp = tf.nn.embedding_lookup(emb, inp)
+
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, emb_inp)
+            encoding = LSTM_Encoder.output
+
+            w = tf.get_variable('w', [self.units, config.latent_size])
+            b = tf.get_variable('b', [config.latent_size])
+            latent_encoding += tf.nn.xw_plus_b(encoding, w, b)
+
+            return latent_encoding
+
+    def evidence_loss(self, psi, encoding, config):
+        sigma_sq = tf.square(self.sigma)
+        loss = 0.5 * (config.latent_size * tf.log(2 * np.pi * sigma_sq + 1e-10)
+                      + tf.square(encoding - psi) / sigma_sq)
+        return loss
+
+    @staticmethod
+    def from_call(callnode):
+        call = callnode['calls']
+        call = re.sub('^\$.*\$', '', call)  # get rid of predicates
+        name = call.split('(')[0].split('.')[-1]
+        name = name.split('<')[0]  # remove generics from call name
+        return [name] if name[0].islower() else []  # Java convention
+
+    def print_ev(self):
+        print('---------------Sequences--Used-------------------------\n')
