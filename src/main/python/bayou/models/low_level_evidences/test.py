@@ -184,7 +184,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_REontop_Basic',
+    clargs = parser.parse_args(['--save', 'save1',
     '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
 #    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])

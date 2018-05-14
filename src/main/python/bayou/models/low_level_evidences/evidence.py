@@ -144,8 +144,14 @@ class APICalls(Evidence):
         name = name.split('<')[0]  # remove generics from call name
         return [name] if name[0].islower() else []  # Java convention
 
-    def print_ev(self):
+    def print_ev(self, data):
         print('---------------APICalls---Used-------------------------\n')
+        arr = np.squeeze(data)
+        assert(len(list(arr.shape)) == 1)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for j, val in enumerate(arr):
+            if val == 1: #because ev_data is wrangled
+                print(inv_map[j])
 
 class Types(Evidence):
 
@@ -234,8 +240,13 @@ class Types(Evidence):
 
         return list(set(types))
 
-    def print_ev(self):
-        print('----------------Types---Used-----------------------------\n')
+    def print_ev(self, data):
+        arr = np.squeeze(data)
+        assert(len(list(arr.shape)) == 1)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for j, val in enumerate(arr):
+            if val == 1: #because ev_data is wrangled
+                print(inv_map[j])
 
 class Keywords(Evidence):
 
@@ -332,8 +343,14 @@ class Keywords(Evidence):
         # convert to lower case, omit stop words and take the set
         return list(set([k.lower() for k in keywords if k.lower() not in Keywords.STOP_WORDS]))
 
-    def print_ev(self):
+    def print_ev(self, data):
         print('-----------------------Keywords--Used-------------------\n')
+        arr = np.squeeze(data)
+        assert(len(list(arr.shape)) == 1)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for j, val in enumerate(arr):
+            if val == 1: #because ev_data is wrangled
+                print(inv_map[j])
 
 # TODO: handle Javadoc with word2vec
 class Javadoc(Evidence):
@@ -437,8 +454,12 @@ class Sequences(Evidence):
         name = name.split('<')[0]  # remove generics from call name
         return [name] if name[0].islower() else []  # Java convention
 
-    def print_ev(self):
+    def print_ev(self, data):
         print('---------------Sequences--Used-------------------------\n')
+        arr = np.squeeze(data)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for val in arr:
+            print(inv_map[val])
 
 
 
@@ -518,5 +539,11 @@ class ast(Evidence):
                       + tf.square(encoding - psi) / sigma_sq)
         return loss
 
-    def print_ev(self):
-        print('---------------Sequences--Used-------------------------\n')
+    def print_ev(self, data):
+        print('---------------Ast--Used-------------------------\n')
+        arr = np.squeeze(data)
+        max_length = self.tile
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for i in range(max_length):
+            print(inv_map[arr[i][0]], end=',')
+            print(arr[i][1])

@@ -31,7 +31,7 @@ from bayou.models.low_level_evidences.test import get_c_minus_cstar
 from bayou.models.low_level_evidences.utils import plot_probs, find_top_rank_ids, normalize_log_probs, find_my_rank
 
 
-File_Name = 'Search_Data_Basic'
+File_Name = 'Search_Data_Truth'
 
 HELP = """
  """
@@ -66,14 +66,8 @@ def get_a1b1(clargs):
         a1, b1 = sess.run([predictor.model.EncA, predictor.model.EncB], feed)
 
     for i, ev in enumerate(config.evidence):
-        print()
-        ev.print_ev()
-        arr = np.squeeze(ev_data[i])
-        assert(len(list(arr.shape)) == 1)
-        inv_map = {v: k for k, v in ev.vocab.items()}
-        for j, val in enumerate(arr):
-            if val == 1:
-                print(inv_map[j])
+        ev.print_ev(ev_data[i])
+
 
     inv_map = {v: k for k, v in config.decoder.vocab.items()}
     print('\nThe original sequence might be this (BEWARE :: However can also be seq from other program part)')
@@ -153,9 +147,9 @@ if __name__ == '__main__':
     #clargs = parser.parse_args()
     parseJSON = False
     if parseJSON:
-        clargs = parser.parse_args(['--save', 'save_REontop_Basic', 'generation/query.json'])
+        clargs = parser.parse_args(['--save', 'save2', 'generation/query.json'])
     else:
-        clargs = parser.parse_args(['--save', 'save_REontop_Basic', '/home/ubuntu/bayou/data/DATA-training.json'])
+        clargs = parser.parse_args(['--save', 'save2', '/home/ubuntu/bayou/data/DATA-training.json'])
 
 
 
