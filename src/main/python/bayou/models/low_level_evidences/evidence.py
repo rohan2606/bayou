@@ -384,15 +384,18 @@ class Javadoc(Evidence):
 class Sequences(Evidence):
 
     def read_data_point(self, program):
-        json_sequences = program['sequences'] if 'sequences' in program else [[]]
-        list_seqs = []
+        json_sequences = program['sequences'] if 'sequences' in program else []
+        list_seqs = [[]]
         for json_seq in json_sequences:
-            seq = json_seq['calls']
-            list_seqs.append(seq)
+            tmp_list = json_seq['calls']
+            if len(tmp_list) > 1:
+                list_seqs.append(tmp_list)
+        if len(list_seqs) > 1:
+            list_seqs.remove([])
         return list_seqs
 
     def set_chars_vocab(self, data):
-        counts = Counter([c for seqs in data for seq in seqs for c in seq])
+        counts = Counter([c for seq in data for c in seq])
         self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
         self.vocab = dict(zip(self.chars, range(len(self.chars))))
         self.vocab_size = len(self.vocab)
