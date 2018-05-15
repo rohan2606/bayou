@@ -194,7 +194,7 @@ class Reader():
                 continue
             try:
                 evidences = [ev.read_data_point(program) for ev in self.config.evidence]
-                evidences = evidences[:-1] # strip ast out
+                #evidences = evidences[:-1] # strip ast out
                 evidences = [evidences[:-1]+[seq] for seq in evidences[-1]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
 
                 ast_paths = self.get_ast_paths(program['ast']['_nodes'])
@@ -202,7 +202,7 @@ class Reader():
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
                     for evidence in evidences:
-                        evidence.append(path)
+                        #evidence.append(path)
                         data_points.append((done - ignored, evidence, path))
                 calls = gather_calls(program['ast'])
                 for call in calls:

@@ -397,6 +397,7 @@ class Sequences(Evidence):
     def set_chars_vocab(self, data):
         counts = Counter([c for seq in data for c in seq])
         self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
+        self.chars.insert(0,'STOP')
         self.vocab = dict(zip(self.chars, range(len(self.chars))))
         self.vocab_size = len(self.vocab)
 
@@ -432,8 +433,10 @@ class Sequences(Evidence):
             latent_encoding = tf.zeros([config.batch_size, config.latent_size])
             max_length = self.tile
             inp = tf.slice(inputs, [0, 0], [config.batch_size, max_length])
-
+            #can do inversion of input here
             emb_inp = tf.nn.embedding_lookup(self.emb, inp)
+            emb_inp = tf.reverse(emb_inp, axis=[False,True]) # reversed i/p to the encoder
+
             LSTM_Encoder = seqEncoder(self.num_layers, self.units, emb_inp)
             encoding = LSTM_Encoder.output
 
@@ -462,8 +465,12 @@ class Sequences(Evidence):
         arr = np.squeeze(data)
         inv_map = {v: k for k, v in self.vocab.items()}
         for val in arr:
-            print(inv_map[val])
-
+            string = inv_map[val]
+            if string == 'STOP':
+                print('' , end='')
+            else:
+                print(string , end=',')
+        print()
 
 
 class ast(Evidence):
@@ -519,6 +526,7 @@ class ast(Evidence):
         with tf.variable_scope('ast'):
             latent_encoding = tf.zeros([config.batch_size, config.latent_size])
             max_ast_depth = self.tile
+
             nodes_edges = inputs
             nodes, edges = tf.unstack(nodes_edges, axis=2)
             nodes = tf.unstack(nodes, axis=1)
@@ -548,5 +556,9 @@ class ast(Evidence):
         max_length = self.tile
         inv_map = {v: k for k, v in self.vocab.items()}
         for i in range(max_length):
-            print(inv_map[arr[i][0]], end=',')
-            print(arr[i][1])
+            string = inv_map[arr[i][0]]
+            if string == 'DSubTree':
+                print('' , end='')
+            else:
+                print(string , end=',')
+                print(arr[i][1])

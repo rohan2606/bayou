@@ -104,7 +104,7 @@ def test(clargs):
 
     prob_Y_Xs = normalize_log_probs(prob_Y_Xs)
     rank_ids, sorted_probs = find_top_rank_ids( prob_Y_Xs)
-    pred_rank = find_my_rank(prob_Y_Xs, prog_id)
+    #pred_rank = find_my_rank(prob_Y_Xs, prog_id)
     inv_map = {v: k for k, v in config.decoder.vocab.items()}
 
     #print('\nPredicted Rank is {}'.format(pred_rank)) # not possible as JSON is unordered object
