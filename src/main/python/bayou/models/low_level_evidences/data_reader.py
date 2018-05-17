@@ -38,7 +38,7 @@ class Reader():
         random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets, ast = self.read_data(clargs.input_file[0],save=clargs.save)
+        prog_ids, raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
 
@@ -52,7 +52,6 @@ class Reader():
 
         raw_targets = raw_targets[:sz]
         prog_ids = prog_ids[:sz]
-        ast = ast[:sz]
 
         # setup input and target chars/vocab
         if clargs.continue_from is None:
@@ -166,7 +165,6 @@ class Reader():
             curr_Node.sibling = nodeS
             return head, ph + pv
 
-
         if node_type == 'DLoop':
             if curr_Node == None:
                 curr_Node = Node('DLoop')
@@ -248,16 +246,16 @@ class Reader():
                 continue
             try:
                 evidences = [ev.read_data_point(program) for ev in self.config.evidence]
-                #evidences = evidences[:-1] # strip ast out
-                evidences = [evidences[:-1]+[seq] for seq in evidences[-1]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
-
+                evidences = evidences[:-1] # strip ast out
                 ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
+                evidences.append(ast_node_graph)
+                evidences = [evidences[:-2]+ [seq] + [evidences[-1]] for seq in evidences[-2]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
+
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
                     for evidence in evidences:
-                        #evidence.append(path)
-                        data_points.append((done - ignored, evidence, path, ast_node_graph))
+                        data_points.append((done - ignored, evidence, path))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
@@ -271,16 +269,15 @@ class Reader():
         print('{:8d} data points total'.format(len(data_points)))
 
         # randomly shuffle to avoid bias towards initial data points during training
-        #print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")
         random.shuffle(data_points)
-        _ids, evidences, targets, ast = zip(*data_points) #unzip
+        _ids, evidences, targets = zip(*data_points) #unzip
 
         # save callmap if save location is given
         if save is not None:
             with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
                 pickle.dump(callmap, f)
 
-        return _ids, evidences, targets, ast
+        return _ids, evidences, targets
 
     def next_batch(self):
         batch = next(self.batches)

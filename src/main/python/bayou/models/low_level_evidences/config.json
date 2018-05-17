@@ -32,6 +32,12 @@
             "units": 64,
             "num_layers": 1,
             "tile": 32
+        },
+        {
+            "name": "ast",
+            "units": 64,
+            "num_layers": 1,
+            "tile": 32
         }
     ],
     "decoder": {

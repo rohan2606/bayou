@@ -23,6 +23,7 @@ from collections import Counter
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK, CHILD_EDGE, SIBLING_EDGE
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 from bayou.models.low_level_evidences.gru_tree import TreeEncoder
+from bayou.models.low_level_evidences.node import Node
 
 class Evidence(object):
 
@@ -392,6 +393,7 @@ class Sequences(Evidence):
                 list_seqs.append(tmp_list)
         if len(list_seqs) > 1:
             list_seqs.remove([])
+        #return list_seqs
         return list_seqs
 
     def set_chars_vocab(self, data):
@@ -479,6 +481,7 @@ class ast(Evidence):
         return []
 
     def set_chars_vocab(self, data):
+
         counts = Counter([n for path in data for (n, _) in path])
         counts[C0] = 1
         self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
