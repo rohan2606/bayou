@@ -21,7 +21,7 @@ import pickle
 from collections import Counter
 
 from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls
-
+from bayou.models.low_level_evidences.node import Node
 
 class TooLongPathError(Exception):
     pass
@@ -38,7 +38,7 @@ class Reader():
         random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
+        prog_ids, raw_evidences, raw_targets, ast = self.read_data(clargs.input_file[0],save=clargs.save)
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
 
@@ -52,9 +52,7 @@ class Reader():
 
         raw_targets = raw_targets[:sz]
         prog_ids = prog_ids[:sz]
-
-        #self.num_progs = min(self.num_progs , prog_ids[-1] + 1) #self.num_progs = done before in self.read_data, also not reqd for full data and makes no sense with Shuffle
-        #print(self.num_progs)
+        ast = ast[:sz]
 
         # setup input and target chars/vocab
         if clargs.continue_from is None:
@@ -93,47 +91,103 @@ class Reader():
         self.reset_batches()
 
     def get_ast_paths(self, js, idx=0):
+        #print (idx)
         cons_calls = []
         i = idx
+        curr_Node = None
+        head = None
         while i < len(js):
             if js[i]['node'] == 'DAPICall':
                 cons_calls.append((js[i]['_call'], SIBLING_EDGE))
+                if curr_Node == None:
+                    curr_Node = Node(js[i]['_call'])
+                    head = curr_Node
+                else:
+                    curr_Node.sibling = Node(js[i]['_call'])
+                    curr_Node = curr_Node.sibling
             else:
                 break
             i += 1
         if i == len(js):
             cons_calls.append(('STOP', SIBLING_EDGE))
-            return [cons_calls]
+            if curr_Node == None:
+                curr_Node = Node('STOP')
+                head = curr_Node
+            else:
+                curr_Node.sibling = Node('STOP')
+                curr_Node = curr_Node.sibling
+            return head, [cons_calls]
+
         node_type = js[i]['node']
 
         if node_type == 'DBranch':
-            pC = self.get_ast_paths(js[i]['_cond'])  # will have at most 1 "path"
+
+            if curr_Node == None:
+                curr_Node = Node('DBranch')
+                head = curr_Node
+            else:
+                curr_Node.sibling = Node('DBranch')
+                curr_Node = curr_Node.sibling
+
+            nodeC, pC = self.get_ast_paths( js[i]['_cond'])  # will have at most 1 "path"
             assert len(pC) <= 1
-            p1 = self.get_ast_paths(js[i]['_then'])
-            p2 = self.get_ast_paths(js[i]['_else'])
+            nodeC_last = nodeC.iterateHTillEnd(nodeC)
+            nodeC_last.sibling, p1 = self.get_ast_paths( js[i]['_then'])
+            nodeE, p2 = self.get_ast_paths( js[i]['_else'])
+            curr_Node.child = Node(nodeC.val, child=nodeE, sibling=nodeC.sibling)
+
             p = [p1[0] + path for path in p2] + p1[1:]
             pv = [cons_calls + [('DBranch', CHILD_EDGE)] + pC[0] + path for path in p]
-            p = self.get_ast_paths(js, i+1)
+
+
+            nodeS, p = self.get_ast_paths( js, i+1)
             ph = [cons_calls + [('DBranch', SIBLING_EDGE)] + path for path in p]
-            return ph + pv
+            curr_Node.sibling = nodeS
+
+            return head, ph + pv
 
         if node_type == 'DExcept':
-            p1 = self.get_ast_paths(js[i]['_try'])
-            p2 = self.get_ast_paths(js[i]['_catch'])
+            if curr_Node == None:
+                curr_Node = Node('DExcept')
+                head = curr_Node
+            else:
+                curr_Node.sibling = Node('DExcept')
+                curr_Node = curr_Node.sibling
+
+            nodeT , p1 = self.get_ast_paths( js[i]['_try'])
+            nodeC , p2 =  self.get_ast_paths( js[i]['_catch'] )
             p = [p1[0] + path for path in p2] + p1[1:]
+
+            curr_Node.child = Node(nodeT.val, child=nodeC, sibling=nodeT.sibling)
             pv = [cons_calls + [('DExcept', CHILD_EDGE)] + path for path in p]
-            p = self.get_ast_paths(js, i+1)
+
+            nodeS, p = self.get_ast_paths( js, i+1)
             ph = [cons_calls + [('DExcept', SIBLING_EDGE)] + path for path in p]
-            return ph + pv
+            curr_Node.sibling = nodeS
+            return head, ph + pv
+
 
         if node_type == 'DLoop':
-            pC = self.get_ast_paths(js[i]['_cond'])  # will have at most 1 "path"
+            if curr_Node == None:
+                curr_Node = Node('DLoop')
+                head = curr_Node
+            else:
+                curr_Node.sibling = Node('DLoop')
+                curr_Node = curr_Node.sibling
+            nodeC, pC = self.get_ast_paths( js[i]['_cond'])  # will have at most 1 "path"
             assert len(pC) <= 1
-            p = self.get_ast_paths(js[i]['_body'])
+            nodeC_last = nodeC.iterateHTillEnd(nodeC)
+            nodeC_last.sibling, p = self.get_ast_paths( js[i]['_body'])
+
             pv = [cons_calls + [('DLoop', CHILD_EDGE)] + pC[0] + path for path in p]
-            p = self.get_ast_paths(js, i+1)
+            nodeS, p = self.get_ast_paths( js, i+1)
             ph = [cons_calls + [('DLoop', SIBLING_EDGE)] + path for path in p]
-            return ph + pv
+
+            curr_Node.child = nodeC
+            curr_Node.sibling = nodeS
+
+            return head, ph + pv
+
 
     def _check_DAPICall_repeats(self, nodelist):
         """
@@ -197,13 +251,13 @@ class Reader():
                 #evidences = evidences[:-1] # strip ast out
                 evidences = [evidences[:-1]+[seq] for seq in evidences[-1]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
 
-                ast_paths = self.get_ast_paths(program['ast']['_nodes'])
+                ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
                     for evidence in evidences:
                         #evidence.append(path)
-                        data_points.append((done - ignored, evidence, path))
+                        data_points.append((done - ignored, evidence, path, ast_node_graph))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
@@ -219,14 +273,14 @@ class Reader():
         # randomly shuffle to avoid bias towards initial data points during training
         #print("Random Shuffle is turned off, TURN IT ON FOR FULL DATA TRAINING")
         random.shuffle(data_points)
-        _ids, evidences, targets = zip(*data_points) #unzip
+        _ids, evidences, targets, ast = zip(*data_points) #unzip
 
         # save callmap if save location is given
         if save is not None:
             with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
                 pickle.dump(callmap, f)
 
-        return _ids, evidences, targets
+        return _ids, evidences, targets, ast
 
     def next_batch(self):
         batch = next(self.batches)
