@@ -184,11 +184,10 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save1',
-    '/home/ubuntu/bayou/data/DATA-training.json'])
+    clargs = parser.parse_args(['--save', 'save',
+    # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
-#    '/home/rm38/Research/Bayou_Code_Search/bayou/data/DATA-training.json'])
-
+   '/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

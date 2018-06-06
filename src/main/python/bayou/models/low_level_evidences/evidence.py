@@ -481,7 +481,7 @@ class ast(Evidence):
         return []
 
     def set_chars_vocab(self, data):
-
+        data = [node.get_df_array(node) for node in data]
         counts = Counter([n for path in data for (n, _) in path])
         counts[C0] = 1
         self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)

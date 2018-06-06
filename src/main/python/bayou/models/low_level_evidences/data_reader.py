@@ -44,7 +44,7 @@ class Reader():
 
 
         # align with number of batches
-        config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
+        config.num_batches = 1 #int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -239,6 +239,7 @@ class Reader():
             js = json.load(f)
         data_points = []
         callmap = dict()
+        file_ptr = dict()
         ignored, done = 0, 0
 
         for program in js['programs']:
@@ -246,20 +247,23 @@ class Reader():
                 continue
             try:
                 evidences = [ev.read_data_point(program) for ev in self.config.evidence]
-                evidences = evidences[:-1] # strip ast out
+                #evidences = evidences[:-1] # strip ast out
                 ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
-                evidences.append(ast_node_graph)
-                evidences = [evidences[:-2]+ [seq] + [evidences[-1]] for seq in evidences[-2]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
+                #evidences.append(ast_node_graph)
+                # evidences = [evidences[:-1]+ [seq] for seq in evidences[-1]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
 
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    for evidence in evidences:
-                        data_points.append((done - ignored, evidence, path))
+                    # for evidence in evidences:
+                    data_points.append((done - ignored, evidences, path))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
                         callmap[call['_call']] = call
+
+                file_name = program['file']
+                file_ptr[done - ignored] = file_name
             except (TooLongPathError, InvalidSketchError) as e:
                 ignored += 1
             done += 1
@@ -269,13 +273,16 @@ class Reader():
         print('{:8d} data points total'.format(len(data_points)))
 
         # randomly shuffle to avoid bias towards initial data points during training
-        random.shuffle(data_points)
+        # random.shuffle(data_points)
         _ids, evidences, targets = zip(*data_points) #unzip
 
         # save callmap if save location is given
         if save is not None:
             with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
                 pickle.dump(callmap, f)
+
+        with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
+            pickle.dump(file_ptr, f)
 
         return _ids, evidences, targets
 
