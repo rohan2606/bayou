@@ -44,7 +44,7 @@ def get_a1b1(clargs):
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
 
-    random.seed(3)
+    random.seed(4)
     batch_id = random.randint(0,config.batch_size-1)
     print(batch_id)
 

@@ -25,5 +25,5 @@ class seqEncoder(object):
                 cell_list.append(cell)
             cell = tf.contrib.rnn.MultiRNNCell(cell_list)
             outputs, current_state = tf.nn.dynamic_rnn(cell, inputs, dtype=tf.float32)
-            output = tf.transpose(outputs, [1, 0, 2])[-1] # outputs was batch_size * time * dim
+            output = outputs[:,-1,:]
             self.output = output

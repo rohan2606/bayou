@@ -247,16 +247,16 @@ class Reader():
                 continue
             try:
                 evidences = [ev.read_data_point(program) for ev in self.config.evidence]
-                #evidences = evidences[:-1] # strip ast out
+                # evidences = evidences[:-1] # strip ast out
                 ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
                 #evidences.append(ast_node_graph)
-                # evidences = [evidences[:-1]+ [seq] for seq in evidences[-1]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
+                evidences = [evidences[:-1]+ [seq] for seq in evidences[-1]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
 
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    # for evidence in evidences:
-                    data_points.append((done - ignored, evidences, path))
+                    for evidence in evidences:
+                        data_points.append((done - ignored, evidence, path))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:

@@ -434,10 +434,11 @@ class Sequences(Evidence):
         with tf.variable_scope('sequences'):
             latent_encoding = tf.zeros([config.batch_size, config.latent_size])
             max_length = self.tile
-            inp = tf.slice(inputs, [0, 0], [config.batch_size, max_length])
+
+            #inp = tf.slice(inputs, [0, 0], [config.batch_size, max_length])
             #can do inversion of input here
-            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
-            emb_inp = tf.reverse(emb_inp, axis=[False,True]) # reversed i/p to the encoder
+            emb_inp = tf.nn.embedding_lookup(self.emb, inputs)
+            #emb_inp = tf.reverse(emb_inp, axis=[False,True]) # reversed i/p to the encoder
 
             LSTM_Encoder = seqEncoder(self.num_layers, self.units, emb_inp)
             encoding = LSTM_Encoder.output

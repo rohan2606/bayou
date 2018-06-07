@@ -2,10 +2,10 @@
     "model": "lle",
     "latent_size": 32,
     "batch_size": 50,
-    "num_epochs": 500,
+    "num_epochs": 5000,
     "learning_rate": 0.001,
     "print_step": 50,
-    "checkpoint_step": 100,
+    "checkpoint_step": 500,
     "alpha": 0.0,
     "beta": 0.0,
     "evidence": [
@@ -26,7 +26,14 @@
             "units": 32,
             "num_layers": 1,
             "tile": 1
+        },
+        {
+            "name": "sequences",
+            "units": 32,
+            "num_layers": 1,
+            "tile": 32
         }
+
     ],
     "decoder": {
         "units": 32,

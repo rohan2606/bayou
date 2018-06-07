@@ -42,7 +42,9 @@ class BayesianEncoder(object):
             encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
 
             # 3. tile the encodings according to each evidence type
-            encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, encodings)]
+            # encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, encodings)]
+            encodings = [[enc] * 1 for ev, enc in zip(config.evidence, encodings)]
+
             encodings = tf.stack(list(chain.from_iterable(encodings)))
 
             # 4. compute the mean of non-zero encodings
