@@ -22,7 +22,9 @@ import sys
 import json
 import textwrap
 import random
+from datetime import datetime
 import time
+
 #import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
@@ -37,34 +39,41 @@ HELP = """
  """
 #%%
 
+time_id = datetime.now()
+file_timestamp = str(time_id)[5:-7].replace(' ',':')
 
-def get_a1b1(clargs):
+def get_a1b1(clargs, f):
     clargs.continue_from = True
-    # load the saved config
-    with open(os.path.join(clargs.save, 'config.json')) as f:
-        config = read_config(json.load(f), chars_vocab=True)
 
-    random.seed(4)
-    batch_id = random.randint(0,config.batch_size-1)
-    print(batch_id)
+    with open(os.path.join(clargs.save, 'config.json')) as f1:
+        config = read_config(json.load(f1), chars_vocab=True)
 
-    with open(os.path.join(clargs.save, 'config.json')) as f:
-        model_type = json.load(f)['model']
+    with open(os.path.join(clargs.save, 'config.json')) as f1:
+        model_type = json.load(f1)['model']
 
     if model_type == 'lle':
         model = bayou.models.low_level_evidences.infer.BayesianPredictor
     else:
         raise ValueError('Invalid model type in config: ' + model_type)
 
+
+    file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
+
     reader = Reader(clargs, config)
     reader.reset_batches()
+
+    random.seed(time_id)
+    batch_id = random.randint(0,config.batch_size-1)
+    batch_num = random.randint(1,config.num_batches)
 
     with tf.Session() as sess:
         config.batch_size = 1
         predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
-        prog_id, ev_data, _, _, y = reader.next_batch()
+        for b in range(batch_num):
+            prog_ids, ev_data, _, _, y = reader.next_batch()
 
-        prog_id = prog_id[batch_id]
+        prog_id = prog_ids[batch_id]
+        f.write('\nOriginal File ptr :: ' + str(parse_filePtr(file_ptr_dict[prog_id])) + '\n\n\n')
         ev_data = [ev[batch_id:batch_id+1] for ev in ev_data]
         y = y[batch_id]
 
@@ -75,30 +84,15 @@ def get_a1b1(clargs):
         a1, b1 = sess.run([predictor.model.EncA, predictor.model.EncB], feed)
 
     for i, ev in enumerate(config.evidence):
-        ev.print_ev(ev_data[i])
+        ev.f_write(ev_data[i], f)
 
-
-    inv_map = {v: k for k, v in config.decoder.vocab.items()}
-    print('\nThe original sequence might be this (BEWARE :: However can also be seq from other program part)')
-    for call in y:
-        string = inv_map[call]
-        if string == 'STOP':
-            print('' , end='')
-        else:
-            print(string , end=',')
-    print()
     return a1,b1, prog_id, config,
 
-def test_get_vals(clargs):
-    a2s = np.load(File_Name  + '/a2s.npy')
-    b2s = np.load(File_Name  + '/b2s.npy')
-    prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
-    Ys = np.load(File_Name  + '/Ys.npy')
-    return a2s, b2s, prob_Ys, Ys
 
-def test(clargs):
+def test(clargs, f):
+    file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
 
-    [a1, b1, prog_id, config] = get_a1b1(clargs)
+    [a1, b1, prog_id, config] = get_a1b1(clargs, f)
     [a2s, b2s, prob_Ys, Ys] = test_get_vals(clargs)
 
     latent_size, num_progs, batch_size = len(b2s[0]), len(a2s), 1000
@@ -110,31 +104,45 @@ def test(clargs):
                                 np.array(a2s[sid:eid]), np.array(b2s[sid:eid]), np.array(prob_Ys[sid:eid]), latent_size)
         prob_Y_Xs += list(prob_Y_X)
 
-
     prob_Y_Xs = normalize_log_probs(prob_Y_Xs)
-    rank_ids, sorted_probs = find_top_rank_ids( prob_Y_Xs, cutoff = 25)
-    #pred_rank = find_my_rank(prob_Y_Xs, prog_id)
+
+    rank_ids, sorted_probs = find_top_rank_ids( prob_Y_Xs, cutoff = 10)
+    pred_rank = find_my_rank(prob_Y_Xs,  prog_id)
     inv_map = {v: k for k, v in config.decoder.vocab.items()}
 
-    #print('\nPredicted Rank is {}'.format(pred_rank)) # not possible as JSON is unordered object
-    print()
+    f.write('\nPredicted Rank is {}'.format(pred_rank + 1))
+
     for rank, jid in enumerate(rank_ids):
-        print('Rank :: {} , LogProb :: {}'.format(rank + 1, sorted_probs[rank]))
+        f.write('\n\n\nRank :: {} , LogProb :: {}\n\n'.format(rank + 1, sorted_probs[rank]))
+        found_file = parse_filePtr(file_ptr_dict[jid])
+        f.write('File Ptr ::' + found_file)
+        f.write('\n\nPaths in the AST::\n')
+        call_array = []
         for i, prog_trace in enumerate(Ys[jid]):
+            trace_array = []
             for call in prog_trace:
                 string = inv_map[call]
-                if string == 'STOP':
-                    print('' , end='')
-                else:
-                    print(string , end=',')
-            print()
-        print()
-    print()
-    plot_probs(sorted_probs)
-    plot_probs(sorted_probs[:100], fig_name ="rankedProbtop100.pdf")
-    plot_probs(sorted_probs[:10], fig_name ="rankedProbtop10.pdf")
+                if string != 'STOP':
+                    f.write(string + ' , ')
+            f.write('\n')
+        f.write('\nSource Code :: \n\n\n')
+        f.write(open(found_file).read())
+
+    plot_probs(sorted_probs, fig_name ="rankedProbAll"+ file_timestamp +".pdf")
+    plot_probs(sorted_probs[:100], fig_name ="rankedProbtop100" + file_timestamp +".pdf")
+    plot_probs(sorted_probs[:10], fig_name ="rankedProbtop10" + file_timestamp +".pdf")
 
     return
+
+def parse_filePtr(filePtr):
+    return '/'.join(['/home/ubuntu','Corpus', 'java_projects'] + filePtr.split('/')[1:])
+
+def test_get_vals(clargs):
+    a2s = np.load(File_Name  + '/a2s.npy')
+    b2s = np.load(File_Name  + '/b2s.npy')
+    prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
+    Ys = np.load(File_Name  + '/Ys.npy')
+    return a2s, b2s, prob_Ys, Ys
 
 
 #%%
@@ -158,9 +166,10 @@ if __name__ == '__main__':
     if parseJSON:
         clargs = parser.parse_args(['--save', 'save', 'generation/query.json'])
     else:
-        clargs = parser.parse_args(['--save', 'save', '/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+        clargs = parser.parse_args(['--save', 'save', '/home/ubuntu/Corpus/DATA-training-expanded-biased-TOP.json'])
 
 
-
+    f = open("./generation/ResultGeneration"+ file_timestamp + ".txt", "w")
     sys.setrecursionlimit(clargs.python_recursion_limit)
-    test(clargs)
+    test(clargs, f)
+    f.close()

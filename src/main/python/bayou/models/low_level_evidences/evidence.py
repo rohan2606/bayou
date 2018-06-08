@@ -146,13 +146,23 @@ class APICalls(Evidence):
         return [name] if name[0].islower() else []  # Java convention
 
     def print_ev(self, data):
-        print('---------------APICalls---Used-------------------------\n')
+        print('---------------APICalls--Used-------------------------\n')
         arr = np.squeeze(data)
         assert(len(list(arr.shape)) == 1)
         inv_map = {v: k for k, v in self.vocab.items()}
         for j, val in enumerate(arr):
             if val == 1: #because ev_data is wrangled
                 print(inv_map[j])
+
+    def f_write(self, data, f):
+        f.write('---------------APICalls--Used-------------------------\n')
+        arr = np.squeeze(data)
+        assert(len(list(arr.shape)) == 1)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for j, val in enumerate(arr):
+            if val == 1: #because ev_data is wrangled
+                f.write(inv_map[j])
+        f.write('\n')
 
 class Types(Evidence):
 
@@ -242,12 +252,24 @@ class Types(Evidence):
         return list(set(types))
 
     def print_ev(self, data):
+        print('-----------------------Types--Used-------------------\n')
         arr = np.squeeze(data)
         assert(len(list(arr.shape)) == 1)
         inv_map = {v: k for k, v in self.vocab.items()}
         for j, val in enumerate(arr):
             if val == 1: #because ev_data is wrangled
                 print(inv_map[j])
+
+    def f_write(self, data, f):
+        f.write('-----------------------Types--Used-------------------\n')
+        arr = np.squeeze(data)
+        assert(len(list(arr.shape)) == 1)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for j, val in enumerate(arr):
+            if val == 1: #because ev_data is wrangled
+                f.write(inv_map[j])
+        f.write('\n')
+
 
 class Keywords(Evidence):
 
@@ -352,6 +374,16 @@ class Keywords(Evidence):
         for j, val in enumerate(arr):
             if val == 1: #because ev_data is wrangled
                 print(inv_map[j])
+
+    def f_write(self, data, f):
+        f.write('-----------------------Keywords--Used-------------------\n')
+        arr = np.squeeze(data)
+        assert(len(list(arr.shape)) == 1)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for j, val in enumerate(arr):
+            if val == 1: #because ev_data is wrangled
+                f.write(inv_map[j])
+        f.write('\n')
 
 # TODO: handle Javadoc with word2vec
 class Javadoc(Evidence):
@@ -474,6 +506,16 @@ class Sequences(Evidence):
             else:
                 print(string , end=',')
         print()
+
+    def f_write(self, data, f):
+        f.write('---------------Sequences--Used-------------------------\n')
+        arr = np.squeeze(data)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for val in arr:
+            string = inv_map[val]
+            if string != 'STOP':
+                f.write(string + ',')
+        f.write('\n')
 
 
 class ast(Evidence):

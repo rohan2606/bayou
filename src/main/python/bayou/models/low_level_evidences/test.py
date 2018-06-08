@@ -51,7 +51,7 @@ def test(clargs):
 
         hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
 
-        if (((i+1) % 10 == 0) or (i == (num_progs - 1))):
+        if (((i+1) % 1000 == 0) or (i == (num_progs - 1))):
             print('Searched {}/{} (Max Rank {})'
                   'Hit_Points {} :: Percentage Hits {}'.format
                   (i + 1, num_progs, num_progs,
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     clargs = parser.parse_args(['--save', 'save1',
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
-   '/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+   '/home/ubuntu/Corpus/DATA-training-expanded-biased-TOP.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)
