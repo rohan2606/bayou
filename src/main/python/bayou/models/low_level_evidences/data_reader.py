@@ -44,7 +44,7 @@ class Reader():
 
 
         # align with number of batches
-        config.num_batches = 500 #int(len(raw_targets) / config.batch_size)
+        config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -80,7 +80,7 @@ class Reader():
             self.prog_ids[i] = prog_ids[i]
 
         # split into batches
-        self.inputs = [ev.split(ev_data, config.num_batches, axis=0) for ev, ev_data in zip(config.evidence, self.inputs)]
+        self.inputs = [np.split(ev_data, config.num_batches, axis=0) for ev_data in self.inputs ]
         self.nodes = np.split(self.nodes, config.num_batches, axis=0)
         self.edges = np.split(self.edges, config.num_batches, axis=0)
         self.targets = np.split(self.targets, config.num_batches, axis=0)
@@ -247,16 +247,12 @@ class Reader():
                 continue
             try:
                 evidences = [ev.read_data_point(program) for ev in self.config.evidence]
-                # evidences = evidences[:-1] # strip ast out
                 ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
-                #evidences.append(ast_node_graph)
-                evidences = [evidences[:-1]+ [seq] for seq in evidences[-1]] # (now expand sequences) if self.config.evidence[-1].name == 'sequences' else evidences
 
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    for evidence in evidences:
-                        data_points.append((done - ignored, evidence, path))
+                    data_points.append((done - ignored, evidences, path))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:

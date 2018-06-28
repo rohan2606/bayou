@@ -26,6 +26,7 @@ class BayesianEncoder(object):
         # Compute the denominator used for mean and covariance
         for ev in config.evidence:
             ev.init_sigma(config)
+            
         d = [tf.where(exist, tf.tile([1. / tf.square(ev.sigma)], [config.batch_size]),
                       tf.zeros(config.batch_size)) for ev, exist in zip(config.evidence, exists)]
         d = 1. + tf.reduce_sum(tf.stack(d), axis=0)
@@ -42,9 +43,7 @@ class BayesianEncoder(object):
             encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
 
             # 3. tile the encodings according to each evidence type
-            # encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, encodings)]
-            encodings = [[enc] * 1 for ev, enc in zip(config.evidence, encodings)]
-
+            encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, encodings)]
             encodings = tf.stack(list(chain.from_iterable(encodings)))
 
             # 4. compute the mean of non-zero encodings

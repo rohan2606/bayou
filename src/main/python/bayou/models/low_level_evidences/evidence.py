@@ -20,6 +20,7 @@ import json
 from itertools import chain
 from collections import Counter
 
+
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK, CHILD_EDGE, SIBLING_EDGE
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 from bayou.models.low_level_evidences.gru_tree import TreeEncoder
@@ -81,9 +82,18 @@ class Evidence(object):
     def evidence_loss(self, psi, encoding, config):
         raise NotImplementedError('evidence_loss() has not been implemented')
 
-    def split(self, data, num_batches, axis=0):
-        return np.split(data, num_batches, axis)
-
+    def count_occurence(self, data, f):
+        count  = 0
+        arr = np.squeeze(data)
+        #assert(len(list(arr.shape)) == 1)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for arr in arrs:
+            for j, val in enumerate(arr):
+                if val == 1: #because ev_data is wrangled
+                    #print(inv_map[j])
+                    if inv_map[j].lower() in f:
+                        count += 1
+        return count
 
 
 class APICalls(Evidence):
@@ -99,16 +109,16 @@ class APICalls(Evidence):
         self.vocab_size = len(self.vocab)
 
     def wrangle(self, data):
-        wrangled = np.zeros((len(data), 1, self.vocab_size), dtype=np.int32)
+        wrangled = np.zeros((len(data), self.max_nums, self.vocab_size), dtype=np.int32)
         for i, apicalls in enumerate(data):
-            for c in apicalls:
-                if c in self.vocab:
-                    wrangled[i, 0, self.vocab[c]] = 1
+            for j, c in enumerate(apicalls):
+                if c in self.vocab and j < self.max_nums:
+                    wrangled[i, j, self.vocab[c]] = 1
         return wrangled
 
     def placeholder(self, config):
         # type: (object) -> object
-        return tf.placeholder(tf.float32, [config.batch_size, 1, self.vocab_size])
+        return tf.placeholder(tf.float32, [config.batch_size, self.max_nums, self.vocab_size])
 
     def exists(self, inputs):
         i = tf.reduce_sum(inputs, axis=2)
@@ -120,15 +130,16 @@ class APICalls(Evidence):
 
     def encode(self, inputs, config):
         with tf.variable_scope('apicalls'):
-            latent_encoding = tf.zeros([config.batch_size, config.latent_size])
-            inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
-            inp = tf.reshape(inp, [-1, self.vocab_size])
+            #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
+            #inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
+            inp = tf.reshape(inputs, [-1, self.vocab_size])
             encoding = tf.layers.dense(inp, self.units, activation=tf.nn.tanh)
             for i in range(self.num_layers - 1):
                 encoding = tf.layers.dense(encoding, self.units, activation=tf.nn.tanh)
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
-            latent_encoding += tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
             return latent_encoding
 
     def evidence_loss(self, psi, encoding, config):
@@ -147,21 +158,23 @@ class APICalls(Evidence):
 
     def print_ev(self, data):
         print('---------------APICalls--Used-------------------------\n')
-        arr = np.squeeze(data)
-        assert(len(list(arr.shape)) == 1)
+        arrs = np.squeeze(data)
+        #assert(len(list(arr.shape)) == 2)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for j, val in enumerate(arr):
-            if val == 1: #because ev_data is wrangled
-                print(inv_map[j])
+        for arr in arrs:
+            for j, val in enumerate(arr):
+                if val == 1: #because ev_data is wrangled + one_hot
+                    print(inv_map[j])
 
     def f_write(self, data, f):
         f.write('---------------APICalls--Used-------------------------\n')
-        arr = np.squeeze(data)
-        assert(len(list(arr.shape)) == 1)
+        arrs = np.squeeze(data)
+        #assert(len(list(arr.shape)) == 2)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for j, val in enumerate(arr):
-            if val == 1: #because ev_data is wrangled
-                f.write(inv_map[j])
+        for arr in arrs:
+            for j, val in enumerate(arr):
+                if val == 1: #because ev_data is wrangled + one_hot
+                    f.write(inv_map[j])
         f.write('\n')
 
 class Types(Evidence):
@@ -177,16 +190,16 @@ class Types(Evidence):
         self.vocab_size = len(self.vocab)
 
     def wrangle(self, data):
-        wrangled = np.zeros((len(data), 1, self.vocab_size), dtype=np.int32)
+        wrangled = np.zeros((len(data), self.max_nums, self.vocab_size), dtype=np.int32)
         for i, types in enumerate(data):
-            for t in types:
-                if t in self.vocab:
-                    wrangled[i, 0, self.vocab[t]] = 1
+            for j, t in enumerate(types):
+                if t in self.vocab and j < self.max_nums:
+                    wrangled[i, j, self.vocab[t]] = 1
         return wrangled
 
     def placeholder(self, config):
         # type: (object) -> object
-        return tf.placeholder(tf.float32, [config.batch_size, 1, self.vocab_size])
+        return tf.placeholder(tf.float32, [config.batch_size, self.max_nums, self.vocab_size])
 
     def exists(self, inputs):
         i = tf.reduce_sum(inputs, axis=2)
@@ -198,15 +211,16 @@ class Types(Evidence):
 
     def encode(self, inputs, config):
         with tf.variable_scope('types'):
-            latent_encoding = tf.zeros([config.batch_size, config.latent_size])
-            inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
-            inp = tf.reshape(inp, [-1, self.vocab_size])
+            #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
+            #inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
+            inp = tf.reshape(inputs, [-1, self.vocab_size])
             encoding = tf.layers.dense(inp, self.units, activation=tf.nn.tanh)
             for i in range(self.num_layers - 1):
                 encoding = tf.layers.dense(encoding, self.units, activation=tf.nn.tanh)
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
-            latent_encoding += tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
             return latent_encoding
 
     def evidence_loss(self, psi, encoding, config):
@@ -253,21 +267,23 @@ class Types(Evidence):
 
     def print_ev(self, data):
         print('-----------------------Types--Used-------------------\n')
-        arr = np.squeeze(data)
-        assert(len(list(arr.shape)) == 1)
+        arrs = np.squeeze(data)
+        #assert(len(list(arr.shape)) == 2)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for j, val in enumerate(arr):
-            if val == 1: #because ev_data is wrangled
-                print(inv_map[j])
+        for arr in arrs:
+            for j, val in enumerate(arr):
+                if val == 1: #because ev_data is wrangled + one_hot
+                    print(inv_map[j])
 
     def f_write(self, data, f):
         f.write('-----------------------Types--Used-------------------\n')
-        arr = np.squeeze(data)
-        assert(len(list(arr.shape)) == 1)
+        arrs = np.squeeze(data)
+        #assert(len(list(arr.shape)) == 2)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for j, val in enumerate(arr):
-            if val == 1: #because ev_data is wrangled
-                f.write(inv_map[j])
+        for arr in arrs:
+            for j, val in enumerate(arr):
+                if val == 1: #because ev_data is wrangled + one_hot
+                    f.write(inv_map[j])
         f.write('\n')
 
 
@@ -307,16 +323,16 @@ class Keywords(Evidence):
         self.vocab_size = len(self.vocab)
 
     def wrangle(self, data):
-        wrangled = np.zeros((len(data), 1, self.vocab_size), dtype=np.int32)
+        wrangled = np.zeros((len(data), self.max_nums, self.vocab_size), dtype=np.int32)
         for i, keywords in enumerate(data):
-            for k in keywords:
-                if k in self.vocab and k not in Keywords.STOP_WORDS:
-                    wrangled[i, 0, self.vocab[k]] = 1
+            for j, k in enumerate(keywords):
+                if k in self.vocab and k not in Keywords.STOP_WORDS and j < self.max_nums:
+                    wrangled[i, j, self.vocab[k]] = 1
         return wrangled
 
     def placeholder(self, config):
         # type: (object) -> object
-        return tf.placeholder(tf.float32, [config.batch_size, 1, self.vocab_size])
+        return tf.placeholder(tf.float32, [config.batch_size, self.max_nums, self.vocab_size])
 
     def exists(self, inputs):
         i = tf.reduce_sum(inputs, axis=2)
@@ -328,15 +344,16 @@ class Keywords(Evidence):
 
     def encode(self, inputs, config):
         with tf.variable_scope('keywords'):
-            latent_encoding = tf.zeros([config.batch_size, config.latent_size])
-            inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
-            inp = tf.reshape(inp, [-1, self.vocab_size])
+            #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
+            #inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
+            inp = tf.reshape(inputs, [-1, self.vocab_size])
             encoding = tf.layers.dense(inp, self.units, activation=tf.nn.tanh)
             for i in range(self.num_layers - 1):
                 encoding = tf.layers.dense(encoding, self.units, activation=tf.nn.tanh)
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
-            latent_encoding += tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
             return latent_encoding
 
     def evidence_loss(self, psi, encoding, config):
@@ -368,21 +385,23 @@ class Keywords(Evidence):
 
     def print_ev(self, data):
         print('-----------------------Keywords--Used-------------------\n')
-        arr = np.squeeze(data)
-        assert(len(list(arr.shape)) == 1)
+        arrs = np.squeeze(data)
+        #assert(len(list(arr.shape)) == 2)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for j, val in enumerate(arr):
-            if val == 1: #because ev_data is wrangled
-                print(inv_map[j])
+        for arr in arrs:
+            for j, val in enumerate(arr):
+                if val == 1: #because ev_data is wrangled + one_hot
+                    print(inv_map[j])
 
     def f_write(self, data, f):
         f.write('-----------------------Keywords--Used-------------------\n')
-        arr = np.squeeze(data)
-        assert(len(list(arr.shape)) == 1)
+        arrs = np.squeeze(data)
+        #assert(len(list(arr.shape)) == 2)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for j, val in enumerate(arr):
-            if val == 1: #because ev_data is wrangled
-                f.write(inv_map[j])
+        for arr in arrs:
+            for j, val in enumerate(arr):
+                if val == 1: #because ev_data is wrangled + one_hot
+                    f.write(inv_map[j])
         f.write('\n')
 
 # TODO: handle Javadoc with word2vec
@@ -429,7 +448,7 @@ class Sequences(Evidence):
         return list_seqs
 
     def set_chars_vocab(self, data):
-        counts = Counter([c for seq in data for c in seq])
+        counts = Counter([c for seqs in data for seq in seqs for c in seq])
         self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
         self.chars.insert(0,'STOP')
         self.vocab = dict(zip(self.chars, range(len(self.chars))))
@@ -437,22 +456,21 @@ class Sequences(Evidence):
 
     def wrangle(self, data):
         with tf.variable_scope("sequences"):
-            max_length = self.tile
-            wrangled = np.zeros((len(data), max_length), dtype=np.int32)
-            for i, seq in enumerate(data):
-                for pos,c in enumerate(seq):
-                    if c in self.vocab and pos < max_length:
-                        wrangled[i, pos] = self.vocab[c]
+            wrangled = np.zeros((len(data), self.max_nums, self.max_depth), dtype=np.int32)
+            for i, seqs in enumerate(data):
+                for j, seq in enumerate(seqs):
+                    if j < self.max_nums : #and seq[0] != 'STOP: # assuming no sequence start with stop and stop has vocab key 0
+                        for pos,c in enumerate(seq):
+                            if c in self.vocab and pos < self.max_depth:
+                                wrangled[i, j, pos] = self.vocab[c]
         return wrangled
 
     def placeholder(self, config):
         # type: (object) -> object
-        max_length = self.tile
-        return tf.placeholder(tf.int32, [config.batch_size, max_length])
+        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums , self.max_depth])
 
     def exists(self, inputs):
-        i = tf.reduce_sum(inputs, axis=1)
-        i = tf.expand_dims(i,axis=1)
+        i = tf.reduce_sum(inputs, axis=2)
         return tf.not_equal(tf.count_nonzero(i, axis=1), 0)
 
 
@@ -464,12 +482,13 @@ class Sequences(Evidence):
 
     def encode(self, inputs, config):
         with tf.variable_scope('sequences'):
-            latent_encoding = tf.zeros([config.batch_size, config.latent_size])
-            max_length = self.tile
+            #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
 
-            #inp = tf.slice(inputs, [0, 0], [config.batch_size, max_length])
+            #inp = tf.slice(inputs, [0, 0], [config.batch_size, max_depth])
             #can do inversion of input here
-            emb_inp = tf.nn.embedding_lookup(self.emb, inputs)
+            inp = tf.reshape(inputs, [-1, self.max_depth])
+
+            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
             #emb_inp = tf.reverse(emb_inp, axis=[False,True]) # reversed i/p to the encoder
 
             LSTM_Encoder = seqEncoder(self.num_layers, self.units, emb_inp)
@@ -477,7 +496,9 @@ class Sequences(Evidence):
 
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
-            latent_encoding += tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
+
 
             return latent_encoding
 
@@ -497,114 +518,38 @@ class Sequences(Evidence):
 
     def print_ev(self, data):
         print('---------------Sequences--Used-------------------------\n')
-        arr = np.squeeze(data)
+        arrs = np.squeeze(data)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for val in arr:
-            string = inv_map[val]
-            if string == 'STOP':
-                print('' , end='')
-            else:
-                print(string , end=',')
-        print()
+        for arr in arrs:
+            for val in arr:
+                string = inv_map[val]
+                if string == 'STOP':
+                    print('' , end='')
+                else:
+                    print(string , end=',')
+            print()
 
     def f_write(self, data, f):
         f.write('---------------Sequences--Used-------------------------\n')
-        arr = np.squeeze(data)
+        arrs = np.squeeze(data)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for val in arr:
-            string = inv_map[val]
-            if string != 'STOP':
-                f.write(string + ',')
-        f.write('\n')
+        for arr in arrs:
+            for val in arr:
+                string = inv_map[val]
+                if string != 'STOP':
+                    f.write(string + ',')
+            f.write('\n')
 
-
-class ast(Evidence):
-
-    def read_data_point(self, program):
-        return []
-
-    def set_chars_vocab(self, data):
-        data = [node.get_df_array(node) for node in data]
-        counts = Counter([n for path in data for (n, _) in path])
-        counts[C0] = 1
-        self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
-        self.vocab = dict(zip(self.chars, range(len(self.chars))))
-        self.vocab_size = len(self.vocab)
-
-    def wrangle(self, data):
-        with tf.variable_scope("ast"):
-            max_ast_length = self.tile
-            #In the 3rd dimension, the 0-th col is node and 1-st col is edge
-            nodes_edges = np.zeros((len(data), max_ast_length, 2), dtype=np.int32)
-            #edges = np.zeros((len(data), max_ast_length), dtype=np.bool)
-            for i, path in enumerate(data):
-                nodes_edges[i, :len(path), 0] = list(map(self.vocab.get, [p[0] for p in path]))
-                nodes_edges[i, :len(path), 1] = [p[1] == CHILD_EDGE for p in path]
-
-        return nodes_edges
-
-    '''def split(self, data, num_batches, axis=0):
-        nodes_edges = data
-        nodes = np.split(nodes, num_batches, axis)
-        edges = np.split(edges, num_batches, axis)
-        zipper = [(nodes[i], edges[i]) for i in range(num_batches)]
-        return zipper'''
-
-
-    def placeholder(self, config):
-        # type: (object) -> object
-        max_ast_length = self.tile
-        nodes_edges = tf.placeholder(tf.int32, [config.batch_size, max_ast_length, 2])
-        #edges = tf.placeholder(tf.bool, [config.batch_size, max_ast_length])
-        return nodes_edges
-
-    def exists(self, inputs):
-        return True
-
-
-    def init_sigma(self, config):
-        with tf.variable_scope('ast'):
-            self.sigma = tf.get_variable('sigma', [])
-            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-
-
-    def encode(self, inputs, config):
-        with tf.variable_scope('ast'):
-            latent_encoding = tf.zeros([config.batch_size, config.latent_size])
-            max_ast_depth = self.tile
-
-            nodes_edges = inputs
-            nodes, edges = tf.unstack(nodes_edges, axis=2)
-            nodes = tf.unstack(nodes, axis=1)
-            edges = tf.cast(tf.unstack(edges, axis=1), dtype=tf.bool)
-
-
-            Path_encoder = TreeEncoder(self.emb, config.batch_size, nodes, edges,self.num_layers, \
-                                self.units, max_ast_depth, self.units)
-
-            encoding = Path_encoder.last_output
-
-            w = tf.get_variable('w', [self.units, config.latent_size])
-            b = tf.get_variable('b', [config.latent_size])
-            latent_encoding += tf.nn.xw_plus_b(encoding, w, b)
-
-            return latent_encoding
-
-    def evidence_loss(self, psi, encoding, config):
-        sigma_sq = tf.square(self.sigma)
-        loss = 0.5 * (config.latent_size * tf.log(2 * np.pi * sigma_sq + 1e-10)
-                      + tf.square(encoding - psi) / sigma_sq)
-        return loss
-
-    def print_ev(self, data):
-        print('---------------Ast--Used-------------------------\n')
+    def count_occurence(self, data, f):
+        count  = 0
         arr = np.squeeze(data)
-        max_length = self.tile
+        # assert(len(list(arr.shape)) == 1)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for i in range(max_length):
-            string = inv_map[arr[i][0]]
-            if string == 'DSubTree':
-                print('' , end='')
-            else:
-                print(string , end=',')
-                print(arr[i][1])
+        for arr in arrs:
+            for val in arr:
+                if val != 0:
+                    subarr = re.findall(r"[\w']+", inv_map[val].lower()) # excluding java util
+                    for sub in subarr:
+                        if sub in f:
+                            count += 1
+        return count

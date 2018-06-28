@@ -126,7 +126,8 @@ def test(clargs, f):
                     f.write(string + ' , ')
             f.write('\n')
         f.write('\nSource Code :: \n\n\n')
-        f.write(open(found_file).read())
+        # TURN THIS ON FOR FULL CODE`
+        #f.write(open(found_file).read())
 
     plot_probs(sorted_probs, fig_name ="rankedProbAll"+ file_timestamp +".pdf")
     plot_probs(sorted_probs[:100], fig_name ="rankedProbtop100" + file_timestamp +".pdf")
@@ -166,7 +167,8 @@ if __name__ == '__main__':
     if parseJSON:
         clargs = parser.parse_args(['--save', 'save', 'generation/query.json'])
     else:
-        clargs = parser.parse_args(['--save', 'save', '/home/ubuntu/Corpus/DATA-training-expanded-biased-TOP.json'])
+        clargs = parser.parse_args(['--save', 'save', '/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+#'/home/ubuntu/Corpus/DATA-training-expanded-biased-TOP.json'])
 
 
     f = open("./generation/ResultGeneration"+ file_timestamp + ".txt", "w")
