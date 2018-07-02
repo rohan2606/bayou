@@ -17,14 +17,15 @@ import numpy as np
 import os
 import re
 import json
+import nltk
 from itertools import chain
 from collections import Counter
 
 
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK, CHILD_EDGE, SIBLING_EDGE
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
-from bayou.models.low_level_evidences.gru_tree import TreeEncoder
-from bayou.models.low_level_evidences.node import Node
+from nltk.stem.wordnet import WordNetLemmatizer
+
 
 class Evidence(object):
 
@@ -49,8 +50,6 @@ class Evidence(object):
                 e = Keywords()
             elif name == 'sequences':
                 e = Sequences()
-            elif name == 'ast':
-                e = ast()
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.init_config(evidence, chars_vocab)
@@ -109,37 +108,42 @@ class APICalls(Evidence):
         self.vocab_size = len(self.vocab)
 
     def wrangle(self, data):
-        wrangled = np.zeros((len(data), self.max_nums, self.vocab_size), dtype=np.int32)
+        wrangled = np.zeros((len(data), self.max_nums), dtype=np.int32)
         for i, apicalls in enumerate(data):
             for j, c in enumerate(apicalls):
                 if c in self.vocab and j < self.max_nums:
-                    wrangled[i, j, self.vocab[c]] = 1
+                    wrangled[i, j] = self.vocab[c]
         return wrangled
 
     def placeholder(self, config):
         # type: (object) -> object
-        return tf.placeholder(tf.float32, [config.batch_size, self.max_nums, self.vocab_size])
+        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums])
 
     def exists(self, inputs):
-        i = tf.reduce_sum(inputs, axis=2)
-        return tf.not_equal(tf.count_nonzero(i, axis=1), 0)
+        return tf.not_equal(tf.count_nonzero(inputs, axis=1), 0)
 
     def init_sigma(self, config):
         with tf.variable_scope('apicalls'):
             self.sigma = tf.get_variable('sigma', [])
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
 
     def encode(self, inputs, config):
         with tf.variable_scope('apicalls'):
             #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
             #inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
-            inp = tf.reshape(inputs, [-1, self.vocab_size])
-            encoding = tf.layers.dense(inp, self.units, activation=tf.nn.tanh)
+            inp = tf.reshape(inputs, [-1])
+            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
+            encoding = tf.layers.dense(emb_inp, self.units, activation=tf.nn.tanh)
             for i in range(self.num_layers - 1):
                 encoding = tf.layers.dense(encoding, self.units, activation=tf.nn.tanh)
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
             latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
-            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
+            latent_encoding = tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size])
+            zeros = tf.zeros([config.batch_size, self.max_nums, config.latent_size])
+            condition = tf.tile(tf.expand_dims(tf.not_equal(inputs, 0) , axis=2),[1,1,config.latent_size])
+            latent_encoding = tf.where(condition, latent_encoding, zeros)
+            latent_encoding = tf.reduce_sum(latent_encoding, axis=1)
             return latent_encoding
 
     def evidence_loss(self, psi, encoding, config):
@@ -190,37 +194,41 @@ class Types(Evidence):
         self.vocab_size = len(self.vocab)
 
     def wrangle(self, data):
-        wrangled = np.zeros((len(data), self.max_nums, self.vocab_size), dtype=np.int32)
+        wrangled = np.zeros((len(data), self.max_nums), dtype=np.int32)
         for i, types in enumerate(data):
             for j, t in enumerate(types):
                 if t in self.vocab and j < self.max_nums:
-                    wrangled[i, j, self.vocab[t]] = 1
+                    wrangled[i, j] = self.vocab[t]
         return wrangled
 
     def placeholder(self, config):
-        # type: (object) -> object
-        return tf.placeholder(tf.float32, [config.batch_size, self.max_nums, self.vocab_size])
+        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums])
 
     def exists(self, inputs):
-        i = tf.reduce_sum(inputs, axis=2)
-        return tf.not_equal(tf.count_nonzero(i, axis=1), 0)
+        return tf.not_equal(tf.count_nonzero(inputs, axis=1), 0)
 
     def init_sigma(self, config):
         with tf.variable_scope('types'):
             self.sigma = tf.get_variable('sigma', [])
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
 
     def encode(self, inputs, config):
         with tf.variable_scope('types'):
             #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
             #inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
-            inp = tf.reshape(inputs, [-1, self.vocab_size])
-            encoding = tf.layers.dense(inp, self.units, activation=tf.nn.tanh)
+            inp = tf.reshape(inputs, [-1])
+            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
+            encoding = tf.layers.dense(emb_inp, self.units, activation=tf.nn.tanh)
             for i in range(self.num_layers - 1):
                 encoding = tf.layers.dense(encoding, self.units, activation=tf.nn.tanh)
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
             latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
-            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
+            latent_encoding = tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size])
+            zeros = tf.zeros([config.batch_size, self.max_nums, config.latent_size])
+            condition = tf.tile(tf.expand_dims(tf.not_equal(inputs, 0) , axis=2),[1,1,config.latent_size])
+            latent_encoding = tf.where(condition, latent_encoding, zeros)
+            latent_encoding = tf.reduce_sum(latent_encoding, axis=1)
             return latent_encoding
 
     def evidence_loss(self, psi, encoding, config):
@@ -289,6 +297,10 @@ class Types(Evidence):
 
 class Keywords(Evidence):
 
+    def __init__(self):
+        nltk.download('wordnet')
+        self.lemmatizer = WordNetLemmatizer()
+
     STOP_WORDS = {  # CoreNLP English stop words
         "'ll", "'s", "'m", "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
         "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between",
@@ -312,9 +324,15 @@ class Keywords(Evidence):
         "youve"
     }
 
+    def lemmatize(self, word):
+        w = self.lemmatizer.lemmatize(word, 'v')
+        return self.lemmatizer.lemmatize(w, 'n')
+
+
     def read_data_point(self, program):
-        keywords = program['keywords'] if 'keywords' in program else []
+        keywords = [self.lemmatize(k) for k in program['keywords']] if 'keywords' in program else []
         return list(set(keywords))
+
 
     def set_chars_vocab(self, data):
         counts = Counter([c for keywords in data for c in keywords])
@@ -323,37 +341,41 @@ class Keywords(Evidence):
         self.vocab_size = len(self.vocab)
 
     def wrangle(self, data):
-        wrangled = np.zeros((len(data), self.max_nums, self.vocab_size), dtype=np.int32)
+        wrangled = np.zeros((len(data), self.max_nums), dtype=np.int32)
         for i, keywords in enumerate(data):
             for j, k in enumerate(keywords):
                 if k in self.vocab and k not in Keywords.STOP_WORDS and j < self.max_nums:
-                    wrangled[i, j, self.vocab[k]] = 1
+                    wrangled[i, j] = self.vocab[k]
         return wrangled
 
     def placeholder(self, config):
-        # type: (object) -> object
-        return tf.placeholder(tf.float32, [config.batch_size, self.max_nums, self.vocab_size])
+        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums])
 
     def exists(self, inputs):
-        i = tf.reduce_sum(inputs, axis=2)
-        return tf.not_equal(tf.count_nonzero(i, axis=1), 0)
+        return tf.not_equal(tf.count_nonzero(inputs, axis=1), 0)
 
     def init_sigma(self, config):
         with tf.variable_scope('keywords'):
             self.sigma = tf.get_variable('sigma', [])
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
 
     def encode(self, inputs, config):
         with tf.variable_scope('keywords'):
             #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
             #inp = tf.slice(inputs, [0, 0, 0], [config.batch_size, 1, self.vocab_size])
-            inp = tf.reshape(inputs, [-1, self.vocab_size])
-            encoding = tf.layers.dense(inp, self.units, activation=tf.nn.tanh)
+            inp = tf.reshape(inputs, [-1])
+            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
+            encoding = tf.layers.dense(emb_inp, self.units, activation=tf.nn.tanh)
             for i in range(self.num_layers - 1):
                 encoding = tf.layers.dense(encoding, self.units, activation=tf.nn.tanh)
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
             latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
-            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
+            latent_encoding = tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size])
+            zeros = tf.zeros([config.batch_size, self.max_nums, config.latent_size])
+            condition = tf.tile(tf.expand_dims(tf.not_equal(inputs, 0) , axis=2),[1,1,config.latent_size])
+            latent_encoding = tf.where(condition, latent_encoding, zeros)
+            latent_encoding = tf.reduce_sum(latent_encoding, axis=1)
             return latent_encoding
 
     def evidence_loss(self, psi, encoding, config):

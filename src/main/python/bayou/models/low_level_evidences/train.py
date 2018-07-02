@@ -37,8 +37,6 @@ Config options should be given as a JSON file (see config.json for example):
     "num_epochs": 100,                    | Number of training epochs
     "learning_rate": 0.02,                | Learning rate
     "print_step": 1,                      | Print training output every given steps
-    "alpha": 1e-05,                       | Hyper-param associated with KL-divergence loss
-    "beta": 1e-05,                        | Hyper-param associated with evidence loss
     "evidence": [                         | Provide each evidence type in this list
         {                                 |
             "name": "apicalls",           | Name of evidence ("apicalls")
@@ -88,7 +86,7 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False, bayou_mode = False, full_model_train = False )
+    model = Model(config, infer=False, bayou_mode = True, full_model_train = False )
     merged_summary = tf.summary.merge_all()
 
 
@@ -170,7 +168,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save1',
+    parser.add_argument('--save', type=str, default='save',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -178,8 +176,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save',
-     #['--config','config.json',
+     #['--continue_from', 'save',
+     ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
     '/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
      # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
