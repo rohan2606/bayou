@@ -79,9 +79,6 @@ class Evidence(object):
     def encode(self, inputs, config):
         raise NotImplementedError('encode() has not been implemented')
 
-    def evidence_loss(self, psi, encoding, config):
-        raise NotImplementedError('evidence_loss() has not been implemented')
-
     def count_occurence(self, data, f):
         inv_map = {v: k for k, v in self.vocab.items()}
         count = sum([1 if inv_map[val].lower() in f else 0 for arr in arrs for val in arr])
@@ -135,11 +132,6 @@ class Sets(Evidence):
 
             return latent_encoding
 
-    def evidence_loss(self, psi, encoding, config):
-        sigma_sq = tf.square(self.sigma)
-        loss = 0.5 * (config.latent_size * tf.log(2 * np.pi * sigma_sq + 1e-10)
-                      + tf.square(encoding - psi) / sigma_sq)
-        return loss
 
     def print_ev(self, data):
         print('---------------' + self.name + '-------------------------\n')
@@ -371,12 +363,6 @@ class CallSequences(Sequences):
         return list_seqs
 
 
-    def evidence_loss(self, psi, encoding, config):
-        sigma_sq = tf.square(self.sigma)
-        loss = 0.5 * (config.latent_size * tf.log(2 * np.pi * sigma_sq + 1e-10)
-                      + tf.square(encoding - psi) / sigma_sq)
-        return loss
-
     @staticmethod
     def from_call(callnode):
         call = callnode['calls']
@@ -397,9 +383,3 @@ class CallSequences(Sequences):
                         if sub in f:
                             count += 1
         return count
-
-
-
-
-
-        

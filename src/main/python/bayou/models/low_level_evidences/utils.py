@@ -22,7 +22,7 @@ import os
 import matplotlib.pyplot as plt
 
 CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',
-                  'learning_rate', 'print_step', 'checkpoint_step', 'alpha', 'beta']
+                  'learning_rate', 'print_step', 'checkpoint_step']
 CONFIG_ENCODER = ['name', 'units', 'num_layers', 'tile', 'max_depth', 'max_nums']
 CONFIG_DECODER = ['units', 'num_layers', 'max_ast_depth']
 CONFIG_REVERSE_ENCODER = ['units', 'num_layers', 'max_ast_depth']
