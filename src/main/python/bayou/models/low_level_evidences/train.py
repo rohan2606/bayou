@@ -176,11 +176,12 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save',
-     #['--config','config.json',
+     #['--continue_from', 'save',
+     ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
-    '/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
      # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
+     '/home/ubuntu/bayou/data/DATA.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

@@ -50,6 +50,12 @@ class Evidence(object):
                 e = Keywords()
             elif name == 'callsequences':
                 e = CallSequences()
+            elif name == 'returntype':
+                e = ReturnType()
+            elif name == 'classtype':
+                e = ClassTypes()
+            elif name == 'formalparam':
+                e = FormalParam()
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.name = name
@@ -150,6 +156,83 @@ class Sets(Evidence):
             for val in arr:
                 f.write(inv_map[j])
         f.write('\n')
+
+# handle sequences as i/p
+class Sequences(Evidence):
+    def set_chars_vocab(self, data):
+        counts = Counter([c for seqs in data for seq in seqs for c in seq])
+        self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
+        self.chars.insert(0,'STOP')
+        self.vocab = dict(zip(self.chars, range(len(self.chars))))
+        self.vocab_size = len(self.vocab)
+
+    def placeholder(self, config):
+        # type: (object) -> object
+        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums , self.max_depth])
+
+    def wrangle(self, data):
+        wrangled = np.zeros((len(data), self.max_nums, self.max_depth), dtype=np.int32)
+        for i, seqs in enumerate(data):
+            for j, seq in enumerate(seqs):
+                if j < self.max_nums : #and seq[0] != 'STOP: # assuming no sequence start with stop and stop has vocab key 0
+                    for pos,c in enumerate(seq):
+                        if c in self.vocab and pos < self.max_depth:
+                            wrangled[i, j, pos] = self.vocab[c]
+        return wrangled
+
+    def exists(self, inputs):
+        i = tf.reduce_sum(inputs, axis=2)
+        return tf.not_equal(tf.count_nonzero(i, axis=1), 0)
+
+    def init_sigma(self, config):
+        with tf.variable_scope(self.name):
+            self.sigma = tf.get_variable('sigma', [])
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
+
+    def encode(self, inputs, config):
+        with tf.variable_scope(self.name):
+            #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
+            #inp = tf.slice(inputs, [0, 0], [config.batch_size, max_depth])
+            #can do inversion of input here
+
+            inp = tf.reshape(inputs, [-1, self.max_depth])
+            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
+            #emb_inp = tf.reverse(emb_inp, axis=[False,True]) # reversed i/p to the encoder
+
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, emb_inp)
+            encoding = LSTM_Encoder.output
+
+            w = tf.get_variable('w', [self.units, config.latent_size])
+            b = tf.get_variable('b', [config.latent_size])
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
+
+            return latent_encoding
+
+    def print_ev(self, data):
+        print('---------------' + self.name + '-------------------------\n')
+        arrs = np.squeeze(data)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for arr in arrs:
+            for val in arr:
+                string = inv_map[val]
+                if string == 'STOP':
+                    print('' , end='')
+                else:
+                    print(string , end=',')
+            print()
+
+    def f_write(self, data, f):
+        f.write('---------------' + self.name + '-------------------------\n')
+        arrs = np.squeeze(data)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for arr in arrs:
+            for val in arr:
+                string = inv_map[val]
+                if string != 'STOP':
+                    f.write(string + ',')
+            f.write('\n')
+
 
 class APICalls(Sets):
 
@@ -269,83 +352,18 @@ class Keywords(Sets):
         return list(set([k.lower() for k in keywords if k.lower() not in Keywords.STOP_WORDS]))
 
 
-# handle sequences as i/p
-class Sequences(Evidence):
-    def set_chars_vocab(self, data):
-        counts = Counter([c for seqs in data for seq in seqs for c in seq])
-        self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
-        self.chars.insert(0,'STOP')
-        self.vocab = dict(zip(self.chars, range(len(self.chars))))
-        self.vocab_size = len(self.vocab)
+class ReturnType(Sets):
 
-    def placeholder(self, config):
-        # type: (object) -> object
-        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums , self.max_depth])
+    def read_data_point(self, program):
+        returnType = program['returnType'] if 'returnType' in program else []
+        return list(set(returnType))
 
-    def wrangle(self, data):
-        with tf.variable_scope("sequences"):
-            wrangled = np.zeros((len(data), self.max_nums, self.max_depth), dtype=np.int32)
-            for i, seqs in enumerate(data):
-                for j, seq in enumerate(seqs):
-                    if j < self.max_nums : #and seq[0] != 'STOP: # assuming no sequence start with stop and stop has vocab key 0
-                        for pos,c in enumerate(seq):
-                            if c in self.vocab and pos < self.max_depth:
-                                wrangled[i, j, pos] = self.vocab[c]
-        return wrangled
+class ClassTypes(Sets):
 
-    def exists(self, inputs):
-        i = tf.reduce_sum(inputs, axis=2)
-        return tf.not_equal(tf.count_nonzero(i, axis=1), 0)
+    def read_data_point(self, program):
+        returnType = program['classTypes'] if 'classTypes' in program else []
+        return list(set(returnType))
 
-    def init_sigma(self, config):
-        with tf.variable_scope(self.name):
-            self.sigma = tf.get_variable('sigma', [])
-            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-
-    def encode(self, inputs, config):
-        with tf.variable_scope('sequences'):
-            #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
-            #inp = tf.slice(inputs, [0, 0], [config.batch_size, max_depth])
-            #can do inversion of input here
-
-            inp = tf.reshape(inputs, [-1, self.max_depth])
-            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
-            #emb_inp = tf.reverse(emb_inp, axis=[False,True]) # reversed i/p to the encoder
-
-            LSTM_Encoder = seqEncoder(self.num_layers, self.units, emb_inp)
-            encoding = LSTM_Encoder.output
-
-            w = tf.get_variable('w', [self.units, config.latent_size])
-            b = tf.get_variable('b', [config.latent_size])
-            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
-            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
-
-
-            return latent_encoding
-
-    def print_ev(self, data):
-        print('---------------' + self.name + '-------------------------\n')
-        arrs = np.squeeze(data)
-        inv_map = {v: k for k, v in self.vocab.items()}
-        for arr in arrs:
-            for val in arr:
-                string = inv_map[val]
-                if string == 'STOP':
-                    print('' , end='')
-                else:
-                    print(string , end=',')
-            print()
-
-    def f_write(self, data, f):
-        f.write('---------------' + self.name + '-------------------------\n')
-        arrs = np.squeeze(data)
-        inv_map = {v: k for k, v in self.vocab.items()}
-        for arr in arrs:
-            for val in arr:
-                string = inv_map[val]
-                if string != 'STOP':
-                    f.write(string + ',')
-            f.write('\n')
 
 # handle sequences as i/p
 class CallSequences(Sequences):
@@ -383,3 +401,11 @@ class CallSequences(Sequences):
                         if sub in f:
                             count += 1
         return count
+
+
+# handle sequences as i/p
+class FormalParam(Sequences):
+
+    def read_data_point(self, program):
+        json_sequence = program['formalParam'] if 'formalParam' in program else []
+        return [json_sequence]

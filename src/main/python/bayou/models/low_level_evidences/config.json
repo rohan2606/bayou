@@ -38,8 +38,31 @@
             "tile": 1,
             "max_depth": 32,
             "max_nums": 10
+        },
+        {
+            "name": "returntype",
+            "units": 32,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": -1,
+            "max_nums": 1
+        },
+        {
+            "name": "classtype",
+            "units": 32,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": -1,
+            "max_nums": 1
+        },
+        {
+            "name": "formalparam",
+            "units": 32,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 16,
+            "max_nums": 10
         }
-
     ],
     "decoder": {
         "units": 64,
