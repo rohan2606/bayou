@@ -56,6 +56,12 @@ class Evidence(object):
                 e = ClassTypes()
             elif name == 'formalparam':
                 e = FormalParam()
+            elif name == 'sorrreturntype':
+                e = sorrReturnType()
+            elif name == 'sorrformalparam':
+                e = sorrFormalParam()
+            elif name == 'sorrcallsequences':
+                e = sorrCallSequences()
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.name = name
@@ -409,3 +415,32 @@ class FormalParam(Sequences):
     def read_data_point(self, program):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
         return [json_sequence]
+
+
+class sorrCallSequences(Sequences):
+    def read_data_point(self, program):
+        json_sequences = program['sorrSeqs'] if 'sorrSeqs' in program else []
+        list_seqs = [[]]
+        for json_seq in json_sequences:
+            tmp_list = json_seq['calls']
+            if len(tmp_list) > 1:
+                list_seqs.append(tmp_list)
+        if len(list_seqs) > 1:
+            list_seqs.remove([])
+        #return list_seqs
+        return list_seqs
+
+
+# handle sequences as i/p
+class sorrFormalParam(Sequences):
+
+    def read_data_point(self, program):
+        json_sequence = program['sorrFormalParam'] if 'sorrFormalParam' in program else [[]]
+        return json_sequence
+
+
+class sorrReturnType(Sets):
+
+    def read_data_point(self, program):
+        sorrreturnType = program['sorrReturnType'] if 'sorrReturnType' in program else []
+        return list(set(sorrreturnType))

@@ -51,7 +51,7 @@ def test(clargs):
 
         hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
 
-        if (((i+1) % 1000 == 0) or (i == (num_progs - 1))):
+        if (((i+1) % 100 == 0) or (i == (num_progs - 1))):
             print('Searched {}/{} (Max Rank {})'
                   'Hit_Points {} :: Percentage Hits {}'.format
                   (i + 1, num_progs, num_progs,

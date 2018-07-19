@@ -86,7 +86,7 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False, bayou_mode = False, full_model_train = False )
+    model = Model(config, infer=False, bayou_mode = True, full_model_train = False )
     merged_summary = tf.summary.merge_all()
 
 
@@ -146,7 +146,7 @@ def train(clargs):
                     print('{}/{} (epoch {}) '
                           'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, \n\t\t E_mean: {:.3f}, RE_mean: {:.3f}, E_covar: {:.3f}, RE_covar: {:.3f}'.format
                           (step, config.num_epochs * config.num_batches, i + 1 ,
-                           avg_loss/(b+1),avg_gen_loss/(b+1), avg_KL_loss/(b+1),
+                           (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_KL_loss)/(b+1),
                            np.mean(E_mean), np.mean(RE_mean), np.mean(E_covar),
                            np.mean(RE_covar)))
 
