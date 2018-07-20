@@ -73,7 +73,7 @@ def get_a1b1(clargs, f):
             prog_ids, ev_data, _, _, y = reader.next_batch()
 
         prog_id = prog_ids[batch_id]
-        f.write('\nOriginal File ptr :: ' + str(parse_filePtr(file_ptr_dict[prog_id])) + '\n\n\n')
+        #f.write('\nOriginal File ptr :: ' + str(parse_filePtr(file_ptr_dict[prog_id])) + '\n\n\n')
         ev_data = [ev[batch_id:batch_id+1] for ev in ev_data]
         y = y[batch_id]
 
@@ -165,9 +165,9 @@ if __name__ == '__main__':
     #clargs = parser.parse_args()
     parseJSON = False
     if parseJSON:
-        clargs = parser.parse_args(['--save', 'save', 'generation/query.json'])
+        clargs = parser.parse_args(['--save', 'save1', 'generation/query.json'])
     else:
-        clargs = parser.parse_args(['--save', 'save', '/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+        clargs = parser.parse_args(['--save', 'save1', '/home/ubuntu/DATA-top.json'])
 #'/home/ubuntu/Corpus/DATA-training-expanded-biased-TOP.json'])
 
 

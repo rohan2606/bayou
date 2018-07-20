@@ -69,21 +69,30 @@ def embedding(input_tensor, labels, sess):
    projector.visualize_embeddings(tf.summary.FileWriter(LOG_DIR), config)
 
 
-def get_class_label(y, _rev_dict):
+
+
+def get_class_label_new(y, _rev_dict):
     _labels_batch = []
     for arr in y:
-       flag = 0
-       for val in arr:
-          API_call = _rev_dict[val]
-          for _class in _classes:
-             if (API_call.find(_class)!= -1) == True:
-                flag = 1
-                _labels_batch.append(_class)
-                break
-          if flag == 1:
-            break
-       if flag == 0:
-          _labels_batch.append('other_API')
+        flag = 0
+        _dict = {}
+        for val in arr:
+            API_call = _rev_dict[val]
+            starter = ".".join(API_call.split(".")[:2])
+            if starter not in _dict:
+                _dict[starter] = 1
+            else:
+                _dict[starter] += 1
+
+        max_val = -1
+        max_key = 'None'
+        for key in _dict.keys():
+            if key == 'STOP':
+                continue
+            if _dict[key] > max_val:
+                max_val = _dict[key]
+                max_key = key
+        _labels_batch.append(max_key)
     return _labels_batch
 
 #%%
@@ -127,7 +136,7 @@ def embed(clargs):
                 feed[predictor.model.reverse_encoder.nodes[j].name] = n[config.decoder.max_ast_depth - 1 - j]
                 feed[predictor.model.reverse_encoder.edges[j].name] = e[config.decoder.max_ast_depth - 1 - j]
 
-            _labels.extend(get_class_label(y,_rev_dict))
+            _labels.extend(get_class_label_new(y,_rev_dict))
             # run the optimizer
             _psi_encoder \
                 = sess.run(predictor.model.psi_encoder, feed)
@@ -155,10 +164,10 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save1',
+    clargs = parser.parse_args(['--save', 'save',
     #'..\low_level_evidences\save',
     #'..\..\..\..\..\..\data\DATA-training-top.json'])
-    '/home/ubuntu/bayou/data/DATA-training.json'])
+    '/home/ubuntu/DATA-top.json'])
 
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

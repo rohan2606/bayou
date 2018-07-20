@@ -158,10 +158,12 @@ class Sets(Evidence):
         f.write('---------------' + self.name +'-------------------------\n')
         arrs = np.squeeze(data)
         inv_map = {v: k for k, v in self.vocab.items()}
-        for arr in arrs:
-            for val in arr:
-                f.write(inv_map[j])
+        if arrs.shape == ():
+            return
+        for val in arrs:
+            f.write(inv_map[val])
         f.write('\n')
+        return
 
 # handle sequences as i/p
 class Sequences(Evidence):
@@ -229,6 +231,7 @@ class Sequences(Evidence):
             print()
 
     def f_write(self, data, f):
+        return
         f.write('---------------' + self.name + '-------------------------\n')
         arrs = np.squeeze(data)
         inv_map = {v: k for k, v in self.vocab.items()}
@@ -415,6 +418,17 @@ class FormalParam(Sequences):
     def read_data_point(self, program):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
         return [json_sequence]
+
+    def f_write(self, data, f):
+        return
+        f.write('---------------' + self.name + '-------------------------\n')
+        arr = np.squeeze(data)
+        inv_map = {v: k for k, v in self.vocab.items()}
+        for val in arr:
+            string = inv_map[val]
+            if string != 'STOP':
+                f.write(string + ',')
+        f.write('\n')
 
 
 class sorrCallSequences(Sequences):

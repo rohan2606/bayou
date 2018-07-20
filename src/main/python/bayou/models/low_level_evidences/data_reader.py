@@ -269,7 +269,7 @@ class Reader():
         print('{:8d} data points total'.format(len(data_points)))
 
         # randomly shuffle to avoid bias towards initial data points during training
-        # random.shuffle(data_points)
+        random.shuffle(data_points)
         _ids, evidences, targets = zip(*data_points) #unzip
 
         # save callmap if save location is given
