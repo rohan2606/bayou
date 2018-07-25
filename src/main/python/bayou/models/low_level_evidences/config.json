@@ -33,7 +33,7 @@
         },
         {
             "name": "callsequences",
-            "units": 32,
+            "units": 256,
             "num_layers": 1,
             "tile": 1,
             "max_depth": 32,
@@ -49,7 +49,7 @@
         },
         {
             "name": "formalparam",
-            "units": 32,
+            "units": 16,
             "num_layers": 1,
             "tile": 1,
             "max_depth": 16,
@@ -57,7 +57,7 @@
         }
     ],
     "decoder": {
-        "units": 64,
+        "units": 128,
         "num_layers": 1,
         "max_ast_depth": 32
     },

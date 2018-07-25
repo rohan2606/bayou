@@ -79,6 +79,8 @@ def get_class_label_new(y, _rev_dict):
         for val in arr:
             API_call = _rev_dict[val]
             starter = ".".join(API_call.split(".")[:2])
+            if '$NOT$' in starter:
+                starter = starter[5:]
             if starter not in _dict:
                 _dict[starter] = 1
             else:
@@ -87,7 +89,7 @@ def get_class_label_new(y, _rev_dict):
         max_val = -1
         max_key = 'None'
         for key in _dict.keys():
-            if key == 'STOP':
+            if key == 'STOP' or key == 'DBranch' or key == 'DLoop':
                 continue
             if _dict[key] > max_val:
                 max_val = _dict[key]

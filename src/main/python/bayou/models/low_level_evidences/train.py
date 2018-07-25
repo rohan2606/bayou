@@ -90,7 +90,7 @@ def train(clargs):
     merged_summary = tf.summary.merge_all()
 
 
-    with tf.Session() as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
