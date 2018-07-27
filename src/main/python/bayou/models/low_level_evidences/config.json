@@ -4,7 +4,7 @@
     "batch_size": 50,
     "num_epochs": 500,
     "learning_rate": 0.006,
-    "print_step": 50,
+    "print_step": 500,
     "checkpoint_step": 10,
     "evidence": [
         {
@@ -38,6 +38,30 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 2
+        },
+        {
+            "name": "formalparam",
+            "units": 16,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 8,
+            "max_nums": 1
+        },
+        {
+            "name": "returntype",
+            "units": 8,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": -1,
+            "max_nums": 1
+        },
+        {
+            "name": "classtype",
+            "units": 8,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": -1,
+            "max_nums": 8
         }
     ],
     "decoder": {
