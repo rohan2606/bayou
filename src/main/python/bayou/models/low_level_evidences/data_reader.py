@@ -44,7 +44,7 @@ class Reader():
 
 
         # align with number of batches
-        config.num_batches = 500 #int(len(raw_targets) / config.batch_size)
+        config.num_batches = 5000 #int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
