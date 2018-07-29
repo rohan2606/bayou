@@ -29,15 +29,56 @@ You can also filter programs based on number and length of sequences, and contro
 
 
 def extract_evidence(clargs):
-    print('Loading data file...', end='')
+    print('Loading data file...')
     with open(clargs.input_file[0]) as f:
         js = json.load(f)
-    print('done')
+    print('Done')
     done = 0
     programs = []
+
+    ''' Program_dict dictionary holds Key values in format
+    (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
+    '''
+    programs_dict = dict()
+
+    #This part appends sorrounding evidences
+    done = 0
     for program in js['programs']:
+
+
+        file_name = program['file']
+        method_name = program['method']
+
         sequences = program['sequences']
-        if len(sequences) > clargs.max_seqs or \
+        returnType = program['returnType'] if 'returnType' in program else "void"
+        formalParam = program['formalParam'] if 'formalParam' in program else []
+
+        if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
+            any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
+            continue
+
+
+        if file_name not in programs_dict:
+            programs_dict[file_name] = dict()
+        programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
+
+        done += 1
+        print('Extracted evidences of sorrounding features for {} programs'.format(done), end='\r')
+
+
+    print('')
+
+    done = 0
+    for program in js['programs']:
+        file_name = program['file']
+        method_name = program['method']
+
+        sequences = program['sequences']
+        returnType = program['returnType'] if 'returnType' in program else "void"
+        formalParam = program['formalParam'] if 'formalParam' in program else []
+
+
+        if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
                 any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
             continue
 
@@ -49,6 +90,8 @@ def extract_evidence(clargs):
                                               for call in calls])))
         keywords = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Keywords.from_call(call)
                                                 for call in calls])))
+
+
 
         if clargs.num_samples == 0:
             program['apicalls'] = apicalls
@@ -67,6 +110,10 @@ def extract_evidence(clargs):
                 sample['types'] = []
                 sample['keywords'] = []
 
+                sample['sorrreturntype'] = []
+                sample['sorrformalparam'] = []
+                sample['sorrsequences'] = []
+
                 if clargs.observability is not None:
                     observability = clargs.observability if clargs.observability > 0 else random.randint(1, 100)
                     choices = random.sample(evidences, math.ceil(len(evidences) * observability / 100))
@@ -79,10 +126,24 @@ def extract_evidence(clargs):
 
                 for choice, evidence in choices:
                     sample[evidence].append(choice)
+
+                #    (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
+
+                for method in programs_dict[file_name].keys(): # Each iterator is a method Name with @linenumber
+
+                    if method == method_name:
+                        continue
+
+                    for choice, evidence in zip(programs_dict[file_name][method],['sorrreturntype', 'sorrformalparam', 'sorrsequences']):
+                        sample[evidence].append(choice)
+
                 programs.append(sample)
 
         done += 1
-        print('Extracted evidence for {} programs'.format(done), end='\r')
+        print('Extracted evidence [API/Type/Keywords] for {} programs'.format(done), end='\r')
+
+
+
 
     print('\nWriting to {}...'.format(clargs.output_file[0]), end='')
     with open(clargs.output_file[0], 'w') as f:

@@ -24,6 +24,8 @@ import edu.rice.cs.caper.bayou.core.dsl.Sequence;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -38,6 +40,7 @@ public class Visitor extends ASTVisitor {
     private final JSONOutput _js;
 
     public List<MethodDeclaration> allMethods;
+    public List<FieldDeclaration> allTypes;
 
     // call stack during driver execution
     public final Stack<MethodDeclaration> callStack = new Stack<>();
@@ -51,31 +54,43 @@ public class Visitor extends ASTVisitor {
     }
 
     class JSONOutputWrapper {
+
+        //Identifiers
         String file;
+        String method;
+        String body;
+
+        // Output
         DSubTree ast;
+
+        // Evidence inputs
         List<Sequence> sequences;
         String javadoc;
-        List<String> skeletons;
-        List<Multiset<Integer>> cfg3_bfs;
-        List<Multiset<Integer>> cfg4_bfs;
-        List<Multiset<Integer>> cfg3_dfs;
-        List<Multiset<Integer>> cfg4_dfs;
 
-        public JSONOutputWrapper(DSubTree ast, List<Sequence> sequences, String javadoc,
-                                 List<String> skeletons,
-                                 List<Multiset<Integer>> cfgs3_bfs,
-                                 List<Multiset<Integer>> cfgs4_bfs,
-                                 List<Multiset<Integer>> cfgs3_dfs,
-                                 List<Multiset<Integer>> cfgs4_dfs) {
+        // New Evidences Types
+        String returnType;
+        List<String> formalParam;
+        List<String> classTypes;
+
+
+
+        public JSONOutputWrapper(String methodName, String body, DSubTree ast, List<Sequence> sequences, String javadoc,  String returnType, List<String> formalParam,
+        List<String> classTypes ) {
+
             this.file = options.file;
+            this.method = methodName;
+            this.body = body;
+
             this.ast = ast;
+
             this.sequences = sequences;
             this.javadoc = javadoc;
-            this.skeletons = skeletons;
-            this.cfg3_bfs = cfgs3_bfs;
-            this.cfg4_bfs = cfgs4_bfs;
-            this.cfg3_dfs = cfgs3_dfs;
-            this.cfg4_dfs = cfgs4_dfs;
+
+            this.returnType = returnType;
+            this.formalParam = formalParam;
+            this.classTypes = classTypes;
+
+
         }
     }
 
@@ -85,6 +100,7 @@ public class Visitor extends ASTVisitor {
 
         _js = new JSONOutput();
         allMethods = new ArrayList<>();
+        allTypes = new ArrayList<>();
     }
 
     @Override
@@ -95,29 +111,28 @@ public class Visitor extends ASTVisitor {
         classes.addAll(Arrays.asList(clazz.getTypes()));
         classes.add(clazz);
 
-        for (TypeDeclaration cls : classes)
+        for (TypeDeclaration cls : classes){
             allMethods.addAll(Arrays.asList(cls.getMethods()));
+            allTypes.addAll(Arrays.asList(cls.getFields()));
+          }
+
         List<MethodDeclaration> constructors = allMethods.stream().filter(m -> m.isConstructor()).collect(Collectors.toList());
         List<MethodDeclaration> publicMethods = allMethods.stream().filter(m -> !m.isConstructor() && Modifier.isPublic(m.getModifiers())).collect(Collectors.toList());
 
-        List<String> skeletons = new ArrayList<>();
-        List<Multiset<Integer>> cfg3_bfs = new ArrayList<>();
-        List<Multiset<Integer>> cfg4_bfs = new ArrayList<>();
-        List<Multiset<Integer>> cfg3_dfs = new ArrayList<>();
-        List<Multiset<Integer>> cfg4_dfs = new ArrayList<>();
-        for(MethodDeclaration m : allMethods) {
-            DecoratedSkeletonFeature skeleton = new DecoratedSkeletonFeature(m);
-            skeletons.add(skeleton.toString());
+        // synchronized lists
+        List<DSubTree> asts = new ArrayList<>();
+        List<String> javaDocs = new ArrayList<>();
+        List<String> methodNames = new ArrayList<>();
+        List<String> returnTypes = new ArrayList<>();
+        List<String> bodys = new ArrayList<>();
+        List<List<String>> formalParams = new ArrayList<>();
+        List<String> classTypes = new ArrayList<>();
 
-            CFGFeature cfg = new CFGFeature(m);
-            cfg3_bfs.add(cfg.gen_subgraph(3, true));
-            cfg4_bfs.add(cfg.gen_subgraph(4, true));
-            cfg3_dfs.add(cfg.gen_subgraph(3, false));
-            cfg4_dfs.add(cfg.gen_subgraph(4, false));
+        for (FieldDeclaration type : allTypes){
+          classTypes.add(type.getType().toString());
         }
 
 
-        Set<Pair<DSubTree, String>> astsWithJavadoc = new HashSet<>();
         if (!constructors.isEmpty() && !publicMethods.isEmpty()) {
             for (MethodDeclaration c : constructors)
                 for (MethodDeclaration m : publicMethods) {
@@ -128,8 +143,14 @@ public class Visitor extends ASTVisitor {
                     ast.addNodes(new DOMMethodDeclaration(m, this).handle().getNodes());
                     callStack.pop();
                     callStack.pop();
-                    if (ast.isValid())
-                        astsWithJavadoc.add(new ImmutablePair<>(ast, javadoc));
+                    if (ast.isValid()) {
+                        asts.add(ast);
+                        javaDocs.add(javadoc);
+                        methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
+                        returnTypes.add(getReturnType(m));
+                        bodys.add(getBody(c) + "\n\n" +  getBody(m));
+                        formalParams.add(getFormalParams(m));
+                    }
                 }
         } else if (!constructors.isEmpty()) { // no public methods, only constructor
             for (MethodDeclaration c : constructors) {
@@ -137,8 +158,14 @@ public class Visitor extends ASTVisitor {
                 callStack.push(c);
                 DSubTree ast = new DOMMethodDeclaration(c, this).handle();
                 callStack.pop();
-                if (ast.isValid())
-                    astsWithJavadoc.add(new ImmutablePair<>(ast, javadoc));
+                if (ast.isValid()) {
+                    asts.add(ast);
+                    javaDocs.add(javadoc);
+                    methodNames.add(c.getName().getIdentifier() + "@" + getLineNumber(c));
+                    returnTypes.add(getReturnType(c));
+                    bodys.add(getBody(c));
+                    formalParams.add(getFormalParams(c));
+                  }
             }
         } else if (!publicMethods.isEmpty()) { // no constructors, methods executed typically through Android callbacks
             for (MethodDeclaration m : publicMethods) {
@@ -146,39 +173,52 @@ public class Visitor extends ASTVisitor {
                 callStack.push(m);
                 DSubTree ast = new DOMMethodDeclaration(m, this).handle();
                 callStack.pop();
-                if (ast.isValid())
-                    astsWithJavadoc.add(new ImmutablePair<>(ast, javadoc));
+                if (ast.isValid()) {
+                    asts.add(ast);
+                    javaDocs.add(javadoc);
+                    methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
+                    returnTypes.add(getReturnType(m));
+                    bodys.add(getBody(m));
+                    formalParams.add(getFormalParams(m));
+                }
             }
         }
 
-        for (Pair<DSubTree,String> astDoc : astsWithJavadoc) {
-            List<Sequence> sequences = new ArrayList<>();
-            sequences.add(new Sequence());
-            try {
-                astDoc.getLeft().updateSequences(sequences, options.MAX_SEQS, options.MAX_SEQ_LENGTH);
-                List<Sequence> uniqSequences = new ArrayList<>(new HashSet<>(sequences));
-                if (okToPrintAST(uniqSequences))
-                    addToJson(astDoc.getLeft(), uniqSequences, astDoc.getRight(),
-                        skeletons, cfg3_bfs, cfg4_bfs, cfg3_dfs, cfg4_dfs);
-            } catch (DASTNode.TooManySequencesException e) {
-                System.err.println("Too many sequences from AST");
-            } catch (DASTNode.TooLongSequenceException e) {
-                System.err.println("Too long sequence from AST");
-            }
+
+
+        for (int i = 0; i < asts.size(); i++) {
+          DSubTree ast = asts.get(i);
+          String javaDoc = javaDocs.get(i);
+          String methodName = methodNames.get(i);
+          String returnType = returnTypes.get(i);
+          List<String> formalParam = formalParams.get(i);
+          String body = bodys.get(i);
+
+          List<Sequence> sequences = new ArrayList<>();
+          sequences.add(new Sequence());
+          try {
+              ast.updateSequences(sequences, options.MAX_SEQS, options.MAX_SEQ_LENGTH);
+              List<Sequence> uniqSequences = new ArrayList<>(new HashSet<>(sequences));
+              if (okToPrintAST(uniqSequences)){
+                addToJson(methodName, body, ast, uniqSequences, javaDoc, returnType, formalParam, classTypes);
+              }
+          } catch (DASTNode.TooManySequencesException e) {
+              System.err.println("Too many sequences from AST");
+          } catch (DASTNode.TooLongSequenceException e) {
+              System.err.println("Too long sequence from AST");
+          }
         }
         return false;
     }
 
-    private void addToJson(DSubTree ast, List<Sequence> sequences, String javadoc,
-                           List<String> skeletons,
-                           List<Multiset<Integer>> cfg3_bfs,
-                           List<Multiset<Integer>> cfg4_bfs,
-                           List<Multiset<Integer>> cfg3_dfs,
-                           List<Multiset<Integer>> cfg4_dfs) {
-        JSONOutputWrapper out = new JSONOutputWrapper(ast, sequences, javadoc,
-            skeletons, cfg3_bfs, cfg4_bfs, cfg3_dfs, cfg4_dfs);
-        _js.programs.add(out);
-    }
+
+
+    private void addToJson(String methodName, String body, DSubTree ast, List<Sequence> sequences, String javadoc, String returnType,
+    List<String> formalParam, List<String> classTypes ) {
+       JSONOutputWrapper out = new JSONOutputWrapper(methodName, body, ast, sequences, javadoc, returnType, formalParam, classTypes);
+       _js.programs.add(out);
+   }
+
 
     public String buildJson() throws IOException {
         if (_js.programs.isEmpty())
@@ -190,14 +230,55 @@ public class Visitor extends ASTVisitor {
 
     }
 
-    private boolean okToPrintAST(List<Sequence> sequences) {
-        int n = sequences.size();
-        if (n == 0 || (n == 1 && sequences.get(0).getCalls().size() <= 1))
-            return false;
-        return true;
-    }
-
     public int getLineNumber(ASTNode node) {
         return unit.getLineNumber(node.getStartPosition());
+    }
+
+    public String getReturnType(MethodDeclaration m){
+      String ret;
+      if (m.getReturnType2() != null){
+          ret = m.getReturnType2().toString();
+      }
+      else{
+          ret = "None";
+      }
+      return ret;
+    }
+
+    public List<String> getFormalParams(MethodDeclaration m){
+      ArrayList<String> parameters = new ArrayList<String>();
+      for (Object parameter : m.parameters()) {
+          VariableDeclaration variableDeclaration = (VariableDeclaration) parameter;
+          String type = variableDeclaration.getStructuralProperty(SingleVariableDeclaration.TYPE_PROPERTY).toString();
+          for (int i = 0; i < variableDeclaration.getExtraDimensions(); i++) {
+              type += "[]";
+          }
+          parameters.add(type);
+      }
+      return parameters;
+    }
+
+    public String getBody(MethodDeclaration m){
+      String temp;
+      if (m == null){
+        temp = "";
+        return temp;
+      }
+
+      if (m.getBody() != null){
+        temp = m.getBody().toString();
+        temp = temp.trim().replaceAll("\n ", "");
+      }
+      else{
+        temp = "";
+      }
+      return temp;
+    }
+
+    private boolean okToPrintAST(List<Sequence> sequences) {
+         int n = sequences.size();
+         if (n == 0  || (n == 1 && sequences.get(0).getCalls().size() <= 1))
+             return false;
+         return true;
     }
 }

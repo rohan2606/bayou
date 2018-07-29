@@ -1,0 +1,48 @@
+{
+  "programs": [
+    {
+      "ast": {
+        "node": "DSubTree",
+        "_nodes": [
+          {
+            "node": "DAPICall",
+            "_call": "java.io.PrintStream.println(java.lang.String)"
+          },
+          {
+            "node": "DAPICall",
+            "_call": "java.io.PrintStream.println(java.lang.String)"
+          }
+        ]
+      },
+      "sequences": [
+        {
+          "calls": [
+            "java.io.PrintStream.println(java.lang.String)",
+            "java.io.PrintStream.println(java.lang.String)"
+          ]
+        },
+        {
+          "calls": [
+            "java.io.PrintStream.println(java.lang.String)",
+            "java.io.PrintStream.println(java.lang.String)"
+          ]
+        }
+      ],
+      "keywords": [
+        "stream",
+        "java",
+        "print",
+        "println",
+        "io"
+      ],
+      "apicalls": [
+        "println"
+      ],
+      "javadoc": null,
+      "types": [
+        "PrintStream",
+        "String"
+      ]
+    }
+  ]
+}
