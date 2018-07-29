@@ -99,7 +99,7 @@ class Evidence(object):
 class Sets(Evidence):
 
     def set_chars_vocab(self, data):
-        counts = Counter([c for apicalls in data for c in apicalls])
+        counts = Counter([c for calls in data for c in calls])
         self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
         self.vocab = dict(zip(self.chars, range(len(self.chars))))
         self.vocab_size = len(self.vocab)
@@ -370,8 +370,8 @@ class ReturnType(Sets):
 class ClassTypes(Sets):
 
     def read_data_point(self, program):
-        returnType = program['classTypes'] if 'classTypes' in program else []
-        return list(set(returnType))
+        classType = program['classTypes'] if 'classTypes' in program else []
+        return list(set(classType))
 
 
 # handle sequences as i/p

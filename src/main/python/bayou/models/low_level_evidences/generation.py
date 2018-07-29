@@ -27,10 +27,10 @@ import time
 
 #import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
-from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
+from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, rank_statistic, ListToFormattedString
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
-from bayou.models.low_level_evidences.utils import plot_probs, find_top_rank_ids, normalize_log_probs, find_my_rank
+from bayou.models.low_level_evidences.utils import plot_probs, normalize_log_probs
 
 
 File_Name = 'Search_Data_Basic'
@@ -84,6 +84,7 @@ def get_a1b1(clargs, f):
         a1, b1 = sess.run([predictor.model.EncA, predictor.model.EncB], feed)
 
     for i, ev in enumerate(config.evidence):
+        print(ev.name)
         ev.f_write(ev_data[i], f)
 
     return a1,b1, prog_id, config,
@@ -106,11 +107,12 @@ def test(clargs, f):
 
     prob_Y_Xs = normalize_log_probs(prob_Y_Xs)
 
-    rank_ids, sorted_probs = find_top_rank_ids( prob_Y_Xs, cutoff = 10)
-    pred_rank = find_my_rank(prob_Y_Xs,  prog_id)
+    # rank_ids, sorted_probs = find_top_rank_ids( prob_Y_Xs, cutoff = 10)
+    # pred_rank = find_my_rank(prob_Y_Xs,  prog_id )
+    # f.write('\nPredicted Rank is {}'.format(pred_rank + 1))
+
     inv_map = {v: k for k, v in config.decoder.vocab.items()}
 
-    f.write('\nPredicted Rank is {}'.format(pred_rank + 1))
 
     for rank, jid in enumerate(rank_ids):
         f.write('\n\n\nRank :: {} , LogProb :: {}\n\n'.format(rank + 1, sorted_probs[rank]))
@@ -145,6 +147,21 @@ def test_get_vals(clargs):
     Ys = np.load(File_Name  + '/Ys.npy')
     return a2s, b2s, prob_Ys, Ys
 
+def find_top_rank_ids(arrin, cutoff = 10):
+    rank_ids =  (-np.array(arrin)).argsort()
+    vals = []
+    for rank in rank_ids:
+        vals.append(arrin[rank])
+    return rank_ids[:cutoff], vals
+
+def find_my_rank(arr, i):
+    pivot = arr[i]
+    rank = 0
+    for val in arr:
+        if val > pivot:
+            rank += 1
+    return rank
+
 
 #%%
 if __name__ == '__main__':
@@ -167,7 +184,7 @@ if __name__ == '__main__':
     if parseJSON:
         clargs = parser.parse_args(['--save', 'save1', 'generation/query.json'])
     else:
-        clargs = parser.parse_args(['--save', 'save1', '/home/ubuntu/DATA-top.json'])
+        clargs = parser.parse_args(['--save', 'save1', '/home/ubuntu/DATA-retry.json'])
 #'/home/ubuntu/Corpus/DATA-training-expanded-biased-TOP.json'])
 
 

@@ -34,6 +34,22 @@ CHILD_EDGE = 'V'
 SIBLING_EDGE = 'H'
 
 
+def find_top_rank_ids(arrin, cutoff = 10):
+    rank_ids =  (-np.array(arrin)).argsort()
+    vals = []
+    for rank in rank_ids:
+        vals.append(arrin[rank])
+    return rank_ids[:cutoff], vals
+
+def find_my_rank(arr, i):
+    pivot = arr[i]
+    rank = 0
+    for val in arr:
+        if val > pivot:
+            rank += 1
+    return rank
+    
+
 def plot_probs(prob_vals, fig_name ="rankedProb.pdf", logx = False):
     plt.figure()
     plot_path = os.path.join(os.getcwd(),'generation')
@@ -101,21 +117,6 @@ def rank_statistic(_rank, total, prev_hits, cutoff):
     hits = prev_hits + (_rank < cutoff)
     prctg = hits / total
     return hits, prctg
-
-def find_my_rank(arr, i):
-    pivot = arr[i]
-    rank = 0
-    for val in arr:
-        if val > pivot:
-            rank += 1
-    return rank
-
-def find_top_rank_ids(arrin, cutoff = 10):
-    rank_ids =  (-np.array(arrin)).argsort()
-    vals = []
-    for rank in rank_ids:
-        vals.append(arrin[rank])
-    return rank_ids[:cutoff], vals
 
 def get_var_list():
     all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
