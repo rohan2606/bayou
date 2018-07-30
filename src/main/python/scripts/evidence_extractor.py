@@ -129,10 +129,22 @@ def extract_evidence(clargs):
 
                 #    (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
 
-                for method in programs_dict[file_name].keys(): # Each iterator is a method Name with @linenumber
+
+
+                otherMethods = list(programs_dict[file_name].keys())
+                random.shuffle(otherMethods)
+                num = np.random.choice(range(len(clargs.distribution)), p=clargs.distribution) + 1
+
+                countSorrMethods = 0
+                for method in otherMethods: # Each iterator is a method Name with @linenumber
+                    # Might need to add a check on number of sorrounding methods
 
                     if method == method_name:
                         continue
+
+                    countSorrMethods += 1
+                    if countSorrMethods > num:
+                        break
 
                     for choice, evidence in zip(programs_dict[file_name][method],['sorrreturntype', 'sorrformalparam', 'sorrsequences']):
                         sample[evidence].append(choice)
@@ -142,7 +154,7 @@ def extract_evidence(clargs):
         done += 1
         print('Extracted evidence [API/Type/Keywords] for {} programs'.format(done), end='\r')
 
-
+    random.shuffle(programs)
 
 
     print('\nWriting to {}...'.format(clargs.output_file[0]), end='')
