@@ -59,6 +59,5 @@ class TreeEncoder(object):
                     output = tf.where(edges[i], output1, output2)
                     self.state = [tf.where(edges[i], state1[j], state2[j]) for j in range(num_layers)]
 
-
         with tf.name_scope("Output"):
             self.last_output = tf.nn.xw_plus_b(output, self.projection_w, self.projection_b)

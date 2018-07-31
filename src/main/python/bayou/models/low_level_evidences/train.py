@@ -90,7 +90,7 @@ def train(clargs):
     merged_summary = tf.summary.merge_all()
 
 
-    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
@@ -181,7 +181,7 @@ if __name__ == '__main__':
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
      # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
-     '/home/ubuntu/DATA-retry.json'])
+     '/home/ubuntu/DATA.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

@@ -62,6 +62,30 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8
+        },
+        {
+            "name": "sorrreturntype",
+            "units": 32,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": -1,
+            "max_nums": 10
+        },
+        {
+            "name": "sorrformalparam",
+            "units": 32,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 8,
+            "max_nums": 10
+        },
+        {
+            "name": "sorrcallsequences",
+            "units": 64,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 8,
+            "max_nums": 10
         }
     ],
     "decoder": {

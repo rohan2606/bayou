@@ -433,12 +433,13 @@ class FormalParam(Sequences):
 
 class sorrCallSequences(Sequences):
     def read_data_point(self, program):
-        json_sequences = program['sorrSeqs'] if 'sorrSeqs' in program else []
+        json_sequences = program['sorrsequences'] if 'sorrsequences' in program else []
         list_seqs = [[]]
-        for json_seq in json_sequences:
-            tmp_list = json_seq['calls']
-            if len(tmp_list) > 1:
-                list_seqs.append(tmp_list)
+        for list_json_seq in json_sequences:
+            for json_seq in list_json_seq:
+                tmp_list = json_seq['calls']
+                if len(tmp_list) > 1:
+                    list_seqs.append(tmp_list)
         if len(list_seqs) > 1:
             list_seqs.remove([])
         #return list_seqs
@@ -447,14 +448,20 @@ class sorrCallSequences(Sequences):
 
 # handle sequences as i/p
 class sorrFormalParam(Sequences):
-
     def read_data_point(self, program):
-        json_sequence = program['sorrFormalParam'] if 'sorrFormalParam' in program else [[]]
-        return json_sequence
+        json_sequence = program['sorrformalparam'] if 'sorrformalparam' in program else [[]]
+        list_seqs = [[]]
+        for seqs in json_sequence:
+            if len(seqs) == 0:
+                continue
+            list_seqs.append(seqs)
+        if len(list_seqs) > 1:
+            list_seqs.remove([])
+        return list_seqs
 
 
 class sorrReturnType(Sets):
 
     def read_data_point(self, program):
-        sorrreturnType = program['sorrReturnType'] if 'sorrReturnType' in program else []
+        sorrreturnType = program['sorrreturntype'] if 'sorrreturntype' in program else []
         return list(set(sorrreturnType))

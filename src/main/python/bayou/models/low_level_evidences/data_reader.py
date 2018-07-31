@@ -39,12 +39,13 @@ class Reader():
         # read the raw evidences and targets
         print('Reading data file...')
         prog_ids, raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
+        print('Done!')
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
 
 
         # align with number of batches
-        config.num_batches = 5000 #int(len(raw_targets) / config.batch_size)
+        config.num_batches = int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
