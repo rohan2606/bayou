@@ -90,7 +90,7 @@ def train(clargs):
     merged_summary = tf.summary.merge_all()
 
 
-    with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
@@ -114,7 +114,7 @@ def train(clargs):
             for b in range(config.num_batches):
                 start = time.time()
                 # setup the feed dict
-                prog_ids, ev_data, n, e, y, ast_nodes_list = reader.next_batch()
+                prog_ids, ev_data, n, e, y, left, right, word = reader.next_batch()
 
                 feed = {model.targets: y}
                 for j, ev in enumerate(config.evidence):
@@ -123,23 +123,9 @@ def train(clargs):
                     feed[model.decoder.nodes[j].name] = n[j]
                     feed[model.decoder.edges[j].name] = e[j]
 
-                node_to_index = [OrderedDict() for k in range(config.batch_size)]
-                for j in range(config.batch_size):
-                     for k in range(config.reverse_encoder.max_ast_depth):
-                         node_to_index[j][ast_nodes_list[j][k]] = k
-
-
-                feed[model.reverse_encoder.left_children_placeholder.name] = [[node_to_index[j][node.child] if
-                                                                                     node.ifLeftExist else 0
-                                                                                     for node in nodes_list] for j, nodes_list in enumerate(ast_nodes_list)]
-
-                feed[model.reverse_encoder.right_children_placeholder.name] = [[node_to_index[j][node.sibling] if
-                                                                                     node.ifRightExist else 0
-                                                                                     for node in nodes_list] for j, nodes_list in enumerate(ast_nodes_list)]
-
-                feed[model.reverse_encoder.node_word_indices_placeholder] = [[config.reverse_encoder.vocab[node.val] if node.val is not None else -1
-                                                                             for node in nodes_list] for nodes_list in ast_nodes_list]
-
+                feed[model.reverse_encoder.left_children_placeholder.name] = left
+                feed[model.reverse_encoder.right_children_placeholder.name] = right
+                feed[model.reverse_encoder.node_word_indices_placeholder.name] = word
 
                 # run the optimizer
                 loss, gen_loss, KL_loss, E_mean, RE_mean, E_covar, RE_covar, _ \

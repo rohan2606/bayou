@@ -58,7 +58,7 @@ class BayesianPredictor(object):
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
 
-    def get_all_params_inago(self, evidences, nodes, edges, targets):
+    def get_all_params_inago(self, evidences, nodes, edges, targets, left, right, word ):
         # setup initial states and feed
         inputs = evidences
         feed = {self.model.targets: targets}
@@ -67,9 +67,11 @@ class BayesianPredictor(object):
         for j in range(self.model.config.decoder.max_ast_depth):
             feed[self.model.decoder.nodes[j].name] = nodes[j]
             feed[self.model.decoder.edges[j].name] = edges[j]
-        for j in range(self.model.config.reverse_encoder.max_ast_depth):
-            feed[self.model.reverse_encoder.nodes[j].name] = nodes[self.model.config.reverse_encoder.max_ast_depth - 1 - j]
-            feed[self.model.reverse_encoder.edges[j].name] = edges[self.model.config.reverse_encoder.max_ast_depth - 1 - j]
+
+
+        feed[self.model.reverse_encoder.left_children_placeholder.name] = left
+        feed[self.model.reverse_encoder.right_children_placeholder.name] = right
+        feed[self.model.reverse_encoder.node_word_indices_placeholder.name] = word
 
         # num_samples = 100
         # probYs = np.zeros([self.model.config.batch_size])

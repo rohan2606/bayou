@@ -22,6 +22,7 @@ from collections import Counter
 
 from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls, chunks
 from bayou.models.low_level_evidences.node import Node
+from collections import OrderedDict, defaultdict
 
 class TooLongPathError(Exception):
     pass
@@ -45,7 +46,7 @@ class Reader():
 
 
         # align with number of batches
-        config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
+        config.num_batches = int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -67,7 +68,6 @@ class Reader():
             # adding the same variables for reverse Encoder
             counts = Counter([node.val for path in raw_asts for node in path])
             counts[C0] = 1
-            counts['None'] = -1
             config.reverse_encoder.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
             config.reverse_encoder.vocab = dict(zip(config.reverse_encoder.chars, range(len(config.reverse_encoder.chars))))
             config.reverse_encoder.vocab_size =len(config.reverse_encoder.vocab)
@@ -77,7 +77,12 @@ class Reader():
         self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
         self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
         self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+
         self.prog_ids = np.zeros(sz, dtype=np.int32)
+
+        self.left_child_id = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
+        self.right_child_id = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
+        self.node_word = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
 
         for i, path in enumerate(raw_targets):
             self.nodes[i, :len(path)] = list(map(config.decoder.vocab.get, [p[0] for p in path]))
@@ -85,13 +90,30 @@ class Reader():
             self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
             self.prog_ids[i] = prog_ids[i]
 
+
+        for i, raw_ast_path in enumerate(raw_asts):
+            node_to_index = OrderedDict()
+            for k in range(config.reverse_encoder.max_ast_depth):
+                node = raw_ast_path[k]
+                node_to_index[node] = k
+                self.left_child_id[i,k] = node_to_index[node.child] if node.ifLeftExist else 0
+                self.right_child_id[i,k] = node_to_index[node.sibling] if node.ifRightExist else 0
+                self.node_word[i,k] = config.reverse_encoder.vocab[node.val] if node.val is not None else 0
+
+
+
+
         # split into batches
         self.inputs = [np.split(ev_data, config.num_batches, axis=0) for ev_data in self.inputs ]
         self.nodes = np.split(self.nodes, config.num_batches, axis=0)
         self.edges = np.split(self.edges, config.num_batches, axis=0)
         self.targets = np.split(self.targets, config.num_batches, axis=0)
         self.prog_ids = np.split(self.prog_ids, config.num_batches, axis=0)
-        self.raw_asts = chunks(raw_asts, config.batch_size)
+
+        self.left_child_id = np.split(self.left_child_id, config.num_batches, axis=0)
+        self.right_child_id = np.split(self.right_child_id, config.num_batches, axis=0)
+        self.node_word = np.split(self.node_word, config.num_batches, axis=0)
+
 
         # reset batches
         self.reset_batches()
@@ -298,14 +320,14 @@ class Reader():
 
     def next_batch(self):
         batch = next(self.batches)
-        prog_ids, n, e, y, ast = batch[:5]
-        ev_data = batch[5:]
+        prog_ids, n, e, y, left,right,word = batch[:7]
+        ev_data = batch[7:]
 
         # reshape the batch into required format
         rn = np.transpose(n) # these are in depth first format
         re = np.transpose(e) # these are in depth first format
 
-        return prog_ids, ev_data, rn, re, y, ast
+        return prog_ids, ev_data, rn, re, y, left, right, word
 
     def reset_batches(self):
-        self.batches = iter(zip(self.prog_ids, self.nodes, self.edges, self.targets, self.raw_asts, *self.inputs))
+        self.batches = iter(zip(self.prog_ids, self.nodes, self.edges, self.targets, self.left_child_id, self.right_child_id, self.node_word, *self.inputs))

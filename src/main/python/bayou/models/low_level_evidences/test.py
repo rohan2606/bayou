@@ -116,9 +116,9 @@ def forward_pass(clargs):
         reader.reset_batches()
         infer_vars = {}
         for j in range(config.num_batches):
-            _prog_ids, ev_data, n, e, y = reader.next_batch()
+            _prog_ids, ev_data, n, e, y ,left, right, word  = reader.next_batch()
             # Ys += list(y)
-            prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
+            prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y, left, right, word )
             for i in range(config.batch_size):
                 prog_id = _prog_ids[i]
                 if prog_id not in infer_vars:
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-	'/home/ubuntu/DATA.json'])
+	'/home/ubuntu/DATA-retry.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)
