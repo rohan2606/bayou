@@ -1,7 +1,7 @@
 {
     "model": "lle",
     "latent_size": 64,
-    "batch_size": 50,
+    "batch_size": 1,
     "num_epochs": 500,
     "learning_rate": 0.0006,
     "print_step": 500,

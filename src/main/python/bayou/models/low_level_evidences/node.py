@@ -16,10 +16,16 @@
 from bayou.models.low_level_evidences.utils import CHILD_EDGE, SIBLING_EDGE
 
 class Node():
-    def __init__(self, call, child=None, sibling=None):
+    def __init__(self, call, child=None, sibling=None, parent=None):
         self.val = call
-        self.child = child
-        self.sibling = sibling
+        self.child = child #left
+        self.sibling = sibling #sibling
+        self.parent = parent
+
+        #Consider child as left and sibling as right
+        self.ifLeftExist = True if self.child is not None else False
+        self.ifRightExist = True if self.sibling is not None else False
+
 
     def dfs(self, head, inp = 'H'):
         print('({},{})'.format(head.val,inp ))
@@ -31,12 +37,25 @@ class Node():
             self.dfs(head.child,inp='H')
         return
 
+    def postOrderTraversal(self, node, nodeFn=None, args=None):
+        """
+        Recursive function traverses tree
+        from left to right.
+        Calls nodeFn at each node
+        """
+        if node is None:
+            return
+        self.postOrderTraversal(node.child, nodeFn, args)
+        self.postOrderTraversal(node.sibling, nodeFn, args)
+        nodeFn(node, args)
+
+
     def iterateHTillEnd(self, head):
         while(head.sibling != None):
             head = head.sibling
         return head
 
- 
+
 node = Node(1)
 
 def get_ast_paths(js, idx=0):
@@ -306,5 +325,3 @@ js2 = {
      ]
    }
  }
-
-

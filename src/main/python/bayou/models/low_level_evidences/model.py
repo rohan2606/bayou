@@ -35,10 +35,11 @@ class Model():
 
         with tf.variable_scope('Embedding'):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
+            embRE = tf.get_variable('embRE', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, emb)
+            self.reverse_encoder = BayesianReverseEncoder(config, embRE)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2

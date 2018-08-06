@@ -22,11 +22,11 @@ import os
 import sys
 import json
 import textwrap
+from collections import OrderedDict, defaultdict
 
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.model import Model
 from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot
-
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
@@ -114,16 +114,32 @@ def train(clargs):
             for b in range(config.num_batches):
                 start = time.time()
                 # setup the feed dict
-                prog_ids, ev_data, n, e, y = reader.next_batch()
+                prog_ids, ev_data, n, e, y, ast_nodes_list = reader.next_batch()
+
                 feed = {model.targets: y}
                 for j, ev in enumerate(config.evidence):
                     feed[model.encoder.inputs[j].name] = ev_data[j]
                 for j in range(config.decoder.max_ast_depth):
                     feed[model.decoder.nodes[j].name] = n[j]
                     feed[model.decoder.edges[j].name] = e[j]
-                for j in range(config.reverse_encoder.max_ast_depth):
-                    feed[model.reverse_encoder.nodes[j].name] = n[config.reverse_encoder.max_ast_depth - 1 - j]
-                    feed[model.reverse_encoder.edges[j].name] = e[config.reverse_encoder.max_ast_depth - 1 - j]
+
+                node_to_index = [OrderedDict() for k in range(config.batch_size)]
+                for j in range(config.batch_size):
+                     for k in range(config.reverse_encoder.max_ast_depth):
+                         node_to_index[j][ast_nodes_list[j][k]] = k
+
+
+                feed[model.reverse_encoder.left_children_placeholder.name] = [[node_to_index[j][node.child] if
+                                                                                     node.ifLeftExist else 0
+                                                                                     for node in nodes_list] for j, nodes_list in enumerate(ast_nodes_list)]
+
+                feed[model.reverse_encoder.right_children_placeholder.name] = [[node_to_index[j][node.sibling] if
+                                                                                     node.ifRightExist else 0
+                                                                                     for node in nodes_list] for j, nodes_list in enumerate(ast_nodes_list)]
+
+                feed[model.reverse_encoder.node_word_indices_placeholder] = [[config.reverse_encoder.vocab[node.val] if node.val is not None else -1
+                                                                             for node in nodes_list] for nodes_list in ast_nodes_list]
+
 
                 # run the optimizer
                 loss, gen_loss, KL_loss, E_mean, RE_mean, E_covar, RE_covar, _ \
@@ -179,9 +195,9 @@ if __name__ == '__main__':
      #['--continue_from', 'save',
      ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
-     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+     #'/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/DATA-top.json'])
      # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
-     '/home/ubuntu/DATA.json'])
+     '/home/ubuntu/DATA-top.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

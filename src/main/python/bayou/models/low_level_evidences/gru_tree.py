@@ -15,49 +15,77 @@
 import tensorflow as tf
 
 class TreeEncoder(object):
-    def __init__(self, emb, batch_size, nodes, edges, num_layers, units, depth, output_units):
-        cells1 = []
-        cells2 = []
-        for _ in range(num_layers):
-            cells1.append(tf.nn.rnn_cell.GRUCell(units))
-            cells2.append(tf.nn.rnn_cell.GRUCell(units))
-
-        self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
-        self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
-
-        # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
-        self.initial_state = [tf.truncated_normal([batch_size, units] , stddev=0.001 ) ] * num_layers
-
-        # projection matrices for output
-        with tf.name_scope("projections"):
-            self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size, output_units])
-            self.projection_b = tf.get_variable('projection_b', [output_units])
-
-            tf.summary.histogram("projection_w", self.projection_w)
-            tf.summary.histogram("projection_b", self.projection_b)
+    def __init__(self, emb, config, node_word_indices_placeholder, left_children_placeholder, right_children_placeholder, output_size):
 
 
-        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in nodes)
-        self.emb_inp = emb_inp
+        with tf.variable_scope('Composition'):
+            W1 = tf.get_variable('W1',
+                                   [3 * config.reverse_encoder.units, config.reverse_encoder.units])
+            b1 = tf.get_variable('b1', [1, config.reverse_encoder.units])
+
+        with tf.variable_scope('Projection'):
+             U = tf.get_variable('U', [config.reverse_encoder.units, output_size])
+             bs = tf.get_variable('bs', [output_size])
 
 
-        with tf.variable_scope('Tree_network'):
+        tensor_array = [tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False, infer_shape=True) for i in range(config.batch_size)]
+        for i in range(config.batch_size):
+            tensor_array[i] = tensor_array[i].write(0, tf.zeros([1,config.reverse_encoder.units])) # Can make this trainable
 
-            emb_inp = self.emb_inp
-            # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
-            # TODO: update with dynamic decoder (being implemented in tf) once it is released
-            with tf.variable_scope('rnn'):
-                self.state = self.initial_state
-                for i, inp in enumerate(emb_inp):
-                    if i > 0:
-                        tf.get_variable_scope().reuse_variables()
-                    with tf.variable_scope('cell1'):  # handles CHILD_EDGE
-                        output1, state1 = self.cell1(inp, self.state)
-                    with tf.variable_scope('cell2'): # handles SIBLING EDGE
-                        output2, state2 = self.cell2(inp, self.state)
+        loop_cond = lambda tensor_array, i: tf.less(i, config.reverse_encoder.max_ast_depth)
 
-                    output = tf.where(edges[i], output1, output2)
-                    self.state = [tf.where(edges[i], state1[j], state2[j]) for j in range(num_layers)]
 
-        with tf.name_scope("Output"):
-            self.last_output = tf.nn.xw_plus_b(output, self.projection_w, self.projection_b)
+        def embed_word( word_index):
+            return tf.expand_dims(tf.gather(emb, word_index), axis=0) #returns [1,reverse_encoder.units]
+
+
+        def combineWBothChildren( left_tensor, right_tensor, word_index):
+            embNode = embed_word(word_index)
+            combine = tf.nn.relu(tf.matmul(tf.concat([left_tensor, right_tensor, embNode], axis=1), W1) + b1)
+            return combine
+
+
+        def combineLeftChild( left_tensor, word_index):
+            embNode = embed_word(word_index)
+            fakeNode = embed_word(0)
+            combine = tf.nn.relu(tf.matmul(tf.concat([left_tensor, fakeNode, embNode], axis=1), W1) + b1)
+            return combine
+
+
+        def combineRightChild( right_tensor, word_index):
+            embNode = embed_word(word_index)
+            fakeNode = embed_word(0)
+            combine = tf.nn.relu(tf.matmul(tf.concat([fakeNode, right_tensor, embNode], axis=1), W1) + b1)
+            return combine
+
+        def loop_body(tensor_array, i):
+
+              for j in range(config.batch_size):
+                  node_word_index = node_word_indices_placeholder[j,i] #tf.gather(node_word_indices_placeholder, i)
+                  left_child = left_children_placeholder[j,i] #tf.gather(left_children_placeholder, i)
+                  right_child = right_children_placeholder[j,i] #tf.gather(right_children_placeholder, i)
+
+                  f1 = lambda: combineWBothChildren(tensor_array[j].read(left_child), tensor_array[j].read(right_child),node_word_index)
+                  f2 = lambda: combineLeftChild(tensor_array[j].read(left_child), node_word_index)
+                  f3 = lambda: combineRightChild(tensor_array[j].read(right_child), node_word_index)
+                  f4 = lambda: embed_word(node_word_index)
+
+
+                  ifOnlyLeftExist  = tf.constant((left_child != -1) and (right_child == -1), dtype=tf.bool)
+                  ifOnlyRightExist = tf.constant((left_child == -1) and (right_child != -1), dtype=tf.bool)
+                  ifBothExist = tf.constant((left_child != -1) and (right_child != -1), dtype=tf.bool)
+                  node_tensor = tf.case({ifBothExist: f1, ifOnlyLeftExist: f2 , ifOnlyRightExist:f3 },
+                            default=f4, exclusive=True)
+
+                  #node_tensor = embed_word(node_word_index)
+
+                  tensor_array[j] = tensor_array[j].write(i, node_tensor)
+
+
+              i = tf.add(i, 1)
+              return tensor_array, i
+
+        tensor_array, _ = tf.while_loop(loop_cond, loop_body, [tensor_array, 1], parallel_iterations=1)
+        root_logits=[tf.matmul(tensor_array[j].read(tensor_array[j].size() - 1), U) + bs for j in range(config.batch_size)]
+
+        self.output = tf.concat(root_logits, axis=0)
