@@ -71,9 +71,9 @@ class TreeEncoder(object):
                   f4 = lambda: embed_word(node_word_index)
 
 
-                  ifOnlyLeftExist  = tf.constant((left_child != -1) and (right_child == -1), dtype=tf.bool)
-                  ifOnlyRightExist = tf.constant((left_child == -1) and (right_child != -1), dtype=tf.bool)
-                  ifBothExist = tf.constant((left_child != -1) and (right_child != -1), dtype=tf.bool)
+                  ifOnlyLeftExist  = tf.constant((left_child != 0) and (right_child == 0), dtype=tf.bool)
+                  ifOnlyRightExist = tf.constant((left_child == 0) and (right_child != 0), dtype=tf.bool)
+                  ifBothExist = tf.constant((left_child != 0) and (right_child != 0), dtype=tf.bool)
                   node_tensor = tf.case({ifBothExist: f1, ifOnlyLeftExist: f2 , ifOnlyRightExist:f3 },
                             default=f4, exclusive=True)
 
@@ -85,7 +85,7 @@ class TreeEncoder(object):
               i = tf.add(i, 1)
               return tensor_array, i
 
-        tensor_array, _ = tf.while_loop(loop_cond, loop_body, [tensor_array, 1], parallel_iterations=1)
+        tensor_array, _ = tf.while_loop(loop_cond, loop_body, [tensor_array, 1], parallel_iterations=100)
         root_logits=[tf.matmul(tensor_array[j].read(tensor_array[j].size() - 1), U) + bs for j in range(config.batch_size)]
 
         self.output = tf.concat(root_logits, axis=0)

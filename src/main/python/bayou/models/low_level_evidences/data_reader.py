@@ -46,7 +46,7 @@ class Reader():
 
 
         # align with number of batches
-        config.num_batches = int(len(raw_targets) / config.batch_size)
+        config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -117,6 +117,7 @@ class Reader():
 
         # reset batches
         self.reset_batches()
+        print("Done with Data Processing")
 
 
 
