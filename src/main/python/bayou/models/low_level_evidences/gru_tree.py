@@ -27,8 +27,9 @@ class TreeEncoder(object):
              U = tf.get_variable('U', [config.reverse_encoder.units, output_size])
              bs = tf.get_variable('bs', [output_size])
 
+        tensor_array_size = tf.constant(config.reverse_encoder.max_ast_depth+1, dtype=tf.int32)
+        tensor_array = [tf.TensorArray(tf.float32, size=tensor_array_size, dynamic_size=False, clear_after_read=False, infer_shape=True) for i in range(config.batch_size)]
 
-        tensor_array = [tf.TensorArray(tf.float32, size=0, dynamic_size=True, clear_after_read=False, infer_shape=True) for i in range(config.batch_size)]
         for i in range(config.batch_size):
             tensor_array[i] = tensor_array[i].write(0, tf.zeros([1,config.reverse_encoder.units])) # Can make this trainable
 
@@ -85,7 +86,7 @@ class TreeEncoder(object):
               i = tf.add(i, 1)
               return tensor_array, i
 
-        tensor_array, _ = tf.while_loop(loop_cond, loop_body, [tensor_array, 1], parallel_iterations=100)
+        tensor_array, _ = tf.while_loop(loop_cond, loop_body, [tensor_array, 1], parallel_iterations=1)
         root_logits=[tf.matmul(tensor_array[j].read(tensor_array[j].size() - 1), U) + bs for j in range(config.batch_size)]
 
         self.output = tf.concat(root_logits, axis=0)

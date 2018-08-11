@@ -120,7 +120,6 @@ class BayesianDecoder(object):
 
 class BayesianReverseEncoder(object):
     def __init__(self, config, emb):
-            self.emb = emb
             # add input placeholders
             self.node_word_indices_placeholder = tf.placeholder(tf.int32, (config.batch_size, config.reverse_encoder.max_ast_depth), name='node_word_indices_placeholder')
             self.left_children_placeholder = tf.placeholder(tf.int32, (config.batch_size, config.reverse_encoder.max_ast_depth), name='left_children_placeholder')

@@ -283,7 +283,7 @@ class Reader():
                 nodes_list = []
                 ast_node_head.postOrderTraversal(ast_node_head, lambda node, args: args.append(node), nodes_list)
                 ast_node_graph = nodes_list
-                pad = [ Node(None) for i in range(self.config.reverse_encoder.max_ast_depth - len(ast_node_graph)) ]
+                pad = [ Node('Null') for i in range(self.config.reverse_encoder.max_ast_depth - len(ast_node_graph)) ]
                 ast_node_graph = pad + ast_node_graph
 
                 self.validate_sketch_paths(program, ast_paths)
