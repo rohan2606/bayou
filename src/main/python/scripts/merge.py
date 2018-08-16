@@ -36,6 +36,9 @@ def merge(clargs):
             print('Error merging file: {}'.format(filename))
             continue
         programs += (js['programs'])
+        print('Loaded file: {}':.format(filename))
+
+    print('Now Merging Files!')
     with open(clargs.output_file, 'w') as f:
         json.dump({'programs': programs}, f, indent=2)
 

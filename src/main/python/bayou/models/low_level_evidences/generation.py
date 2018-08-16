@@ -57,7 +57,7 @@ def get_a1b1(clargs, f):
         raise ValueError('Invalid model type in config: ' + model_type)
 
 
-    file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
+    # file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
 
     reader = Reader(clargs, config)
     reader.reset_batches()
@@ -73,7 +73,7 @@ def get_a1b1(clargs, f):
             prog_ids, ev_data, _, _, y, _ = reader.next_batch()
 
         prog_id = prog_ids[batch_id]
-        f.write('\nOriginal File ptr :: ' + str(parse_filePtr(file_ptr_dict[prog_id])) + '\n\n\n')
+        # f.write('\nOriginal File ptr :: ' + str(parse_filePtr(file_ptr_dict[prog_id])) + '\n\n\n')
         ev_data = [ev[batch_id:batch_id+1] for ev in ev_data]
         y = y[batch_id]
 
@@ -93,7 +93,7 @@ def get_a1b1(clargs, f):
 
 
 def test(clargs, f):
-    file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
+    # file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
 
     [a1, b1, prog_id, config] = get_a1b1(clargs, f)
     [a2s, b2s, prob_Ys, Ys, bodys] = test_get_vals(clargs)
@@ -118,7 +118,7 @@ def test(clargs, f):
 
     for rank, jid in enumerate(rank_ids):
         f.write('\n\n\nRank :: {} , LogProb :: {}\n\n'.format(rank + 1, sorted_probs[rank]))
-        found_file = parse_filePtr(file_ptr_dict[jid])
+        # found_file = parse_filePtr(file_ptr_dict[jid])
         f.write('File Ptr ::' + found_file)
         f.write('\n\nPaths in the AST::\n')
         call_array = []
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     if parseJSON:
         clargs = parser.parse_args(['--save', 'save1', 'generation/query.json'])
     else:
-        clargs = parser.parse_args(['--save', 'save1', '/home/ubuntu/DATA-TOP.json'])
+        clargs = parser.parse_args(['--save', 'save1', '/home/ubuntu/DATA.json'])
 #'/home/ubuntu/Corpus/DATA-training-expanded-biased-TOP.json'])
 
 

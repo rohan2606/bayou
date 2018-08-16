@@ -87,11 +87,21 @@ def test_get_vals(clargs):
 
 
             body = infer_vars[prog_id]['JS']['file'] + '\n'
-            body += infer_vars[prog_id]['JS']['returnType'] + "  " +  infer_vars[prog_id]['JS']['method'] + "( "
-            for formalParam in infer_vars[prog_id]['JS']['formalParam']:
-                body += formalParam + " , "
-            body += ')\n{' + infer_vars[prog_id]['JS']['body']
-            body += "}\n"
+            if 'returnType' in infer_vars[prog_id]['JS']:
+                body += infer_vars[prog_id]['JS']['returnType']
+            else:
+                body += "void"
+
+
+            body += "  " +  infer_vars[prog_id]['JS']['method'] + "( "
+            if 'formalParam' in infer_vars[prog_id]['JS']:
+                for formalParam in infer_vars[prog_id]['JS']['formalParam']:
+                    body += formalParam + " , "
+            body += ')\n'
+
+            if 'body' in  infer_vars[prog_id]['JS']:
+                body += '{' + infer_vars[prog_id]['JS']['body']
+                body += "}\n"
             bodys += [ body ]
 
 
