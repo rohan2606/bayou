@@ -347,8 +347,7 @@ class Keywords(Sets):
 class ReturnType(Sets):
 
     def read_data_point(self, program):
-        returnType = program['returnType'] if 'returnType' in program else []
-        returntype = [returnType]
+        returnType = [program['returnType'] if 'returnType' in program else 'NONE']
         return list(set(returnType))
 
 class ClassTypes(Sets):

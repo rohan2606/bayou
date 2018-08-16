@@ -254,7 +254,8 @@ class Reader():
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    data_points.append((done - ignored, evidences, path, program))
+                    # data_points.append((done - ignored, evidences, path, program))
+                    data_points.append((done - ignored, evidences, path, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
