@@ -35,7 +35,9 @@ HELP = """ Help me! :( """
 #%%
 
 def test(clargs):
-    [a1s, b1s, a2s, b2s, prob_Ys] = test_get_vals(clargs)
+    [a1s, b1s, a2s, b2s, prob_Ys, bodys] = test_get_vals(clargs)
+
+
     latent_size, num_progs, batch_size = len(b1s[0]), len(a1s), 1000
     hit_points = [2,5,10,50,100,500,1000,5000,10000]
     hit_counts = np.zeros(len(hit_points))
@@ -68,11 +70,12 @@ def test_get_vals(clargs):
         a2s = np.load(File_Name  + '/a2s.npy')
         b2s = np.load(File_Name  + '/b2s.npy')
         prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
+        bodys = np.load(File_Name  + '/Bodys.npy')
         #Ys = np.load(File_Name  + '/Ys.npy'), Xs = np.load(File_Name  + '/Xs.npy')
     else:
         infer_vars, config = forward_pass(clargs)
-
-        a1s,a2s,b1s,b2s,prob_Ys, Ys  = [],[],[],[],[],[]
+        programs = []
+        a1s,a2s,b1s,b2s,prob_Ys, Ys, bodys  = [],[],[],[],[],[],[]
         for prog_id in sorted(list(infer_vars.keys())):
             a1s += [infer_vars[prog_id]['a1']]
             a2s += [infer_vars[prog_id]['a2']]
@@ -82,6 +85,27 @@ def test_get_vals(clargs):
             Ys += [infer_vars[prog_id]['Y']]
 
 
+
+            body = infer_vars[prog_id]['JS']['file'] + '\n'
+            body += infer_vars[prog_id]['JS']['returnType'] + "  " +  infer_vars[prog_id]['JS']['method'] + "( "
+            for formalParam in infer_vars[prog_id]['JS']['formalParam']:
+                body += formalParam + " , "
+            body += ')\n{' + infer_vars[prog_id]['JS']['body']
+            body += "}\n"
+            bodys += [ body ]
+
+
+
+            program = infer_vars[prog_id]['JS']
+            # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
+            program['a1'] = infer_vars[prog_id]['a1'].item()
+            program['b1'] = [val.item() for val in infer_vars[prog_id]['b1']]
+            program['a2'] = infer_vars[prog_id]['a2'].item()
+            program['b2'] = [val.item() for val in infer_vars[prog_id]['b2']]
+            program['ProbY'] = infer_vars[prog_id]['ProbY'].item()
+
+            programs.append(program)
+
         print('New arrays saving done')
         prob_Ys = normalize_log_probs(prob_Ys)
         print('Normalizing done')
@@ -89,9 +113,16 @@ def test_get_vals(clargs):
         np.save(File_Name + '/a1s', a1s), np.save(File_Name + '/b1s', b1s)
         np.save(File_Name + '/a2s', a2s), np.save(File_Name + '/b2s', b2s)
         np.save(File_Name + '/prob_Ys', prob_Ys), np.save(File_Name + '/Ys', Ys)
+        np.save(File_Name + '/Bodys', bodys)
+
         print('Files Saved')
 
-    return a1s, b1s, a2s, b2s, prob_Ys #, Ys
+        print('\nWriting to {}...'.format('Program_output_json.json'), end='')
+        with open('Program_output_json.json', 'w') as f:
+            json.dump({'programs': programs}, fp=f, indent=2)
+        print('done')
+
+    return a1s, b1s, a2s, b2s, prob_Ys, bodys #, Ys
 
 def forward_pass(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
@@ -114,9 +145,10 @@ def forward_pass(clargs):
         predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
         # testing
         reader.reset_batches()
+
         infer_vars = {}
         for j in range(config.num_batches):
-            _prog_ids, ev_data, n, e, y = reader.next_batch()
+            _prog_ids, ev_data, n, e, y, jsp = reader.next_batch()
             # Ys += list(y)
             prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
             for i in range(config.batch_size):
@@ -130,6 +162,7 @@ def forward_pass(clargs):
                     infer_vars[prog_id]['ProbY'] = prob_Y[i]
                     infer_vars[prog_id]['count_prog_ids'] = 1
                     infer_vars[prog_id]['Y'] = [y[i]]
+                    infer_vars[prog_id]['JS'] = jsp[i]
                 else:
                     infer_vars[prog_id]['b1'] += b1[i]
                     infer_vars[prog_id]['b2'] += b2[i]
@@ -142,10 +175,12 @@ def forward_pass(clargs):
                 print('Completed Processing {}/{} batches'.format(j+1, config.num_batches))
 
     print('Batch Processing Completed')
+
     for prog_id in list(infer_vars.keys()):
         infer_vars[prog_id]['b1'] /= infer_vars[prog_id]['count_prog_ids']
         infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
         infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
+
 
     print('Program Average done')
     return infer_vars, config
@@ -188,7 +223,7 @@ if __name__ == '__main__':
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-	'/home/ubuntu/DATA.json'])
+	'/home/ubuntu/DATA-TOP.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

@@ -34,6 +34,13 @@ CHILD_EDGE = 'V'
 SIBLING_EDGE = 'H'
 
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    lol = []
+    for i in range(0, len(l), n):
+        lol.append(l[i:i + n])
+    return lol
+    
 def find_top_rank_ids(arrin, cutoff = 10):
     rank_ids =  (-np.array(arrin)).argsort()
     vals = []
@@ -48,7 +55,7 @@ def find_my_rank(arr, i):
         if val > pivot:
             rank += 1
     return rank
-    
+
 
 def plot_probs(prob_vals, fig_name ="rankedProb.pdf", logx = False):
     plt.figure()

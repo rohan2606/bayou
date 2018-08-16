@@ -114,7 +114,7 @@ def train(clargs):
             for b in range(config.num_batches):
                 start = time.time()
                 # setup the feed dict
-                prog_ids, ev_data, n, e, y = reader.next_batch()
+                prog_ids, ev_data, n, e, y, _ = reader.next_batch()
                 feed = {model.targets: y}
                 for j, ev in enumerate(config.evidence):
                     feed[model.encoder.inputs[j].name] = ev_data[j]
@@ -181,7 +181,7 @@ if __name__ == '__main__':
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
      # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
-     '/home/ubuntu/DATA.json'])
+     '/home/ubuntu/DATA-TOP.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

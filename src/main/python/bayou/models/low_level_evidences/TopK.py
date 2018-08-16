@@ -54,7 +54,7 @@ def train(clargs):
     evidence_list = [dict() for i in range(4)]
     reader.reset_batches()
     for b in range(config.num_batches):
-        prog_ids, ev_data, _, _, _= reader.next_batch()
+        prog_ids, ev_data, _, _, _, _ = reader.next_batch()
         for j, prog_id in enumerate(prog_ids):
             for i in range(len(config.evidence)):
                 if i != 3:

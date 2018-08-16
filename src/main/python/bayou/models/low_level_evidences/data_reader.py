@@ -20,7 +20,7 @@ import os
 import pickle
 from collections import Counter
 
-from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls
+from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls, chunks
 from bayou.models.low_level_evidences.node import Node
 
 class TooLongPathError(Exception):
@@ -38,7 +38,7 @@ class Reader():
         random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets = self.read_data(clargs.input_file[0],save=clargs.save)
+        prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
         print('Done!')
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
@@ -53,6 +53,7 @@ class Reader():
 
         raw_targets = raw_targets[:sz]
         prog_ids = prog_ids[:sz]
+        js_programs = js_programs[:sz]
 
         # setup input and target chars/vocab
         if clargs.continue_from is None:
@@ -86,7 +87,7 @@ class Reader():
         self.edges = np.split(self.edges, config.num_batches, axis=0)
         self.targets = np.split(self.targets, config.num_batches, axis=0)
         self.prog_ids = np.split(self.prog_ids, config.num_batches, axis=0)
-
+        self.js_programs = chunks(js_programs, config.batch_size)
         # reset batches
         self.reset_batches()
 
@@ -253,7 +254,7 @@ class Reader():
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    data_points.append((done - ignored, evidences, path))
+                    data_points.append((done - ignored, evidences, path, program))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
@@ -271,7 +272,7 @@ class Reader():
 
         # randomly shuffle to avoid bias towards initial data points during training
         random.shuffle(data_points)
-        _ids, evidences, targets = zip(*data_points) #unzip
+        _ids, evidences, targets, js_programs = zip(*data_points) #unzip
 
         # save callmap if save location is given
         if save is not None:
@@ -281,18 +282,18 @@ class Reader():
         with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
             pickle.dump(file_ptr, f)
 
-        return _ids, evidences, targets
+        return _ids, evidences, targets, js_programs
 
     def next_batch(self):
         batch = next(self.batches)
-        prog_ids, n, e, y = batch[:4]
-        ev_data = batch[4:]
+        prog_ids, n, e, y, jsp = batch[:5]
+        ev_data = batch[5:]
 
         # reshape the batch into required format
         rn = np.transpose(n) # these are in depth first format
         re = np.transpose(e) # these are in depth first format
 
-        return prog_ids, ev_data, rn, re, y
+        return prog_ids, ev_data, rn, re, y, jsp
 
     def reset_batches(self):
-        self.batches = iter(zip(self.prog_ids, self.nodes, self.edges, self.targets, *self.inputs))
+        self.batches = iter(zip(self.prog_ids, self.nodes, self.edges, self.targets, self.js_programs, *self.inputs))

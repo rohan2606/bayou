@@ -101,6 +101,7 @@ class Sets(Evidence):
     def set_chars_vocab(self, data):
         counts = Counter([c for calls in data for c in calls])
         self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
+        self.chars.insert(0,'NONE')
         self.vocab = dict(zip(self.chars, range(len(self.chars))))
         self.vocab_size = len(self.vocab)
 
@@ -145,23 +146,16 @@ class Sets(Evidence):
             return latent_encoding
 
 
-    def print_ev(self, data):
-        print('---------------' + self.name + '-------------------------\n')
-        arrs = np.squeeze(data)
-        #assert(len(list(arr.shape)) == 2)
-        inv_map = {v: k for k, v in self.vocab.items()}
-        for arr in arrs:
-            for val in arr:
-                print(inv_map[val])
-
     def f_write(self, data, f):
         f.write('---------------' + self.name +'-------------------------\n')
-        arrs = np.squeeze(data)
+        arrs = np.squeeze(data) # Now only [self.max_nums]
         inv_map = {v: k for k, v in self.vocab.items()}
         if arrs.shape == ():
             return
         for val in arrs:
-            f.write(inv_map[val])
+            if val == 0:
+                continue
+            f.write(inv_map[val] + ", ")
         f.write('\n')
         return
 
@@ -217,29 +211,18 @@ class Sequences(Evidence):
 
             return latent_encoding
 
-    def print_ev(self, data):
-        print('---------------' + self.name + '-------------------------\n')
-        arrs = np.squeeze(data)
-        inv_map = {v: k for k, v in self.vocab.items()}
-        for arr in arrs:
-            for val in arr:
-                string = inv_map[val]
-                if string == 'STOP':
-                    print('' , end='')
-                else:
-                    print(string , end=',')
-            print()
-
     def f_write(self, data, f):
-        return
         f.write('---------------' + self.name + '-------------------------\n')
         arrs = np.squeeze(data)
         inv_map = {v: k for k, v in self.vocab.items()}
         for arr in arrs:
+            if sum(arr)==0:
+                continue
             for val in arr:
+                if val == 0:
+                    continue
                 string = inv_map[val]
-                if string != 'STOP':
-                    f.write(string + ',')
+                f.write(string + ', ')
             f.write('\n')
 
 
@@ -365,6 +348,7 @@ class ReturnType(Sets):
 
     def read_data_point(self, program):
         returnType = program['returnType'] if 'returnType' in program else []
+        returntype = [returnType]
         return list(set(returnType))
 
 class ClassTypes(Sets):
@@ -420,14 +404,15 @@ class FormalParam(Sequences):
         return [json_sequence]
 
     def f_write(self, data, f):
-        return
         f.write('---------------' + self.name + '-------------------------\n')
         arr = np.squeeze(data)
         inv_map = {v: k for k, v in self.vocab.items()}
+
         for val in arr:
+            if val == 0:
+                continue
             string = inv_map[val]
-            if string != 'STOP':
-                f.write(string + ',')
+            f.write(string + ', ')
         f.write('\n')
 
 

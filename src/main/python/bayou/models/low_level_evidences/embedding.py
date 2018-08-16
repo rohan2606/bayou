@@ -127,7 +127,7 @@ def embed(clargs):
 
         for b in range(config.num_batches):
             # setup the feed dict
-            prog_ids, ev_data, n, e, y = reader.next_batch()
+            prog_ids, ev_data, n, e, y,_ = reader.next_batch()
             feed = {predictor.model.targets: y}
             for j, ev in enumerate(config.evidence):
                 feed[predictor.model.encoder.inputs[j].name] = ev_data[j]
