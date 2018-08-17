@@ -26,7 +26,7 @@ CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',
 CONFIG_ENCODER = ['name', 'units', 'num_layers', 'tile', 'max_depth', 'max_nums']
 CONFIG_DECODER = ['units', 'num_layers', 'max_ast_depth']
 CONFIG_REVERSE_ENCODER = ['units', 'num_layers', 'max_ast_depth']
-CONFIG_INFER = ['chars', 'vocab', 'vocab_size']
+CONFIG_INFER = ['vocab', 'vocab_size']
 
 C0 = 'CLASS0'
 UNK = '_UNK_'
@@ -40,7 +40,7 @@ def chunks(l, n):
     for i in range(0, len(l), n):
         lol.append(l[i:i + n])
     return lol
-    
+
 def find_top_rank_ids(arrin, cutoff = 10):
     rank_ids =  (-np.array(arrin)).argsort()
     vals = []

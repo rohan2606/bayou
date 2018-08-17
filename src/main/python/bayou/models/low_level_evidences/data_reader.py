@@ -22,8 +22,11 @@ import pickle
 from collections import Counter
 import gc
 
-from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls, chunks
+from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks
+CHILD_EDGE = True
+SIBLING_EDGE = False
 from bayou.models.low_level_evidences.node import Node
+
 
 class TooLongPathError(Exception):
     pass
@@ -66,19 +69,14 @@ class Reader():
         prog_ids = prog_ids[:sz]
         js_programs = js_programs[:sz]
 
-        # setup input and target chars/vocab
+    # setup input and target chars/vocab
         if clargs.continue_from is None:
-            for ev, data in zip(config.evidence, raw_evidences):
-                ev.set_chars_vocab(data)
-            counts = Counter([n for path in raw_targets for (n, _) in path])
-            counts[C0] = 1
-            config.decoder.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
-            config.decoder.vocab = dict(zip(config.decoder.chars, range(len(config.decoder.chars))))
-            config.decoder.vocab_size = len(config.decoder.vocab)
+
+            config.decoder.vocab = self.CallMapDict
+            config.decoder.vocab_size = len(self.CallMapDict)
             # adding the same variables for reverse Encoder
-            config.reverse_encoder.chars = config.decoder.chars
-            config.reverse_encoder.vocab = config.decoder.vocab
-            config.reverse_encoder.vocab_size = config.decoder.vocab_size
+            config.reverse_encoder.vocab = self.CallMapDict
+            config.reverse_encoder.vocab_size = len(self.CallMapDict)
 
         # wrangle the evidences and targets into numpy arrays
         self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
@@ -87,8 +85,8 @@ class Reader():
         self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
         self.prog_ids = np.zeros(sz, dtype=np.int32)
         for i, path in enumerate(raw_targets):
-            self.nodes[i, :len(path)] = list(map(config.decoder.vocab.get, [p[0] for p in path]))
-            self.edges[i, :len(path)] = [p[1] == CHILD_EDGE for p in path]
+            self.nodes[i, :len(path)] = [p[0] for p in path]
+            self.edges[i, :len(path)] = [p[1] for p in path]
             self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
             self.prog_ids[i] = prog_ids[i]
 
@@ -256,7 +254,8 @@ class Reader():
         callmap = dict()
         file_ptr = dict()
         ignored, done = 0, 0
-
+        self.CallMapDict = dict()
+        count = 0
         for program in ijson.items(f, 'programs.item'): #js['programs']:
             if 'ast' not in program:
                 continue
@@ -267,21 +266,33 @@ class Reader():
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    # data_points.append((done - ignored, evidences, path, program))
-                    data_points.append((done - ignored, evidences, path, {}))
-                calls = gather_calls(program['ast'])
-                for call in calls:
-                    if call['_call'] not in callmap:
-                        callmap[call['_call']] = call
 
-                file_name = program['file']
-                file_ptr[done - ignored] = file_name
+                    temp_arr = []
+                    for val in path:
+                        nodeVal = val[0]
+                        edgeVal = val[1]
+                        if nodeVal not in self.CallMapDict:
+                            self.CallMapDict[nodeVal] = count
+                            temp_arr.append((count,edgeVal))
+                            count += 1
+                        else:
+                            temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
+
+
+                    # data_points.append((done - ignored, evidences, temp_arr, program))
+                    data_points.append((done - ignored, evidences, temp_arr, {}))
+                # calls = gather_calls(program['ast'])
+                # for call in calls:
+                #     if call['_call'] not in callmap:
+                #         callmap[call['_call']] = call
+                #
+                # file_name = program['file']
+                # file_ptr[done - ignored] = file_name
             except (TooLongPathError, InvalidSketchError) as e:
                 ignored += 1
             done += 1
             print('Extracted data for {} programs'.format(done), end='\r')
-            # if done % 10000 == 0:
-            #     gc.collect()
+
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts ignored by given config'.format(ignored))
         print('{:8d} programs/asts to search over'.format(done - ignored))

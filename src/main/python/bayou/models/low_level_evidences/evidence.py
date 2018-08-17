@@ -33,6 +33,8 @@ class Evidence(object):
         for attr in CONFIG_ENCODER + (CONFIG_INFER if chars_vocab else []):
             self.__setattr__(attr, evidence[attr])
 
+
+
     def dump_config(self):
         js = {attr: self.__getattribute__(attr) for attr in CONFIG_ENCODER + CONFIG_INFER}
         return js
@@ -69,6 +71,17 @@ class Evidence(object):
             evidences.append(e)
         return evidences
 
+    def word2num(self, listOfWords):
+        output = []
+        for word in listOfWords:
+            if word not in self.vocab:
+                self.vocab[word] = self.vocab_size
+                self.vocab_size += 1
+                output.append(self.vocab[word])
+            else:
+                output.append(self.vocab[word])
+        return output
+
     def read_data_point(self, program):
         raise NotImplementedError('read_data() has not been implemented')
 
@@ -98,19 +111,13 @@ class Evidence(object):
 
 class Sets(Evidence):
 
-    def set_chars_vocab(self, data):
-        counts = Counter([c for calls in data for c in calls])
-        self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
-        self.chars.insert(0,'NONE')
-        self.vocab = dict(zip(self.chars, range(len(self.chars))))
-        self.vocab_size = len(self.vocab)
 
     def wrangle(self, data):
         wrangled = np.zeros((len(data), self.max_nums), dtype=np.int32)
-        for i, apicalls in enumerate(data):
-            for j, c in enumerate(apicalls):
-                if c in self.vocab and j < self.max_nums:
-                    wrangled[i, j] = self.vocab[c]
+        for i, calls in enumerate(data):
+            for j, c in enumerate(calls):
+                if j < self.max_nums:
+                    wrangled[i, j] = c
         return wrangled
 
     def placeholder(self, config):
@@ -146,6 +153,7 @@ class Sets(Evidence):
             return latent_encoding
 
 
+
     def f_write(self, data, f):
         f.write('---------------' + self.name +'-------------------------\n')
         arrs = np.squeeze(data) # Now only [self.max_nums]
@@ -161,12 +169,7 @@ class Sets(Evidence):
 
 # handle sequences as i/p
 class Sequences(Evidence):
-    def set_chars_vocab(self, data):
-        counts = Counter([c for seqs in data for seq in seqs for c in seq])
-        self.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
-        self.chars.insert(0,'STOP')
-        self.vocab = dict(zip(self.chars, range(len(self.chars))))
-        self.vocab_size = len(self.vocab)
+
 
     def placeholder(self, config):
         # type: (object) -> object
@@ -178,8 +181,8 @@ class Sequences(Evidence):
             for j, seq in enumerate(seqs):
                 if j < self.max_nums : #and seq[0] != 'STOP: # assuming no sequence start with stop and stop has vocab key 0
                     for pos,c in enumerate(seq):
-                        if c in self.vocab and pos < self.max_depth:
-                            wrangled[i, j, pos] = self.vocab[c]
+                        if pos < self.max_depth:
+                            wrangled[i, j, pos] = c
         return wrangled
 
     def exists(self, inputs):
@@ -228,9 +231,15 @@ class Sequences(Evidence):
 
 class APICalls(Sets):
 
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
+
     def read_data_point(self, program):
         apicalls = program['apicalls'] if 'apicalls' in program else []
-        return list(set(apicalls))
+        return self.word2num(list(set(apicalls)))
 
 
     @staticmethod
@@ -243,9 +252,14 @@ class APICalls(Sets):
 
 class Types(Sets):
 
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
     def read_data_point(self, program):
         types = program['types'] if 'types' in program else []
-        return list(set(types))
+        return self.word2num(list(set(types)))
 
     @staticmethod
     def get_types_re(s):
@@ -287,6 +301,9 @@ class Keywords(Sets):
     def __init__(self):
         nltk.download('wordnet')
         self.lemmatizer = WordNetLemmatizer()
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
 
     STOP_WORDS = {  # CoreNLP English stop words
         "'ll", "'s", "'m", "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
@@ -318,7 +335,7 @@ class Keywords(Sets):
 
     def read_data_point(self, program):
         keywords = [self.lemmatize(k) for k in program['keywords']] if 'keywords' in program else []
-        return list(set(keywords))
+        return self.word2num(list(set(keywords)))
 
 
 
@@ -346,19 +363,34 @@ class Keywords(Sets):
 
 class ReturnType(Sets):
 
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
+
     def read_data_point(self, program):
         returnType = [program['returnType'] if 'returnType' in program else 'NONE']
-        return list(set(returnType))
+        return self.word2num(list(set(returnType)))
 
 class ClassTypes(Sets):
 
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
     def read_data_point(self, program):
         classType = program['classTypes'] if 'classTypes' in program else []
-        return list(set(classType))
+        return self.word2num(list(set(classType)))
 
 
 # handle sequences as i/p
 class CallSequences(Sequences):
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
 
     def read_data_point(self, program):
         json_sequences = program['sequences'] if 'sequences' in program else []
@@ -366,7 +398,7 @@ class CallSequences(Sequences):
         for json_seq in json_sequences:
             tmp_list = json_seq['calls']
             if len(tmp_list) > 1:
-                list_seqs.append(tmp_list)
+                list_seqs.append(self.word2num(tmp_list))
         if len(list_seqs) > 1:
             list_seqs.remove([])
         #return list_seqs
@@ -398,9 +430,14 @@ class CallSequences(Sequences):
 # handle sequences as i/p
 class FormalParam(Sequences):
 
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
     def read_data_point(self, program):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
-        return [json_sequence]
+        return [self.word2num(json_sequence)]
 
     def f_write(self, data, f):
         f.write('---------------' + self.name + '-------------------------\n')
@@ -416,14 +453,22 @@ class FormalParam(Sequences):
 
 
 class sorrCallSequences(Sequences):
+
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
     def read_data_point(self, program):
         json_sequences = program['sorrsequences'] if 'sorrsequences' in program else []
         list_seqs = [[]]
-        for list_json_seq in json_sequences:
+        for i, list_json_seq in enumerate(json_sequences):
+            if i> self.max_nums:
+                continue
             for json_seq in list_json_seq:
                 tmp_list = json_seq['calls']
                 if len(tmp_list) > 1:
-                    list_seqs.append(tmp_list)
+                    list_seqs.append(self.word2num(tmp_list))
         if len(list_seqs) > 1:
             list_seqs.remove([])
         #return list_seqs
@@ -432,13 +477,21 @@ class sorrCallSequences(Sequences):
 
 # handle sequences as i/p
 class sorrFormalParam(Sequences):
+
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
     def read_data_point(self, program):
         json_sequence = program['sorrformalparam'] if 'sorrformalparam' in program else [[]]
         list_seqs = [[]]
-        for seqs in json_sequence:
+        for i, seqs in enumerate(json_sequence):
+            if i > self.max_nums:
+                continue
             if len(seqs) == 0:
                 continue
-            list_seqs.append(seqs)
+            list_seqs.append(self.word2num(seqs))
         if len(list_seqs) > 1:
             list_seqs.remove([])
         return list_seqs
@@ -446,6 +499,11 @@ class sorrFormalParam(Sequences):
 
 class sorrReturnType(Sets):
 
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
     def read_data_point(self, program):
         sorrreturnType = program['sorrreturntype'] if 'sorrreturntype' in program else []
-        return list(set(sorrreturnType))
+        return self.word2num(list(set(sorrreturnType)))
