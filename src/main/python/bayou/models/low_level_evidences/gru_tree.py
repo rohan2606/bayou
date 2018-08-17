@@ -33,8 +33,8 @@ class TreeEncoder(object):
             self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size, output_units])
             self.projection_b = tf.get_variable('projection_b', [output_units])
 
-            tf.summary.histogram("projection_w", self.projection_w)
-            tf.summary.histogram("projection_b", self.projection_b)
+            # tf.summary.histogram("projection_w", self.projection_w)
+            # tf.summary.histogram("projection_b", self.projection_b)
 
 
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in nodes)

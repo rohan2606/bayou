@@ -20,6 +20,7 @@ import random
 import os
 import pickle
 from collections import Counter
+import gc
 
 from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls, chunks
 from bayou.models.low_level_evidences.node import Node
@@ -35,11 +36,19 @@ class InvalidSketchError(Exception):
 class Reader():
     def __init__(self, clargs, config):
         self.config = config
-
         random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
+        if not os.path.isfile(os.path.join(clargs.save, 'ProgDataExt')) :
+            prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
+            np.save(os.path.join(clargs.save, 'prog_ids'), prog_ids )
+            np.save(os.path.join(clargs.save, 'raw_evidences'), raw_evidences )
+            np.save(os.path.join(clargs.save, 'raw_targets'), raw_targets )
+            np.save(os.path.join(clargs.save, 'js_programs'), js_programs )
+
+        else:
+
+            prog_ids, raw_evidences, raw_targets, js_programs = np.load(os.path.join(clargs.save, 'prog_ids')), loaded['raw_evidences'], loaded['raw_targets'], loaded['js_programs']
 
         print('Done!')
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
@@ -271,7 +280,8 @@ class Reader():
                 ignored += 1
             done += 1
             print('Extracted data for {} programs'.format(done), end='\r')
-
+            # if done % 10000 == 0:
+            #     gc.collect()
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts ignored by given config'.format(ignored))
         print('{:8d} programs/asts to search over'.format(done - ignored))

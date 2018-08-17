@@ -84,26 +84,33 @@ def test_get_vals(clargs):
             prob_Ys += [infer_vars[prog_id]['ProbY']]
             Ys += [infer_vars[prog_id]['Y']]
 
-
-
-            body = infer_vars[prog_id]['JS']['file'] + '\n'
-            if 'returnType' in infer_vars[prog_id]['JS']:
-                body += infer_vars[prog_id]['JS']['returnType']
-            else:
-                body += "void"
-
-
-            body += "  " +  infer_vars[prog_id]['JS']['method'] + "( "
-            if 'formalParam' in infer_vars[prog_id]['JS']:
-                for formalParam in infer_vars[prog_id]['JS']['formalParam']:
-                    body += formalParam + " , "
-            body += ')\n'
-
-            if 'body' in  infer_vars[prog_id]['JS']:
-                body += '{' + infer_vars[prog_id]['JS']['body']
-                body += "}\n"
-            bodys += [ body ]
-
+            # try:
+            #     if 'file' in infer_vars[prog_id]['JS']:
+            #         body = infer_vars[prog_id]['JS']['file'] + '\n'
+            #     else:
+            #         body = ""
+            #
+            #     if 'returnType' in infer_vars[prog_id]['JS']:
+            #         body += infer_vars[prog_id]['JS']['returnType']
+            #     else:
+            #         body += "void"
+            #
+            #     if 'method' in infer_vars[prog_id]['JS']:
+            #         body += "  " +  infer_vars[prog_id]['JS']['method'] + "( "
+            #
+            #     if 'formalParam' in infer_vars[prog_id]['JS']:
+            #         for formalParam in infer_vars[prog_id]['JS']['formalParam']:
+            #             body += formalParam + " , "
+            #     body += ')\n'
+            #
+            #     if 'body' in  infer_vars[prog_id]['JS']:
+            #         body += '{' + infer_vars[prog_id]['JS']['body']
+            #         body += "}\n"
+            #     bodys += [ body ]
+            #
+            # except:
+            #     body = ""
+            #     bodys += [ body ]
 
 
             program = infer_vars[prog_id]['JS']
@@ -120,10 +127,11 @@ def test_get_vals(clargs):
         prob_Ys = normalize_log_probs(prob_Ys)
         print('Normalizing done')
 
-        np.save(File_Name + '/a1s', a1s), np.save(File_Name + '/b1s', b1s)
-        np.save(File_Name + '/a2s', a2s), np.save(File_Name + '/b2s', b2s)
-        np.save(File_Name + '/prob_Ys', prob_Ys), np.save(File_Name + '/Ys', Ys)
-        np.savetxt(File_Name + '/bodys.npy.gz', bodys)
+        # np.save(File_Name + '/a1s', a1s), np.save(File_Name + '/b1s', b1s)
+        # np.save(File_Name + '/a2s', a2s), np.save(File_Name + '/b2s', b2s)
+        # np.save(File_Name + '/prob_Ys', prob_Ys)
+        # #np.save(File_Name + '/Ys', Ys)
+        # np.savetxt(File_Name + '/bodys', bodys)
 
         print('Files Saved')
 
@@ -233,7 +241,7 @@ if __name__ == '__main__':
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-	'/home/ubuntu/DATA-TOP.json'])
+	'/home/ubuntu/DATA.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

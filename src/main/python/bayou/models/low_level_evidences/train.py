@@ -87,7 +87,7 @@ def train(clargs):
         json.dump(jsconfig, fp=f, indent=2)
 
     model = Model(config, infer=False, bayou_mode = True, full_model_train = False )
-    merged_summary = tf.summary.merge_all()
+    # merged_summary = tf.summary.merge_all()
 
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
