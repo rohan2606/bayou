@@ -26,7 +26,7 @@ class BayesianEncoder(object):
         # Compute the denominator used for mean and covariance
         for ev in config.evidence:
             ev.init_sigma(config)
-            
+
         d = [tf.where(exist, tf.tile([1. / tf.square(ev.sigma)], [config.batch_size]),
                       tf.zeros(config.batch_size)) for ev, exist in zip(config.evidence, exists)]
         d = 1. + tf.reduce_sum(tf.stack(d), axis=0)
@@ -60,8 +60,8 @@ class BayesianDecoder(object):
 
         cells1, cells2 = [], []
         for _ in range(config.decoder.num_layers):
-            cells1.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
-            cells2.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
+            cells1.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(config.decoder.units))
+            cells2.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(config.decoder.units))
 
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
@@ -78,8 +78,8 @@ class BayesianDecoder(object):
             self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size,
                                                                  config.decoder.vocab_size])
             self.projection_b = tf.get_variable('projection_b', [config.decoder.vocab_size])
-            tf.summary.histogram("projection_w", self.projection_w)
-            tf.summary.histogram("projection_b", self.projection_b)
+            # tf.summary.histogram("projection_w", self.projection_w)
+            # tf.summary.histogram("projection_b", self.projection_b)
 
         # setup embedding
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)

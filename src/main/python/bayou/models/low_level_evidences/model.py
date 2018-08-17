@@ -30,7 +30,7 @@ class Model():
             self.encoder = BayesianEncoder(config)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
-            self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
+            psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
 
 
         with tf.variable_scope('Embedding'):
@@ -41,18 +41,18 @@ class Model():
             self.reverse_encoder = BayesianReverseEncoder(config, emb)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
-            self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
+            psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
             if bayou_mode or infer:
-                self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
+                initial_state = tf.nn.xw_plus_b(psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
-                self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+                initial_state = tf.nn.xw_plus_b(psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
 
-            self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
+            self.decoder = BayesianDecoder(config, emb, initial_state=initial_state, infer=infer)
 
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
 
@@ -61,7 +61,7 @@ class Model():
             output = tf.reshape(tf.concat(self.decoder.outputs, 1),
                                 [-1, self.decoder.cell1.output_size])
             logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
-            self.ln_probs = tf.nn.log_softmax(logits)
+            ln_probs = tf.nn.log_softmax(logits)
 
 
             # 1. generation loss: log P(X | \Psi)
@@ -73,7 +73,7 @@ class Model():
             if infer:
                 flat_target = tf.reshape(self.targets, [-1])
                 indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
-                valid_probs = tf.reshape(tf.gather_nd(self.ln_probs, indices), [self.config.batch_size, -1])
+                valid_probs = tf.reshape(tf.gather_nd(ln_probs, indices), [self.config.batch_size, -1])
                 # self.target_prob is  P(Y|Z) where Z~P(Z|X)
                 target_prob = tf.reduce_sum(valid_probs, axis = 1)
                 # self.probY hence is P(Y|Z) where Z~P(Z) by importace_sampling

@@ -19,11 +19,11 @@ class seqEncoder(object):
         with tf.variable_scope('LSTM_Encoder'):
             cell_list = []
             for cell in range(num_layers) :
-                cell = tf.contrib.rnn.LSTMCell(state_size, \
-                                               state_is_tuple=True, activation=tf.nn.tanh) #both default behaviors
+                cell = tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell (state_size ) #both default behaviors
                 #cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.8,input_keep_prob=0.8,state_keep_prob=0.8)
                 cell_list.append(cell)
             cell = tf.contrib.rnn.MultiRNNCell(cell_list)
-            outputs, current_state = tf.nn.dynamic_rnn(cell, inputs, dtype=tf.float32)
-            output = outputs[:,-1,:]
+            inputs = tf.unstack(inputs, axis=1)
+            outputs, current_state = tf.nn.static_rnn(cell, inputs, dtype=tf.float32)
+            output = outputs[-1]
             self.output = output
