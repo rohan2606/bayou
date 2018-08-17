@@ -14,6 +14,7 @@
 
 from __future__ import print_function
 import json
+import ijson.backends.yajl2_cffi as ijson
 import numpy as np
 import random
 import os
@@ -39,6 +40,7 @@ class Reader():
         # read the raw evidences and targets
         print('Reading data file...')
         prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
+
         print('Done!')
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
@@ -237,14 +239,16 @@ class Reader():
                 raise TooLongPathError
 
     def read_data(self, filename, save=None):
-        with open(filename) as f:
-            js = json.load(f)
+        # with open(filename) as f:
+        #     js = json.load(f)
+        f = open(filename , 'rb')
+
         data_points = []
         callmap = dict()
         file_ptr = dict()
         ignored, done = 0, 0
 
-        for program in js['programs']:
+        for program in ijson.items(f, 'programs.item'): #js['programs']:
             if 'ast' not in program:
                 continue
             try:
@@ -266,6 +270,8 @@ class Reader():
             except (TooLongPathError, InvalidSketchError) as e:
                 ignored += 1
             done += 1
+            print('Extracted data for {} programs'.format(done), end='\r')
+
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts ignored by given config'.format(ignored))
         print('{:8d} programs/asts to search over'.format(done - ignored))

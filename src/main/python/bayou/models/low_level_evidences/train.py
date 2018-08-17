@@ -132,8 +132,8 @@ def train(clargs):
                                 model.encoder.psi_covariance, model.reverse_encoder.psi_covariance,
                                 model.train_op], feed)
 
-                s = sess.run(merged_summary, feed)
-                writer.add_summary(s,i)
+                # s = sess.run(merged_summary, feed)
+                # writer.add_summary(s,i)
 
                 end = time.time()
                 avg_loss += np.mean(loss)
@@ -157,7 +157,7 @@ def train(clargs):
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
                       (checkpoint_dir, avg_loss / config.num_batches))
-        static_plot(epocLoss , epocGenL , epocKlLoss)
+        #static_plot(epocLoss , epocGenL , epocKlLoss)
 
 
 #%%

@@ -148,7 +148,7 @@ def test_get_vals(clargs):
     b2s = np.load(File_Name  + '/b2s.npy')
     prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
     Ys = np.load(File_Name  + '/Ys.npy')
-    bodys = np.load(File_Name  + '/Bodys.npy')
+    bodys = np.loadtxt(File_Name  + '/bodys.npy.gz')
     return a2s, b2s, prob_Ys, Ys, bodys
 
 def find_top_rank_ids(arrin, cutoff = 10):

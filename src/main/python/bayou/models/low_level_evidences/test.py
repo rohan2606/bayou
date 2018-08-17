@@ -35,7 +35,7 @@ HELP = """ Help me! :( """
 #%%
 
 def test(clargs):
-    [a1s, b1s, a2s, b2s, prob_Ys, bodys] = test_get_vals(clargs)
+    a1s, b1s, a2s, b2s, prob_Ys, _ = test_get_vals(clargs)
 
 
     latent_size, num_progs, batch_size = len(b1s[0]), len(a1s), 1000
@@ -70,7 +70,7 @@ def test_get_vals(clargs):
         a2s = np.load(File_Name  + '/a2s.npy')
         b2s = np.load(File_Name  + '/b2s.npy')
         prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
-        bodys = np.load(File_Name  + '/Bodys.npy')
+        bodys = np.loadtxt(File_Name  + '/bodys.npy.gz')
         #Ys = np.load(File_Name  + '/Ys.npy'), Xs = np.load(File_Name  + '/Xs.npy')
     else:
         infer_vars, config = forward_pass(clargs)
@@ -123,7 +123,7 @@ def test_get_vals(clargs):
         np.save(File_Name + '/a1s', a1s), np.save(File_Name + '/b1s', b1s)
         np.save(File_Name + '/a2s', a2s), np.save(File_Name + '/b2s', b2s)
         np.save(File_Name + '/prob_Ys', prob_Ys), np.save(File_Name + '/Ys', Ys)
-        np.save(File_Name + '/Bodys', bodys)
+        np.savetxt(File_Name + '/bodys.npy.gz', bodys)
 
         print('Files Saved')
 
