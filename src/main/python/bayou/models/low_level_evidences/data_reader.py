@@ -42,17 +42,7 @@ class Reader():
         random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        if not os.path.isfile(os.path.join(clargs.save, 'ProgDataExt')) :
-            prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
-            np.save(os.path.join(clargs.save, 'prog_ids'), prog_ids )
-            np.save(os.path.join(clargs.save, 'raw_evidences'), raw_evidences )
-            np.save(os.path.join(clargs.save, 'raw_targets'), raw_targets )
-            np.save(os.path.join(clargs.save, 'js_programs'), js_programs )
-
-        else:
-
-            prog_ids, raw_evidences, raw_targets, js_programs = np.load(os.path.join(clargs.save, 'prog_ids')), loaded['raw_evidences'], loaded['raw_targets'], loaded['js_programs']
-
+        prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
         print('Done!')
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
@@ -98,6 +88,27 @@ class Reader():
         self.prog_ids = np.split(self.prog_ids, config.num_batches, axis=0)
         self.js_programs = chunks(js_programs, config.batch_size)
         # reset batches
+
+        with open('data/inputs.txt', 'wb') as f:
+            pickle.dump(self.inputs, f)
+
+        with open('data/nodes.txt', 'wb') as f:
+            pickle.dump(self.nodes, f)
+
+        with open('data/edges.txt', 'wb') as f:
+            pickle.dump(self.edges, f)
+
+        with open('data/targets.txt', 'wb') as f:
+            pickle.dump(self.targets, f)
+
+        with open('data/prog_ids', 'wb') as f:
+            pickle.dump(self.prog_ids, f)
+
+        with open('data/js_programs', 'wb') as f:
+            pickle.dump(self.js_programs, f)
+
+
+
         self.reset_batches()
 
     def get_ast_paths(self, js, idx=0):
@@ -255,7 +266,8 @@ class Reader():
         file_ptr = dict()
         ignored, done = 0, 0
         self.CallMapDict = dict()
-        count = 0
+        self.CallMapDict['STOP'] = 0
+        count = 1
         for program in ijson.items(f, 'programs.item'): #js['programs']:
             if 'ast' not in program:
                 continue
@@ -263,7 +275,7 @@ class Reader():
                 evidences = [ev.read_data_point(program) for ev in self.config.evidence]
                 ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
 
-                self.validate_sketch_paths(program, ast_paths)
+                # self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
 
@@ -277,21 +289,20 @@ class Reader():
                             count += 1
                         else:
                             temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
-
-
                     # data_points.append((done - ignored, evidences, temp_arr, program))
                     data_points.append((done - ignored, evidences, temp_arr, {}))
-                # calls = gather_calls(program['ast'])
-                # for call in calls:
-                #     if call['_call'] not in callmap:
-                #         callmap[call['_call']] = call
+                calls = gather_calls(program['ast'])
+                for call in calls:
+                    if call['_call'] not in callmap:
+                        callmap[call['_call']] = call
                 #
-                # file_name = program['file']
-                # file_ptr[done - ignored] = file_name
+                file_name = program['file']
+                file_ptr[done - ignored] = file_name
             except (TooLongPathError, InvalidSketchError) as e:
                 ignored += 1
             done += 1
-            print('Extracted data for {} programs'.format(done), end='\r')
+            if done % 100000 == 0:
+                print('Extracted data for {} programs'.format(done), end='\n')
 
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts ignored by given config'.format(ignored))
@@ -306,7 +317,7 @@ class Reader():
         if save is not None:
             with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
                 pickle.dump(callmap, f)
-
+        #
         with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
             pickle.dump(file_ptr, f)
 
