@@ -33,6 +33,24 @@ UNK = '_UNK_'
 CHILD_EDGE = 'V'
 SIBLING_EDGE = 'H'
 
+def get_var_list():
+    all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Decoder')
+    encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder')
+    emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Embedding')
+    rev_encoder_vars= tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
+
+    bayou_vars = decoder_vars + encoder_vars + emb_vars
+    fix_encoder_vars = decoder_vars + rev_encoder_vars + emb_vars
+
+    var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
+                'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
+                'bayou_vars':bayou_vars,
+                'rev_encoder_vars':rev_encoder_vars,
+                'fix_encoder_vars':fix_encoder_vars
+                }
+    return var_dict
+
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
@@ -125,23 +143,7 @@ def rank_statistic(_rank, total, prev_hits, cutoff):
     prctg = hits / total
     return hits, prctg
 
-def get_var_list():
-    all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-    decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Decoder')
-    encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder')
-    emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Embedding')
-    rev_encoder_vars= tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
 
-    bayou_vars = decoder_vars + encoder_vars + emb_vars
-    fix_encoder_vars = decoder_vars + rev_encoder_vars + emb_vars
-
-    var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
-                'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
-                'bayou_vars':bayou_vars,
-                'rev_encoder_vars':rev_encoder_vars,
-                'fix_encoder_vars':fix_encoder_vars
-                }
-    return var_dict
 
 # Do not move these imports to the top, it will introduce a cyclic dependency
 import bayou.models.low_level_evidences.evidence

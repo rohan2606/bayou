@@ -125,7 +125,7 @@ class Sets(Evidence):
         return tf.placeholder(tf.int32, [config.batch_size, self.max_nums])
 
     def exists(self, inputs):
-        return tf.not_equal(tf.count_nonzero(inputs, axis=1), 0)
+        return tf.not_equal(tf.reduce_sum(inputs, axis=1), 0)
 
     def init_sigma(self, config):
         with tf.variable_scope(self.name):
@@ -187,7 +187,7 @@ class Sequences(Evidence):
 
     def exists(self, inputs):
         i = tf.reduce_sum(inputs, axis=2)
-        return tf.not_equal(tf.count_nonzero(i, axis=1), 0)
+        return tf.not_equal(tf.reduce_sum(i, axis=1), 0)
 
     def init_sigma(self, config):
         with tf.variable_scope(self.name):

@@ -275,7 +275,7 @@ class Reader():
                 evidences = [ev.read_data_point(program) for ev in self.config.evidence]
                 ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
 
-                # self.validate_sketch_paths(program, ast_paths)
+                self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
 
