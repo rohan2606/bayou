@@ -18,49 +18,28 @@ PS_OPS = [
 'MutableHashTableOfTensors', 'MutableDenseHashTable'
 ]
 import tensorflow as tf
-from tensorflow.python.client import device_lib
 from bayou.models.low_level_evidences.model import Model
-from bayou.models.low_level_evidences.utils import get_var_list
-
-def get_available_gpus():
-    local_device_protos = device_lib.list_local_devices()
-    return [x.name for x in local_device_protos if x.device_type == 'GPU']
+from bayou.models.low_level_evidences.utils import get_var_list, get_available_gpus
 
 
 class MultiGPUModel():
-    def __init__(self, config, infer=False, bayou_mode=True):
+    def __init__(self, config, iterator, bayou_mode=True, infer=False,):
 
-        # The optimizer
-
-        # with tf.name_scope("train"):
-        #     if bayou_mode:
-        #         train_ops = get_var_list()['bayou_vars']
-        #     elif full_model_train:
-        #         train_ops = get_var_list()['all_vars']
-        #     else:
-        #         train_ops = get_var_list()['rev_encoder_vars']
-
-        if not infer:
-            opt = tf.train.AdamOptimizer(config.learning_rate)
-
-            # var_params = [np.prod([dim.value for dim in var.get_shape()])
-            #               for var in tf.trainable_variables()]
-            # print('Model parameters: {}'.format(np.sum(var_params)))
+        opt = tf.train.AdamOptimizer(config.learning_rate)
 
         devices = get_available_gpus()
         controller = '/cpu:0'
+
         tower_grads = []
-        losses = []
-        KL_loss = []
-        gen_loss = []
-        self.gpuModels = []
+        losses, KL_loss, gen_loss = [], [], []
+        
+        self.gpuModels = [None for i in range(len(devices))]
         with tf.variable_scope(tf.get_variable_scope()) as outer_scope:
             for i, id in enumerate(devices):
                 name = 'tower_{}'.format(i)
                 # Use the assign_to_device function to ensure that variables are created on the controller.
                 with tf.device(self.assign_to_device(id, controller)), tf.name_scope(name):
-                    gpuModel = Model(config, infer=infer, bayou_mode=bayou_mode)
-                    self.gpuModels.append(gpuModel)
+                    self.gpuModels[i] = Model(config, iterator, infer=infer, bayou_mode=bayou_mode)
                     with tf.name_scope("compute_gradients"):
                         # `compute_gradients` returns a list of (gradient, variable) pairs
                         if bayou_mode:
@@ -68,14 +47,14 @@ class MultiGPUModel():
                         else:
                             train_ops = get_var_list()['rev_encoder_vars']
                         # print(train_ops)
-                        grads = opt.compute_gradients(gpuModel.loss, train_ops) # TODO this shoudl have train ops at the END
+                        grads = opt.compute_gradients(self.gpuModels[i].loss, train_ops)
                         tower_grads.append(grads)
 
-                    losses.append(gpuModel.loss)
-                    KL_loss.append(gpuModel.KL_loss)
-                    gen_loss.append(gpuModel.gen_loss)
-            # After the first iteration, we want to reuse the variables.
-            outer_scope.reuse_variables()
+                    losses.append(self.gpuModels[i].loss)
+                    KL_loss.append(self.gpuModels[i].KL_loss)
+                    gen_loss.append(self.gpuModels[i].gen_loss)
+                # After the first iteration, we want to reuse the variables.
+                outer_scope.reuse_variables()
 
             # Apply the gradients on the controlling device
         with tf.name_scope("apply_gradients"), tf.device(controller):
@@ -93,6 +72,9 @@ class MultiGPUModel():
             self.avg_KL_loss = tf.reduce_mean(KL_loss)
             self.avg_gen_loss = tf.reduce_sum(gen_loss)
 
+        # var_params = [np.prod([dim.value for dim in var.get_shape()])
+        #               for var in tf.trainable_variables()]
+        # print('Model parameters: {}'.format(np.sum(var_params)))
         return
 
     # Source:

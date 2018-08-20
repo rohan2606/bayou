@@ -25,8 +25,7 @@ import textwrap
 
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.MultiGPUModel import MultiGPUModel
-from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot
-from tensorflow.python.client import device_lib
+from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot, get_available_gpus
 
 
 HELP = """\
@@ -71,10 +70,6 @@ Config options should be given as a JSON file (see config.json for example):
 }                                         |
 """
 #%%
-def get_available_gpus():
-    local_device_protos = device_lib.list_local_devices()
-    return [x.name for x in local_device_protos if x.device_type == 'GPU']
-
 
 def train(clargs):
     config_file = clargs.config if clargs.continue_from is None \
@@ -91,9 +86,27 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = MultiGPUModel(config , bayou_mode=False)
     # merged_summary = tf.summary.merge_all()
 
+    # Placeholders for tf data
+    prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
+    nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
+    edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
+    targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
+    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+    # reset batches
+
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
+    feed_dict.update({prog_ids_placeholder: reader.prog_ids})
+    feed_dict.update({nodes_placeholder: reader.nodes})
+    feed_dict.update({edges_placeholder: reader.edges})
+    feed_dict.update({targets_placeholder: reader.targets})
+
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    batched_dataset = dataset.batch(config.batch_size)
+    iterator = batched_dataset.make_initializable_iterator()
+
+    model = MultiGPUModel(config , iterator, bayou_mode=True)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
@@ -115,25 +128,12 @@ def train(clargs):
         # training
         epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
-            reader.reset_batches()
+            sess.run(iterator.initializer, feed_dict=feed_dict)
             start = time.time()
             avg_loss, avg_gen_loss, avg_KL_loss = 0.,0.,0.
-            for b in range(config.num_batches // len(devices)):
-                # setup the feed dict
-                for g, id in enumerate(devices):
-                    prog_ids, ev_data, n, e, y, _ = reader.next_batch()
-                    feed = {model.gpuModels[g].targets: y}
-                    for j, ev in enumerate(config.evidence):
-                        feed[model.gpuModels[g].encoder.inputs[j].name] = ev_data[j]
-                    for j in range(config.decoder.max_ast_depth):
-                        feed[model.gpuModels[g].decoder.nodes[j].name] = n[j]
-                        feed[model.gpuModels[g].decoder.edges[j].name] = e[j]
-                    for j in range(config.reverse_encoder.max_ast_depth):
-                        feed[model.gpuModels[g].reverse_encoder.nodes[j].name] = n[config.reverse_encoder.max_ast_depth - 1 - j]
-                        feed[model.gpuModels[g].reverse_encoder.edges[j].name] = e[config.reverse_encoder.max_ast_depth - 1 - j]
-
+            for b in range(config.num_batches // len(devices)): # TODO divide the data evenly
                 # run the optimizer
-                loss, KL_loss, gen_loss , _ = sess.run([model.avg_loss, model.avg_KL_loss, model.avg_gen_loss, model.apply_gradient_op], feed)
+                loss, KL_loss, gen_loss , _ = sess.run([model.avg_loss, model.avg_KL_loss, model.avg_gen_loss, model.apply_gradient_op])
 
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
@@ -170,7 +170,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save1',
+    parser.add_argument('--save', type=str, default='save',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -178,12 +178,12 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save',
-     # ['--config','config.json',
+     # ['--continue_from', 'save',
+     ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-     # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
-     '/home/ubuntu/DATA-top.json'])
+      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
+    '/home/ubuntu/DATA-top.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

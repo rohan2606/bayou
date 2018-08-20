@@ -22,10 +22,10 @@ import pickle
 from collections import Counter
 import gc
 
-from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks
+from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus
+from bayou.models.low_level_evidences.node import Node
 CHILD_EDGE = True
 SIBLING_EDGE = False
-from bayou.models.low_level_evidences.node import Node
 
 
 class TooLongPathError(Exception):
@@ -48,8 +48,12 @@ class Reader():
                          enumerate(config.evidence)]
 
 
-        # align with number of batches
+        # align with number of batches and have it as a multiple of #GPUs 
+        devices = get_available_gpus()
         config.num_batches = int(len(raw_targets) / config.batch_size)
+        config.num_batches = config.num_batches - (config.num_batches % len(devices))
+        ################################
+
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -61,7 +65,6 @@ class Reader():
 
     # setup input and target chars/vocab
         if clargs.continue_from is None:
-
             config.decoder.vocab = self.CallMapDict
             config.decoder.vocab_size = len(self.CallMapDict)
             # adding the same variables for reverse Encoder
@@ -79,37 +82,23 @@ class Reader():
             self.edges[i, :len(path)] = [p[1] for p in path]
             self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
             self.prog_ids[i] = prog_ids[i]
-
-        # split into batches
-        self.inputs = [np.split(ev_data, config.num_batches, axis=0) for ev_data in self.inputs ]
-        self.nodes = np.split(self.nodes, config.num_batches, axis=0)
-        self.edges = np.split(self.edges, config.num_batches, axis=0)
-        self.targets = np.split(self.targets, config.num_batches, axis=0)
-        self.prog_ids = np.split(self.prog_ids, config.num_batches, axis=0)
-        self.js_programs = chunks(js_programs, config.batch_size)
-        # reset batches
+        self.js_programs = js_programs
 
         with open('data/inputs.txt', 'wb') as f:
             pickle.dump(self.inputs, f)
-
         with open('data/nodes.txt', 'wb') as f:
             pickle.dump(self.nodes, f)
-
         with open('data/edges.txt', 'wb') as f:
             pickle.dump(self.edges, f)
-
         with open('data/targets.txt', 'wb') as f:
             pickle.dump(self.targets, f)
-
         with open('data/prog_ids', 'wb') as f:
             pickle.dump(self.prog_ids, f)
-
         with open('data/js_programs', 'wb') as f:
             pickle.dump(self.js_programs, f)
 
 
 
-        self.reset_batches()
 
     def get_ast_paths(self, js, idx=0):
         #print (idx)
@@ -322,17 +311,3 @@ class Reader():
             pickle.dump(file_ptr, f)
 
         return _ids, evidences, targets, js_programs
-
-    def next_batch(self):
-        batch = next(self.batches)
-        prog_ids, n, e, y, jsp = batch[:5]
-        ev_data = batch[5:]
-
-        # reshape the batch into required format
-        rn = np.transpose(n) # these are in depth first format
-        re = np.transpose(e) # these are in depth first format
-
-        return prog_ids, ev_data, rn, re, y, jsp
-
-    def reset_batches(self):
-        self.batches = iter(zip(self.prog_ids, self.nodes, self.edges, self.targets, self.js_programs, *self.inputs))

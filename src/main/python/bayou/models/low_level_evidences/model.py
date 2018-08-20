@@ -19,26 +19,30 @@ import numpy as np
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder
 
 
-
-
 class Model():
-    def __init__(self, config, infer=False, bayou_mode=True):
+    def __init__(self, config, iterator, infer=False, bayou_mode=True):
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
         self.config = config
+
+        newBatch = iterator.get_next()
+        _, nodes, edges, targets = newBatch[:4]
+        nodes = tf.transpose(nodes)
+        edges = tf.transpose(edges)
+        ev_data = newBatch[4:]
 
         with tf.variable_scope('Embedding'):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
 
         with tf.variable_scope("Encoder"):
 
-            self.encoder = BayesianEncoder(config)
+            self.encoder = BayesianEncoder(config, ev_data)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, emb)
+            self.reverse_encoder = BayesianReverseEncoder(config, emb, nodes, edges)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
@@ -51,9 +55,9 @@ class Model():
                 initial_state = tf.nn.xw_plus_b(psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
                 initial_state = tf.nn.xw_plus_b(psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
-            self.decoder = BayesianDecoder(config, emb, initial_state=initial_state, infer=infer)
+            self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges, infer=infer)
 
-        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
+        # self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
 
         # get the decoder outputs
         with tf.name_scope("Loss"):
@@ -64,7 +68,7 @@ class Model():
 
 
             # 1. generation loss: log P(X | \Psi)
-            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
+            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(targets, [-1])],
                                                   [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
               # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)

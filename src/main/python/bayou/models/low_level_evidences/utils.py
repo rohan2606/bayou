@@ -16,6 +16,7 @@ from __future__ import print_function
 import argparse
 import re
 import tensorflow as tf
+from tensorflow.python.client import device_lib
 from itertools import chain
 import numpy as np
 import os
@@ -32,6 +33,11 @@ C0 = 'CLASS0'
 UNK = '_UNK_'
 CHILD_EDGE = 'V'
 SIBLING_EDGE = 'H'
+
+def get_available_gpus():
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
+
 
 def get_var_list():
     all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
