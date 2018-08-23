@@ -20,9 +20,19 @@ import os
 import pickle
 from collections import Counter
 
-from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls, chunks
-from bayou.models.low_level_evidences.node import Node
+CHILD_EDGE = 'V'
+SIBLING_EDGE = 'H'
 
+
+class Node():
+    def __init__(self, call, child=None, sibling=None):
+        self.val = call
+        self.child = child
+        self.sibling = sibling
+
+		
+
+		
 class TooLongPathError(Exception):
     pass
 

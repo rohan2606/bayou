@@ -34,7 +34,8 @@ class InvalidSketchError(Exception):
 
 
 class Reader():
-    def __init__(self, clargs, config):
+    def __init__(self, clargs, config, infer=False):
+        self.infer = infer
         self.config = config
         random.seed(12)
         # read the raw evidences and targets
@@ -267,8 +268,10 @@ class Reader():
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    # data_points.append((done - ignored, evidences, path, program))
-                    data_points.append((done - ignored, evidences, path, {}))
+                    if self.infer:
+                        data_points.append((done - ignored, evidences, path, program))
+                    else:
+                        data_points.append((done - ignored, evidences, path, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:

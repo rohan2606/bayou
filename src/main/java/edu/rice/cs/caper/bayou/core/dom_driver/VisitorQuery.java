@@ -143,7 +143,7 @@ public class Visitor extends ASTVisitor {
                     ast.addNodes(new DOMMethodDeclaration(m, this).handle().getNodes());
                     callStack.pop();
                     callStack.pop();
-                    if (True) {
+                    if (true) {
                         asts.add(ast);
                         javaDocs.add(javadoc);
                         methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
@@ -158,7 +158,7 @@ public class Visitor extends ASTVisitor {
                 callStack.push(c);
                 DSubTree ast = new DOMMethodDeclaration(c, this).handle();
                 callStack.pop();
-                if (True) {
+                if (true) {
                     asts.add(ast);
                     javaDocs.add(javadoc);
                     methodNames.add(c.getName().getIdentifier() + "@" + getLineNumber(c));
@@ -173,7 +173,7 @@ public class Visitor extends ASTVisitor {
                 callStack.push(m);
                 DSubTree ast = new DOMMethodDeclaration(m, this).handle();
                 callStack.pop();
-                if (True) {
+                if (true) {
                     asts.add(ast);
                     javaDocs.add(javadoc);
                     methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
