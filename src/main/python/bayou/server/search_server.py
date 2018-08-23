@@ -23,6 +23,7 @@ import os
 import sys
 import json
 import textwrap
+import socket
 
 import time
 import bayou.models.low_level_evidences.infer
@@ -34,6 +35,13 @@ File_Name = 'Search_Data_Basic'
 
 HELP = """ Help me! :( """
 #%%
+
+TCP_IP = '127.0.0.1'
+TCP_PORT = 5005
+BUFFER_SIZE = 1024 #Normally 1024, but we want fast response
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((TCP_IP, TCP_PORT))
 
 
 def search_server(clargs):
@@ -53,33 +61,40 @@ def search_server(clargs):
     with tf.Session() as sess:
         predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
 
+        print ('Model Loaded, All Ready to Predict Evidences!!')
+        while True:
+            s.listen(1)
+            conn, addr = s.accept()
+            print ('Connection address:', addr)
+            while True:
+                data = conn.recv(BUFFER_SIZE)
+                if not data:  break
+                reader = Reader(clargs, config, infer=True)
+                _prog_ids, ev_data, n, e, y, jsp = reader.next_batch()
+                reader.reset_batches()
+                _, a1, b1, _, _ = predictor.get_all_params_inago(ev_data, n, e, y)
 
+                programs = []
+                # program = jsp[0]
+                # We do not need other paths in the program as all the evidences are the same for all the paths
+                # and for new test code we are only interested in the evidence encodings
+                # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
 
-        reader = Reader(clargs, config, infer=True)
-        _prog_ids, ev_data, n, e, y, jsp = reader.next_batch()
-        reader.reset_batches()
-        _, a1, b1, _, _ = predictor.get_all_params_inago(ev_data, n, e, y)
+                program = {}
+                program['a1'] = a1[0].item() # .item() converts a numpy element to a python element, one that is JSON serializable
+                program['b1'] = [val.item() for val in b1[0]]
+                # program['a2'] = None
+                # program['b2'] = None
+                # program['ProbY'] = None
 
-        programs = []
-        program = jsp[0]
-        # We do not need other paths in the program as all the evidences are the same for all the paths
-        # and for new test code we are only interested in the evidence encodings
-        # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
-        program['a1'] = a1[0].item() # .item() converts a numpy element to a python element, one that is JSON serializable
-        program['b1'] = [val.item() for val in b1[0]]
-        program['a2'] = None
-        program['b2'] = None
-        program['ProbY'] = None
+                programs.append(program)
 
-        programs.append(program)
-
-        print('\nWriting to {}...'.format('/home/ubuntu/QueryProgWEncoding.json'), end='\n')
-        with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
-            json.dump({'programs': programs}, fp=f, indent=2)
-        print('done')
-
-
-
+                print('\nWriting to {}...'.format('/home/ubuntu/QueryProgWEncoding.json'), end='\n')
+                with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
+                    json.dump({'programs': programs}, fp=f, indent=2)
+                print('done')
+                print ("Received data from client:", data)
+                conn.send(data)  # echo
 
     return
 
