@@ -19,8 +19,8 @@ class TreeEncoder(object):
         cells1 = []
         cells2 = []
         for _ in range(num_layers):
-            cells1.append(tf.nn.rnn_cell.GRUCell(units))
-            cells2.append(tf.nn.rnn_cell.GRUCell(units))
+            cells1.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(units))
+            cells2.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(units))
 
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)

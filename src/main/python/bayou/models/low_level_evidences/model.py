@@ -17,108 +17,90 @@ from tensorflow.contrib import legacy_seq2seq as seq2seq
 import numpy as np
 
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder
-from bayou.models.low_level_evidences.utils import get_var_list
+
 
 class Model():
-    def __init__(self, config, infer=False, bayou_mode=False, full_model_train=False):
+    def __init__(self, config, iterator, infer=False, bayou_mode=True):
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
         self.config = config
 
-        assert (bayou_mode * full_model_train == 0)
-
-        with tf.variable_scope("Encoder"):
-            self.encoder = BayesianEncoder(config)
-            samples_1 = tf.random_normal([config.batch_size, config.latent_size],
-                                       mean=0., stddev=1., dtype=tf.float32)
-            self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
-
+        newBatch = iterator.get_next()
+        _, nodes, edges, targets = newBatch[:4]
+        nodes = tf.transpose(nodes)
+        edges = tf.transpose(edges)
+        ev_data = newBatch[4:]
 
         with tf.variable_scope('Embedding'):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
 
+        with tf.variable_scope("Encoder"):
+
+            self.encoder = BayesianEncoder(config, ev_data)
+            samples_1 = tf.random_normal([config.batch_size, config.latent_size],
+                                       mean=0., stddev=1., dtype=tf.float32)
+            psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
+
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, emb)
+            self.reverse_encoder = BayesianReverseEncoder(config, emb, nodes, edges)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
-            self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
+            psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
-            if bayou_mode or infer:
-                self.initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
+            if bayou_mode:
+                initial_state = tf.nn.xw_plus_b(psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
-                self.initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+                initial_state = tf.nn.xw_plus_b(psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+            self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges, infer=infer)
 
-            self.decoder = BayesianDecoder(config, emb, initial_state=self.initial_state, infer=infer)
-
-        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
+        # self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
 
         # get the decoder outputs
         with tf.name_scope("Loss"):
             output = tf.reshape(tf.concat(self.decoder.outputs, 1),
                                 [-1, self.decoder.cell1.output_size])
             logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
-            self.ln_probs = tf.nn.log_softmax(logits)
+            ln_probs = tf.nn.log_softmax(logits)
 
 
             # 1. generation loss: log P(X | \Psi)
-            gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])],
+            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(targets, [-1])],
                                                   [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
-            self.gen_loss = gen_loss
-
-            if infer:
-                flat_target = tf.reshape(self.targets, [-1])
-                indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
-                valid_probs = tf.reshape(tf.gather_nd(self.ln_probs, indices), [self.config.batch_size, -1])
-                # self.target_prob is  P(Y|Z) where Z~P(Z|X)
-                target_prob = tf.reduce_sum(valid_probs, axis = 1)
-                # self.probY hence is P(Y|Z) where Z~P(Z) by importace_sampling
-                # this self.prob_Y is approximate however and you need to introduce one more tensor dimension to do this efficiently over multiple samples
-                self.probY = target_prob + self.get_multinormal_lnprob(self.psi_encoder) \
-                                            - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
-                self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
-                self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
-
-
-            # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
-            KL_loss = 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
-                                              - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
-                                              + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
-                                              , axis=1)
-            self.KL_loss = tf.reduce_mean(KL_loss) #* config.latent_size / config.decoder.max_ast_depth
-
+              # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
+            self.KL_loss = tf.reduce_mean( 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
+              - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
+              + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
+              , axis=1))
 
             if bayou_mode:
-               self.loss = self.gen_loss
-            elif full_model_train:
-               self.loss = self.gen_loss + self.KL_loss
+                self.loss = self.gen_loss
             else:
-               self.loss = self.KL_loss
+                self.loss = self.KL_loss
+
+
+            # if infer:
+            #     flat_target = tf.reshape(self.targets, [-1])
+            #     indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
+            #     valid_probs = tf.reshape(tf.gather_nd(ln_probs, indices), [self.config.batch_size, -1])
+            #     # self.target_prob is  P(Y|Z) where Z~P(Z|X)
+            #     target_prob = tf.reduce_sum(valid_probs, axis = 1)
+            #     # self.probY hence is P(Y|Z) where Z~P(Z) by importace_sampling
+            #     # this self.prob_Y is approximate however and you need to introduce one more tensor dimension to do this efficiently over multiple samples
+            #     self.probY = target_prob + self.get_multinormal_lnprob(self.psi_encoder) \
+            #                                 - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
+            #     self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
+            #     self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
+
+
 
             # tf.summary.scalar('loss', self.loss)
             # tf.summary.scalar('gen_loss', self.gen_loss)
             # tf.summary.scalar('KL_loss', self.KL_loss)
-        # The optimizer
-
-        with tf.name_scope("train"):
-            if bayou_mode:
-                train_ops = get_var_list()['bayou_vars']
-            elif full_model_train:
-                train_ops = get_var_list()['all_vars']
-            else:
-                train_ops = get_var_list()['rev_encoder_vars']
-
-        if not infer:
-            opt = tf.train.AdamOptimizer(config.learning_rate)
-            self.train_op = opt.minimize(self.loss, var_list=train_ops)
-
-            var_params = [np.prod([dim.value for dim in var.get_shape()])
-                          for var in tf.trainable_variables()]
-            print('Model parameters: {}'.format(np.sum(var_params)))
 
 
     def get_multinormal_lnprob(self, x, mu=None , Sigma=None ):

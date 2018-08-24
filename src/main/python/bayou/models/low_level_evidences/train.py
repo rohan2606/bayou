@@ -24,8 +24,8 @@ import json
 import textwrap
 
 from bayou.models.low_level_evidences.data_reader import Reader
-from bayou.models.low_level_evidences.model import Model
-from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot
+from bayou.models.low_level_evidences.MultiGPUModel import MultiGPUModel
+from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot, get_available_gpus
 
 
 HELP = """\
@@ -86,11 +86,29 @@ def train(clargs):
     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
         json.dump(jsconfig, fp=f, indent=2)
 
-    model = Model(config, infer=False, bayou_mode = True, full_model_train = False )
     # merged_summary = tf.summary.merge_all()
 
+    # Placeholders for tf data
+    prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
+    nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
+    edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
+    targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
+    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+    # reset batches
 
-    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
+    feed_dict.update({prog_ids_placeholder: reader.prog_ids})
+    feed_dict.update({nodes_placeholder: reader.nodes})
+    feed_dict.update({edges_placeholder: reader.edges})
+    feed_dict.update({targets_placeholder: reader.targets})
+
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    batched_dataset = dataset.batch(config.batch_size)
+    iterator = batched_dataset.make_initializable_iterator()
+
+    model = MultiGPUModel(config , iterator, bayou_mode=True)
+
+    with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
@@ -106,31 +124,16 @@ def train(clargs):
             ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
             old_saver.restore(sess, ckpt.model_checkpoint_path)
 
+        devices = get_available_gpus()
         # training
         epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
-            reader.reset_batches()
+            sess.run(iterator.initializer, feed_dict=feed_dict)
+            start = time.time()
             avg_loss, avg_gen_loss, avg_KL_loss = 0.,0.,0.
-            for b in range(config.num_batches):
-                start = time.time()
-                # setup the feed dict
-                prog_ids, ev_data, n, e, y, _ = reader.next_batch()
-                feed = {model.targets: y}
-                for j, ev in enumerate(config.evidence):
-                    feed[model.encoder.inputs[j].name] = ev_data[j]
-                for j in range(config.decoder.max_ast_depth):
-                    feed[model.decoder.nodes[j].name] = n[j]
-                    feed[model.decoder.edges[j].name] = e[j]
-                for j in range(config.reverse_encoder.max_ast_depth):
-                    feed[model.reverse_encoder.nodes[j].name] = n[config.reverse_encoder.max_ast_depth - 1 - j]
-                    feed[model.reverse_encoder.edges[j].name] = e[config.reverse_encoder.max_ast_depth - 1 - j]
-
+            for b in range(config.num_batches // len(devices)): # TODO divide the data evenly
                 # run the optimizer
-                loss, gen_loss, KL_loss, E_mean, RE_mean, E_covar, RE_covar, _ \
-                    = sess.run([model.loss, model.gen_loss, model.KL_loss,
-                                model.encoder.psi_mean, model.reverse_encoder.psi_mean,
-                                model.encoder.psi_covariance, model.reverse_encoder.psi_covariance,
-                                model.train_op], feed)
+                loss, KL_loss, gen_loss , _ = sess.run([model.avg_loss, model.avg_KL_loss, model.avg_gen_loss, model.apply_gradient_op])
 
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
@@ -144,11 +147,10 @@ def train(clargs):
                 step = (i+1) * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, \n\t\t E_mean: {:.3f}, RE_mean: {:.3f}, E_covar: {:.3f}, RE_covar: {:.3f}'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, \n\t'.format
                           (step, config.num_epochs * config.num_batches, i + 1 ,
-                           (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_KL_loss)/(b+1),
-                           np.mean(E_mean), np.mean(RE_mean), np.mean(E_covar),
-                           np.mean(RE_covar)))
+                           (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_KL_loss)/(b+1)
+                           ))
 
             epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
             if (i+1) % config.checkpoint_step == 0:
@@ -176,12 +178,12 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     #['--continue_from', 'save',
+     # ['--continue_from', 'save',
      ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-     # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
-     '/home/ubuntu/DATA-Licensed-sorrEv.json'])
+      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
+    '/home/ubuntu/DATA-top.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

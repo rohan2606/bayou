@@ -22,8 +22,11 @@ import pickle
 from collections import Counter
 import gc
 
-from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls, chunks
+from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus
 from bayou.models.low_level_evidences.node import Node
+CHILD_EDGE = True
+SIBLING_EDGE = False
+
 
 class TooLongPathError(Exception):
     pass
@@ -40,24 +43,18 @@ class Reader():
         random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        if not os.path.isfile(os.path.join(clargs.save, 'ProgDataExt')) :
-            prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
-            np.save(os.path.join(clargs.save, 'prog_ids'), prog_ids )
-            np.save(os.path.join(clargs.save, 'raw_evidences'), raw_evidences )
-            np.save(os.path.join(clargs.save, 'raw_targets'), raw_targets )
-            np.save(os.path.join(clargs.save, 'js_programs'), js_programs )
-
-        else:
-
-            prog_ids, raw_evidences, raw_targets, js_programs = np.load(os.path.join(clargs.save, 'prog_ids')), loaded['raw_evidences'], loaded['raw_targets'], loaded['js_programs']
-
+        prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
         print('Done!')
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
 
 
-        # align with number of batches
+        # align with number of batches and have it as a multiple of #GPUs
+        devices = get_available_gpus()
         config.num_batches = int(len(raw_targets) / config.batch_size)
+        config.num_batches = config.num_batches - (config.num_batches % len(devices))
+        ################################
+
         assert config.num_batches > 0, 'Not enough data'
         sz = config.num_batches * config.batch_size
         for i in range(len(raw_evidences)):
@@ -67,19 +64,13 @@ class Reader():
         prog_ids = prog_ids[:sz]
         js_programs = js_programs[:sz]
 
-        # setup input and target chars/vocab
+    # setup input and target chars/vocab
         if clargs.continue_from is None:
-            for ev, data in zip(config.evidence, raw_evidences):
-                ev.set_chars_vocab(data)
-            counts = Counter([n for path in raw_targets for (n, _) in path])
-            counts[C0] = 1
-            config.decoder.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
-            config.decoder.vocab = dict(zip(config.decoder.chars, range(len(config.decoder.chars))))
-            config.decoder.vocab_size = len(config.decoder.vocab)
+            config.decoder.vocab = self.CallMapDict
+            config.decoder.vocab_size = len(self.CallMapDict)
             # adding the same variables for reverse Encoder
-            config.reverse_encoder.chars = config.decoder.chars
-            config.reverse_encoder.vocab = config.decoder.vocab
-            config.reverse_encoder.vocab_size = config.decoder.vocab_size
+            config.reverse_encoder.vocab = self.CallMapDict
+            config.reverse_encoder.vocab_size = len(self.CallMapDict)
 
         # wrangle the evidences and targets into numpy arrays
         self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
@@ -88,20 +79,27 @@ class Reader():
         self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
         self.prog_ids = np.zeros(sz, dtype=np.int32)
         for i, path in enumerate(raw_targets):
-            self.nodes[i, :len(path)] = list(map(config.decoder.vocab.get, [p[0] for p in path]))
-            self.edges[i, :len(path)] = [p[1] == CHILD_EDGE for p in path]
+            self.nodes[i, :len(path)] = [p[0] for p in path]
+            self.edges[i, :len(path)] = [p[1] for p in path]
             self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
             self.prog_ids[i] = prog_ids[i]
+        self.js_programs = js_programs
 
-        # split into batches
-        self.inputs = [np.split(ev_data, config.num_batches, axis=0) for ev_data in self.inputs ]
-        self.nodes = np.split(self.nodes, config.num_batches, axis=0)
-        self.edges = np.split(self.edges, config.num_batches, axis=0)
-        self.targets = np.split(self.targets, config.num_batches, axis=0)
-        self.prog_ids = np.split(self.prog_ids, config.num_batches, axis=0)
-        self.js_programs = chunks(js_programs, config.batch_size)
-        # reset batches
-        self.reset_batches()
+        with open('data/inputs.txt', 'wb') as f:
+            pickle.dump(self.inputs, f)
+        with open('data/nodes.txt', 'wb') as f:
+            pickle.dump(self.nodes, f)
+        with open('data/edges.txt', 'wb') as f:
+            pickle.dump(self.edges, f)
+        with open('data/targets.txt', 'wb') as f:
+            pickle.dump(self.targets, f)
+        with open('data/prog_ids', 'wb') as f:
+            pickle.dump(self.prog_ids, f)
+        with open('data/js_programs', 'wb') as f:
+            pickle.dump(self.js_programs, f)
+
+
+
 
     def get_ast_paths(self, js, idx=0):
         #print (idx)
@@ -257,7 +255,9 @@ class Reader():
         callmap = dict()
         file_ptr = dict()
         ignored, done = 0, 0
-
+        self.CallMapDict = dict()
+        self.CallMapDict['STOP'] = 0
+        count = 1
         for program in ijson.items(f, 'programs.item'): #js['programs']:
             if 'ast' not in program:
                 continue
@@ -268,23 +268,32 @@ class Reader():
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    if self.infer:
-                        data_points.append((done - ignored, evidences, path, program))
-                    else:
-                        data_points.append((done - ignored, evidences, path, {}))
+
+                    temp_arr = []
+                    for val in path:
+                        nodeVal = val[0]
+                        edgeVal = val[1]
+                        if nodeVal not in self.CallMapDict:
+                            self.CallMapDict[nodeVal] = count
+                            temp_arr.append((count,edgeVal))
+                            count += 1
+                        else:
+                            temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
+                    # data_points.append((done - ignored, evidences, temp_arr, program))
+                    data_points.append((done - ignored, evidences, temp_arr, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
                         callmap[call['_call']] = call
-
+                #
                 file_name = program['file']
                 file_ptr[done - ignored] = file_name
             except (TooLongPathError, InvalidSketchError) as e:
                 ignored += 1
             done += 1
-            print('Extracted data for {} programs'.format(done), end='\r')
-            # if done % 10000 == 0:
-            #     gc.collect()
+            if done % 100000 == 0:
+                print('Extracted data for {} programs'.format(done), end='\n')
+
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts ignored by given config'.format(ignored))
         print('{:8d} programs/asts to search over'.format(done - ignored))
@@ -298,22 +307,8 @@ class Reader():
         if save is not None:
             with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
                 pickle.dump(callmap, f)
-
+        #
         with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
             pickle.dump(file_ptr, f)
 
         return _ids, evidences, targets, js_programs
-
-    def next_batch(self):
-        batch = next(self.batches)
-        prog_ids, n, e, y, jsp = batch[:5]
-        ev_data = batch[5:]
-
-        # reshape the batch into required format
-        rn = np.transpose(n) # these are in depth first format
-        re = np.transpose(e) # these are in depth first format
-
-        return prog_ids, ev_data, rn, re, y, jsp
-
-    def reset_batches(self):
-        self.batches = iter(zip(self.prog_ids, self.nodes, self.edges, self.targets, self.js_programs, *self.inputs))

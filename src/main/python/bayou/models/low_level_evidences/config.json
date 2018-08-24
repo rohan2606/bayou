@@ -2,10 +2,10 @@
     "model": "lle",
     "latent_size": 64,
     "batch_size": 50,
-    "num_epochs": 500,
+    "num_epochs": 100,
     "learning_rate": 0.0006,
-    "print_step": 100,
-    "checkpoint_step": 1,
+    "print_step": 10,
+    "checkpoint_step": 10,
     "evidence": [
         {
             "name": "apicalls",
@@ -13,7 +13,7 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 12
+            "max_nums": 8
         },
         {
             "name": "types",
@@ -21,7 +21,7 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 12
+            "max_nums": 8
         },
         {
             "name": "keywords",
@@ -29,7 +29,7 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 12
+            "max_nums": 8
         },
         {
             "name": "callsequences",
@@ -61,7 +61,7 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 12
+            "max_nums": 10
         },
         {
             "name": "sorrreturntype",
@@ -69,7 +69,7 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 12
+            "max_nums": 4
         },
         {
             "name": "sorrformalparam",
@@ -77,7 +77,7 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": 8,
-            "max_nums": 12
+            "max_nums": 4
         },
         {
             "name": "sorrcallsequences",
@@ -85,7 +85,7 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": 8,
-            "max_nums": 12
+            "max_nums": 4
         }
     ],
     "decoder": {

@@ -17,16 +17,16 @@ from itertools import chain
 from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 
 class BayesianEncoder(object):
-    def __init__(self, config):
+    def __init__(self, config, inputs):
 
-        self.inputs = [ev.placeholder(config) for ev in config.evidence]
-        exists = [ev.exists(i) for ev, i in zip(config.evidence, self.inputs)]
+        # self.inputs = [ev.placeholder(config) for ev in config.evidence]
+        exists = [ev.exists(i) for ev, i in zip(config.evidence, inputs)]
         zeros = tf.zeros([config.batch_size, config.latent_size], dtype=tf.float32)
 
         # Compute the denominator used for mean and covariance
         for ev in config.evidence:
             ev.init_sigma(config)
-            
+
         d = [tf.where(exist, tf.tile([1. / tf.square(ev.sigma)], [config.batch_size]),
                       tf.zeros(config.batch_size)) for ev, exist in zip(config.evidence, exists)]
         d = 1. + tf.reduce_sum(tf.stack(d), axis=0)
@@ -35,7 +35,7 @@ class BayesianEncoder(object):
         # Compute the mean of Psi
         with tf.variable_scope('mean'):
             # 1. compute encoding
-            self.encodings = [ev.encode(i, config) for ev, i in zip(config.evidence, self.inputs)]
+            self.encodings = [ev.encode(i, config) for ev, i in zip(config.evidence, inputs)]
             encodings = [encoding / tf.square(ev.sigma) for ev, encoding in
                          zip(config.evidence, self.encodings)]
 
@@ -56,30 +56,28 @@ class BayesianEncoder(object):
 
 
 class BayesianDecoder(object):
-    def __init__(self, config, emb, initial_state, infer=False):
+    def __init__(self, config, emb, initial_state, nodes, edges, infer=False):
 
         cells1, cells2 = [], []
         for _ in range(config.decoder.num_layers):
-            cells1.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
-            cells2.append(tf.nn.rnn_cell.GRUCell(config.decoder.units))
+            cells1.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(config.decoder.units))
+            cells2.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(config.decoder.units))
 
         self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
 
         # placeholders
         self.initial_state = [initial_state] * config.decoder.num_layers
-        self.nodes = [tf.placeholder(tf.int32, [config.batch_size], name='node{0}'.format(i))
-                      for i in range(config.decoder.max_ast_depth)]
-        self.edges = [tf.placeholder(tf.bool, [config.batch_size], name='edge{0}'.format(i))
-                      for i in range(config.decoder.max_ast_depth)]
+        self.nodes = [nodes[i] for i in range(config.decoder.max_ast_depth)]
+        self.edges = [edges[i] for i in range(config.decoder.max_ast_depth)]
 
         # projection matrices for output
         with tf.variable_scope("projections"):
             self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size,
                                                                  config.decoder.vocab_size])
             self.projection_b = tf.get_variable('projection_b', [config.decoder.vocab_size])
-            tf.summary.histogram("projection_w", self.projection_w)
-            tf.summary.histogram("projection_b", self.projection_b)
+            # tf.summary.histogram("projection_w", self.projection_w)
+            # tf.summary.histogram("projection_b", self.projection_b)
 
         # setup embedding
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
@@ -119,22 +117,20 @@ class BayesianDecoder(object):
 
 
 class BayesianReverseEncoder(object):
-    def __init__(self, config, emb):
+    def __init__(self, config, emb, nodes, edges):
+        nodes = [ nodes[i] for i in range(config.reverse_encoder.max_ast_depth)]
+        edges = [ edges[i] for i in range(config.reverse_encoder.max_ast_depth)]
 
-        with tf.variable_scope("Reverse_Encoder"):
-            self.nodes = [tf.placeholder(tf.int32, [config.batch_size], name='node{0}'.format(i)) for i in range(config.reverse_encoder.max_ast_depth)]
-            self.edges = [tf.placeholder(tf.bool, [config.batch_size], name='edge{0}'.format(i)) for i in range(config.reverse_encoder.max_ast_depth)]
+        with tf.variable_scope("Covariance"):
+            Covariance_Tree = TreeEncoder(emb, config.batch_size, nodes, edges, config.reverse_encoder.num_layers, \
+                                config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, 1)
+            d = tf.square(Covariance_Tree.last_output)
+            d = 1. +  d
+            denom = tf.tile(d, [1, config.latent_size])
+            I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
+            self.psi_covariance = I / denom
 
-            with tf.variable_scope("Covariance"):
-                self.Covariance_Tree = TreeEncoder(emb, config.batch_size, self.nodes, self.edges, config.reverse_encoder.num_layers, \
-                                    config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, 1)
-                d = tf.square(self.Covariance_Tree.last_output)
-                d = 1. +  d
-                denom = tf.tile(d, [1, config.latent_size])
-                I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
-                self.psi_covariance = I / denom
-
-            with tf.variable_scope("Mean"):
-                self.Mean_Tree = TreeEncoder(emb, config.batch_size, self.nodes, self.edges, config.reverse_encoder.num_layers, \
-                                    config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, config.latent_size)
-                self.psi_mean = self.Mean_Tree.last_output
+        with tf.variable_scope("Mean"):
+            Mean_Tree = TreeEncoder(emb, config.batch_size, nodes, edges, config.reverse_encoder.num_layers, \
+                                config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, config.latent_size)
+            self.psi_mean = Mean_Tree.last_output
