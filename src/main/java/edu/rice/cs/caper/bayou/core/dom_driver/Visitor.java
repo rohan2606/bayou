@@ -134,24 +134,36 @@ public class Visitor extends ASTVisitor {
 
 
         if (!constructors.isEmpty() && !publicMethods.isEmpty()) {
-            for (MethodDeclaration c : constructors)
-                for (MethodDeclaration m : publicMethods) {
-                    String javadoc = Utils.getJavadoc(m, options.JAVADOC_TYPE);
-                    callStack.push(c);
-                    DSubTree ast = new DOMMethodDeclaration(c, this).handle();
-                    callStack.push(m);
-                    ast.addNodes(new DOMMethodDeclaration(m, this).handle().getNodes());
-                    callStack.pop();
-                    callStack.pop();
-                    if (ast.isValid()) {
-                        asts.add(ast);
-                        javaDocs.add(javadoc);
-                        methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
-                        returnTypes.add(getReturnType(m));
-                        bodys.add(getBody(c) + "\n\n" +  getBody(m));
-                        formalParams.add(getFormalParams(m));
-                    }
+
+            for (MethodDeclaration c : constructors){
+              String javadoc = Utils.getJavadoc(c, options.JAVADOC_TYPE);
+              callStack.push(c);
+              DSubTree ast = new DOMMethodDeclaration(c, this).handle();
+              callStack.pop();
+              if (ast.isValid()) {
+                  asts.add(ast);
+                  javaDocs.add(javadoc);
+                  methodNames.add(c.getName().getIdentifier() + "@" + getLineNumber(c));
+                  returnTypes.add(getReturnType(c));
+                  bodys.add(c.toString());
+                  formalParams.add(getFormalParams(c));
+              }
+            }
+
+            for (MethodDeclaration m : publicMethods) {
+                String javadoc = Utils.getJavadoc(m, options.JAVADOC_TYPE);
+                callStack.push(m);
+                DSubTree ast = new DOMMethodDeclaration(m, this).handle();
+                callStack.pop();
+                if (ast.isValid()) {
+                    asts.add(ast);
+                    javaDocs.add(javadoc);
+                    methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
+                    returnTypes.add(getReturnType(m));
+                    bodys.add(m.toString());
+                    formalParams.add(getFormalParams(m));
                 }
+            }
         } else if (!constructors.isEmpty()) { // no public methods, only constructor
             for (MethodDeclaration c : constructors) {
                 String javadoc = Utils.getJavadoc(c, options.JAVADOC_TYPE);
@@ -163,7 +175,7 @@ public class Visitor extends ASTVisitor {
                     javaDocs.add(javadoc);
                     methodNames.add(c.getName().getIdentifier() + "@" + getLineNumber(c));
                     returnTypes.add(getReturnType(c));
-                    bodys.add(getBody(c));
+                    bodys.add(c.toString());
                     formalParams.add(getFormalParams(c));
                   }
             }
@@ -178,7 +190,7 @@ public class Visitor extends ASTVisitor {
                     javaDocs.add(javadoc);
                     methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
                     returnTypes.add(getReturnType(m));
-                    bodys.add(getBody(m));
+                    bodys.add(m.toString());
                     formalParams.add(getFormalParams(m));
                 }
             }
@@ -258,26 +270,10 @@ public class Visitor extends ASTVisitor {
       return parameters;
     }
 
-    public String getBody(MethodDeclaration m){
-      String temp;
-      if (m == null){
-        temp = "";
-        return temp;
-      }
-
-      if (m.getBody() != null){
-        temp = m.getBody().toString();
-        temp = temp.trim().replaceAll("\n ", "");
-      }
-      else{
-        temp = "";
-      }
-      return temp;
-    }
 
     private boolean okToPrintAST(List<Sequence> sequences) {
          int n = sequences.size();
-         if (n == 0  || (n == 1 && sequences.get(0).getCalls().size() <= 1))
+         if (n == 0) //  || (n == 1 && sequences.get(0).getCalls().size() <= 1))
              return false;
          return true;
     }
