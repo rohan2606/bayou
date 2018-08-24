@@ -84,35 +84,6 @@ def test_get_vals(clargs):
             prob_Ys += [infer_vars[prog_id]['ProbY']]
             Ys += [infer_vars[prog_id]['Y']]
 
-            # try:
-            #     if 'file' in infer_vars[prog_id]['JS']:
-            #         body = infer_vars[prog_id]['JS']['file'] + '\n'
-            #     else:
-            #         body = ""
-            #
-            #     if 'returnType' in infer_vars[prog_id]['JS']:
-            #         body += infer_vars[prog_id]['JS']['returnType']
-            #     else:
-            #         body += "void"
-            #
-            #     if 'method' in infer_vars[prog_id]['JS']:
-            #         body += "  " +  infer_vars[prog_id]['JS']['method'] + "( "
-            #
-            #     if 'formalParam' in infer_vars[prog_id]['JS']:
-            #         for formalParam in infer_vars[prog_id]['JS']['formalParam']:
-            #             body += formalParam + " , "
-            #     body += ')\n'
-            #
-            #     if 'body' in  infer_vars[prog_id]['JS']:
-            #         body += '{' + infer_vars[prog_id]['JS']['body']
-            #         body += "}\n"
-            #     bodys += [ body ]
-            #
-            # except:
-            #     body = ""
-            #     bodys += [ body ]
-
-
             program = infer_vars[prog_id]['JS']
             # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
             program['a1'] = infer_vars[prog_id]['a1'].item()
@@ -124,21 +95,14 @@ def test_get_vals(clargs):
             programs.append(program)
 
         print('New arrays saving done')
-        prob_Ys = normalize_log_probs(prob_Ys)
-        print('Normalizing done')
-
-        # np.save(File_Name + '/a1s', a1s), np.save(File_Name + '/b1s', b1s)
-        # np.save(File_Name + '/a2s', a2s), np.save(File_Name + '/b2s', b2s)
-        # np.save(File_Name + '/prob_Ys', prob_Ys)
-        # #np.save(File_Name + '/Ys', Ys)
-        # np.savetxt(File_Name + '/bodys', bodys)
-
-        print('Files Saved')
+        #prob_Ys = normalize_log_probs(prob_Ys)
+        #print('Normalizing done')
+      
 
         print('\nWriting to {}...'.format('Program_output_json.json'), end='')
         with open('Program_output_json.json', 'w') as f:
             json.dump({'programs': programs}, fp=f, indent=2)
-        print('done')
+        print('Files Saved')
 
     return a1s, b1s, a2s, b2s, prob_Ys, bodys #, Ys
 
