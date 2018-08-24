@@ -84,6 +84,18 @@ class BayesianPredictor(object):
 
         return probY, EncA, EncB, RevEncA, RevEncB
 
+    def get_a1b1(self, evidences):
+        # setup initial states and feed
+        inputs = evidences
+        feed = {}
+        for j,ev in enumerate(self.model.config.evidence):
+            feed[self.model.encoder.inputs[j].name] = inputs[j]
+
+
+        [EncA, EncB] = self.sess.run([self.model.EncA, self.model.EncB], feed)
+
+        return EncA, EncB
+
     def similarity(self, _a1, _b1, _a2, _b2, prob_Y):
             # a1 = tf.placeholder(tf.float32,[self.model.config.latent_size])
             a1_in = tf.placeholder(tf.float32,[])

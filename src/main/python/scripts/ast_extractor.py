@@ -13,12 +13,7 @@
 # limitations under the License.
 
 from __future__ import print_function
-import json
-import numpy as np
-import random
-import os
-import pickle
-from collections import Counter
+
 
 CHILD_EDGE = 'V'
 SIBLING_EDGE = 'H'
@@ -30,9 +25,14 @@ class Node():
         self.child = child
         self.sibling = sibling
 
-		
 
-		
+    def iterateHTillEnd(self, head):
+        while(head.sibling != None):
+            head = head.sibling
+        return head
+
+
+
 class TooLongPathError(Exception):
     pass
 

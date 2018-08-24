@@ -30,7 +30,6 @@ import bayou.models.low_level_evidences.infer
 from bayou.models.low_level_evidences.utils import read_config
 from bayou.models.low_level_evidences.data_reader import Reader
 
-
 File_Name = 'Search_Data_Basic'
 
 HELP = """ Help me! :( """
@@ -47,7 +46,7 @@ s.bind((TCP_IP, TCP_PORT))
 def search_server(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
     clargs.continue_from = True
-
+    print('Loading Model, please wait _/\_ ...')
     model = bayou.models.low_level_evidences.infer.BayesianPredictor
 
 
@@ -63,16 +62,34 @@ def search_server(clargs):
 
         print ('Model Loaded, All Ready to Predict Evidences!!')
         while True:
+            print("\n\n Waiting for a new connection!")
             s.listen(1)
             conn, addr = s.accept()
             print ('Connection address:', addr)
             while True:
                 data = conn.recv(BUFFER_SIZE)
                 if not data:  break
-                reader = Reader(clargs, config, infer=True)
-                _prog_ids, ev_data, n, e, y, jsp = reader.next_batch()
-                reader.reset_batches()
-                _, a1, b1, _, _ = predictor.get_all_params_inago(ev_data, n, e, y)
+
+                try:
+                    reader = Reader(clargs, config, infer=True)
+                    reader.reset_batches()
+                    _prog_ids, ev_data, n, e, y, jsp = reader.next_batch()
+
+                except:
+                    print ("\n BEWARE! The original Code was REMOVED from your Database")
+                    with open('/home/ubuntu/QueryProg.json') as f:
+                        js = json.load(f)
+                    program = js['programs'][0]
+                    # print (program)
+                    data_points = []
+                    ev_data = [ev.read_data_point(program) for ev in config.evidence]
+                    data_points.append(ev_data)
+                    raw_evidences = zip(*data_points)
+                    ev_data = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
+
+
+
+                a1, b1 = predictor.get_a1b1(ev_data)
 
                 programs = []
                 # program = jsp[0]
@@ -93,6 +110,9 @@ def search_server(clargs):
                 with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
                     json.dump({'programs': programs}, fp=f, indent=2)
                 print('done')
+
+
+
                 print ("Received data from client:", data)
                 conn.send(data)  # echo
 
