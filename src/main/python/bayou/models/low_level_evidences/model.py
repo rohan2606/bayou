@@ -25,10 +25,10 @@ class Model():
         self.config = config
 
         newBatch = iterator.get_next()
-        _, nodes, edges, targets = newBatch[:4]
+        self.prog_ids, self.js_prog_ids, nodes, edges, targets = newBatch[:5]
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
-        ev_data = newBatch[4:]
+        ev_data = newBatch[5:]
 
         with tf.variable_scope('Embedding'):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
@@ -38,26 +38,25 @@ class Model():
             self.encoder = BayesianEncoder(config, ev_data)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
-            psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
+            self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
             self.reverse_encoder = BayesianReverseEncoder(config, emb, nodes, edges)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
-            psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
+            self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
             if bayou_mode:
-                initial_state = tf.nn.xw_plus_b(psi_encoder, lift_w, lift_b, name="Initial_State")
+                initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
-                initial_state = tf.nn.xw_plus_b(psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+                initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
             self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges, infer=infer)
 
-        # self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name="Targets")
 
         # get the decoder outputs
         with tf.name_scope("Loss"):
@@ -67,7 +66,7 @@ class Model():
             ln_probs = tf.nn.log_softmax(logits)
 
 
-            # 1. generation loss: log P(X | \Psi)
+            # 1. generation loss: log P(Y | Z)
             self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(targets, [-1])],
                                                   [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
 
@@ -83,18 +82,16 @@ class Model():
                 self.loss = self.KL_loss
 
 
-            # if infer:
-            #     flat_target = tf.reshape(self.targets, [-1])
-            #     indices = [ [i,j] for i,j in enumerate(tf.unstack(flat_target))]
-            #     valid_probs = tf.reshape(tf.gather_nd(ln_probs, indices), [self.config.batch_size, -1])
-            #     # self.target_prob is  P(Y|Z) where Z~P(Z|X)
-            #     target_prob = tf.reduce_sum(valid_probs, axis = 1)
-            #     # self.probY hence is P(Y|Z) where Z~P(Z) by importace_sampling
-            #     # this self.prob_Y is approximate however and you need to introduce one more tensor dimension to do this efficiently over multiple samples
-            #     self.probY = target_prob + self.get_multinormal_lnprob(self.psi_encoder) \
-            #                                 - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
-            #     self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
-            #     self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
+            if infer:
+                # self.gen_loss is  P(Y|Z) where Z~P(Z|X)
+				# P(Y) = int_Z P(YZ) = int_Z P(Y|Z)P(Z) = int_Z P(Y|Z)P(Z|X)P(Z)/P(Z|X) = sum_Z P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
+                # last step by importace_sampling
+                # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
+				# P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
+                self.probY = -1 * self.gen_loss + self.get_multinormal_lnprob(self.psi_encoder) \
+                                            - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
+                self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
+                self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
 
 

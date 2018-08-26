@@ -32,11 +32,11 @@ def merge(clargs):
         try:
             with open(filename) as f:
                 js = json.load(f)
-        except ValueError:
-            print('Error merging file: {}'.format(filename))
+        except:
+            #print('Error merging file: {}'.format(filename))
             continue
         programs += (js['programs'])
-        print('Loaded file: {}':.format(filename))
+        #print('Loaded file: {}'.format(filename))
 
     print('Now Merging Files!')
     with open(clargs.output_file, 'w') as f:

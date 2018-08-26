@@ -32,7 +32,7 @@ class MultiGPUModel():
 
         tower_grads = []
         losses, KL_loss, gen_loss = [], [], []
-        
+
         self.gpuModels = [None for i in range(len(devices))]
         with tf.variable_scope(tf.get_variable_scope()) as outer_scope:
             for i, id in enumerate(devices):
@@ -70,7 +70,7 @@ class MultiGPUModel():
             self.apply_gradient_op = opt.apply_gradients(gradients, global_step)
             self.avg_loss = tf.reduce_mean(losses)
             self.avg_KL_loss = tf.reduce_mean(KL_loss)
-            self.avg_gen_loss = tf.reduce_sum(gen_loss)
+            self.avg_gen_loss = tf.reduce_mean(gen_loss)
 
         # var_params = [np.prod([dim.value for dim in var.get_shape()])
         #               for var in tf.trainable_variables()]

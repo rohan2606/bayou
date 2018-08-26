@@ -37,11 +37,9 @@ class InvalidSketchError(Exception):
 
 class BayesianPredictor(object):
 
-    def __init__(self, save, sess, config, bayou_mode=False):
+    def __init__(self, save, sess, config, iterator, bayou_mode=False):
         self.sess = sess
-
-
-        self.model = Model(config, infer=True, bayou_mode=bayou_mode)
+        self.model = Model(config, iterator, infer=True, bayou_mode=bayou_mode)
 
         # load the callmap
         with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:
@@ -58,31 +56,12 @@ class BayesianPredictor(object):
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
 
-    def get_all_params_inago(self, evidences, nodes, edges, targets):
+    def get_all_params_inago(self):
         # setup initial states and feed
-        inputs = evidences
-        feed = {self.model.targets: targets}
-        for j,ev in enumerate(self.model.config.evidence):
-            feed[self.model.encoder.inputs[j].name] = inputs[j]
-        for j in range(self.model.config.decoder.max_ast_depth):
-            feed[self.model.decoder.nodes[j].name] = nodes[j]
-            feed[self.model.decoder.edges[j].name] = edges[j]
-        for j in range(self.model.config.reverse_encoder.max_ast_depth):
-            feed[self.model.reverse_encoder.nodes[j].name] = nodes[self.model.config.reverse_encoder.max_ast_depth - 1 - j]
-            feed[self.model.reverse_encoder.edges[j].name] = edges[self.model.config.reverse_encoder.max_ast_depth - 1 - j]
+        [probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
+                                                        self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
 
-        # num_samples = 100
-        # probYs = np.zeros([self.model.config.batch_size])
-        # for i in range(num_samples):
-        #     probY = self.sess.run(self.model.probY, feed)
-        #     probYs += probY
-        #
-        # probY = probYs / num_samples
-
-        [probY, EncA, EncB, RevEncA, RevEncB] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
-                                                        self.model.RevEncA, self.model.RevEncB], feed)
-
-        return probY, EncA, EncB, RevEncA, RevEncB
+        return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
 
     def get_a1b1(self, evidences):
         # setup initial states and feed

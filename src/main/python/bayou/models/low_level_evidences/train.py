@@ -152,13 +152,13 @@ def train(clargs):
                            (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_KL_loss)/(b+1)
                            ))
 
-            epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
+            #epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
             if (i+1) % config.checkpoint_step == 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
-                      (checkpoint_dir, avg_loss / config.num_batches))
+                      (checkpoint_dir, avg_loss / config.num_batches* len(devices)))
         #static_plot(epocLoss , epocGenL , epocKlLoss)
 
 

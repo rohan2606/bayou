@@ -78,11 +78,13 @@ class Reader():
         self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
         self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
         self.prog_ids = np.zeros(sz, dtype=np.int32)
+        self.js_prog_ids = np.zeros(sz, dtype=np.int32)
         for i, path in enumerate(raw_targets):
             self.nodes[i, :len(path)] = [p[0] for p in path]
             self.edges[i, :len(path)] = [p[1] for p in path]
             self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
             self.prog_ids[i] = prog_ids[i]
+            self.js_prog_ids[i] = i
         self.js_programs = js_programs
 
         with open('data/inputs.txt', 'wb') as f:
@@ -95,6 +97,8 @@ class Reader():
             pickle.dump(self.targets, f)
         with open('data/prog_ids', 'wb') as f:
             pickle.dump(self.prog_ids, f)
+        with open('data/js_prog_ids', 'wb') as f:
+            pickle.dump(self.js_prog_ids, f)
         with open('data/js_programs', 'wb') as f:
             pickle.dump(self.js_programs, f)
 
@@ -279,8 +283,8 @@ class Reader():
                             count += 1
                         else:
                             temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
-                    # data_points.append((done - ignored, evidences, temp_arr, program))
-                    data_points.append((done - ignored, evidences, temp_arr, {}))
+                    data_points.append((done - ignored, evidences, temp_arr, program))
+                    #data_points.append((done - ignored, evidences, temp_arr, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:

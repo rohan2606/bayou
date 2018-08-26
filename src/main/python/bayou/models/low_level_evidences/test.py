@@ -35,7 +35,7 @@ HELP = """ Help me! :( """
 #%%
 
 def test(clargs):
-    a1s, b1s, a2s, b2s, prob_Ys, _ = test_get_vals(clargs)
+    a1s, b1s, a2s, b2s, prob_Ys  = test_get_vals(clargs)
 
 
     latent_size, num_progs, batch_size = len(b1s[0]), len(a1s), 1000
@@ -75,14 +75,14 @@ def test_get_vals(clargs):
     else:
         infer_vars, config = forward_pass(clargs)
         programs = []
-        a1s,a2s,b1s,b2s,prob_Ys, Ys, bodys  = [],[],[],[],[],[],[]
+        a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[] 
         for prog_id in sorted(list(infer_vars.keys())):
             a1s += [infer_vars[prog_id]['a1']]
             a2s += [infer_vars[prog_id]['a2']]
             b1s += [list(infer_vars[prog_id]['b1'])]
             b2s += [list(infer_vars[prog_id]['b2'])]
             prob_Ys += [infer_vars[prog_id]['ProbY']]
-            Ys += [infer_vars[prog_id]['Y']]
+            #Ys += [infer_vars[prog_id]['Y']]
 
             program = infer_vars[prog_id]['JS']
             # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
@@ -104,7 +104,7 @@ def test_get_vals(clargs):
             json.dump({'programs': programs}, fp=f, indent=2)
         print('Files Saved')
 
-    return a1s, b1s, a2s, b2s, prob_Ys, bodys #, Ys
+    return a1s, b1s, a2s, b2s, prob_Ys 
 
 def forward_pass(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
@@ -121,20 +121,40 @@ def forward_pass(clargs):
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
+		
+	
     reader = Reader(clargs, config)
+	
+	# Placeholders for tf data
+    prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
+    js_prog_ids_placeholder = tf.placeholder(reader.js_prog_ids.dtype, reader.js_prog_ids.shape)
+    nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
+    edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
+    targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
+    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
 
+    # reset batches
+
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
+    feed_dict.update({prog_ids_placeholder: reader.prog_ids})
+    feed_dict.update({js_prog_ids_placeholder: reader.js_prog_ids})
+    feed_dict.update({nodes_placeholder: reader.nodes})
+    feed_dict.update({edges_placeholder: reader.edges})
+    feed_dict.update({targets_placeholder: reader.targets})
+
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    batched_dataset = dataset.batch(config.batch_size)
+    iterator = batched_dataset.make_initializable_iterator()
+    jsp = reader.js_programs
     with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save, sess, config, iterator, bayou_mode = False) # goes to infer.BayesianPredictor
         # testing
-        reader.reset_batches()
-
+        sess.run(iterator.initializer, feed_dict=feed_dict)
         infer_vars = {}
         for j in range(config.num_batches):
-            _prog_ids, ev_data, n, e, y, jsp = reader.next_batch()
-            # Ys += list(y)
-            prob_Y, a1, b1, a2, b2 = predictor.get_all_params_inago(ev_data, n, e, y)
+            prob_Y, a1, b1, a2, b2, js_prog_ids, prog_ids = predictor.get_all_params_inago()
             for i in range(config.batch_size):
-                prog_id = _prog_ids[i]
+                prog_id = prog_ids[i]
                 if prog_id not in infer_vars:
                     infer_vars[prog_id] = {}
                     infer_vars[prog_id]['a1'] = a1[i]
@@ -143,14 +163,12 @@ def forward_pass(clargs):
                     infer_vars[prog_id]['b2'] = b2[i]
                     infer_vars[prog_id]['ProbY'] = prob_Y[i]
                     infer_vars[prog_id]['count_prog_ids'] = 1
-                    infer_vars[prog_id]['Y'] = [y[i]]
-                    infer_vars[prog_id]['JS'] = jsp[i]
+                    infer_vars[prog_id]['JS'] = jsp[js_prog_ids[i]]
                 else:
                     infer_vars[prog_id]['b1'] += b1[i]
                     infer_vars[prog_id]['b2'] += b2[i]
                     infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i] )
                     infer_vars[prog_id]['count_prog_ids'] += 1
-                    infer_vars[prog_id]['Y'].append(y[i])
 
 
             if (j+1) % 1000 == 0:
@@ -205,7 +223,7 @@ if __name__ == '__main__':
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-	'/home/ubuntu/DATA.json'])
+	'/home/ubuntu/DATA-newer.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

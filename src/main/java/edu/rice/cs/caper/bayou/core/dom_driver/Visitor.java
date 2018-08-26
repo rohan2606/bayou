@@ -65,7 +65,6 @@ public class Visitor extends ASTVisitor {
 
         // Evidence inputs
         List<Sequence> sequences;
-        String javadoc;
 
         // New Evidences Types
         String returnType;
@@ -74,7 +73,7 @@ public class Visitor extends ASTVisitor {
 
 
 
-        public JSONOutputWrapper(String methodName, String body, DSubTree ast, List<Sequence> sequences, String javadoc,  String returnType, List<String> formalParam,
+        public JSONOutputWrapper(String methodName, String body, DSubTree ast, List<Sequence> sequences,  String returnType, List<String> formalParam,
         List<String> classTypes ) {
 
             this.file = options.file;
@@ -84,7 +83,6 @@ public class Visitor extends ASTVisitor {
             this.ast = ast;
 
             this.sequences = sequences;
-            this.javadoc = javadoc;
 
             this.returnType = returnType;
             this.formalParam = formalParam;
@@ -121,7 +119,6 @@ public class Visitor extends ASTVisitor {
 
         // synchronized lists
         List<DSubTree> asts = new ArrayList<>();
-        List<String> javaDocs = new ArrayList<>();
         List<String> methodNames = new ArrayList<>();
         List<String> returnTypes = new ArrayList<>();
         List<String> bodys = new ArrayList<>();
@@ -136,13 +133,11 @@ public class Visitor extends ASTVisitor {
         if (!constructors.isEmpty() && !publicMethods.isEmpty()) {
 
             for (MethodDeclaration c : constructors){
-              String javadoc = Utils.getJavadoc(c, options.JAVADOC_TYPE);
               callStack.push(c);
               DSubTree ast = new DOMMethodDeclaration(c, this).handle();
               callStack.pop();
               if (ast.isValid()) {
                   asts.add(ast);
-                  javaDocs.add(javadoc);
                   methodNames.add(c.getName().getIdentifier() + "@" + getLineNumber(c));
                   returnTypes.add(getReturnType(c));
                   bodys.add(c.toString());
@@ -151,13 +146,11 @@ public class Visitor extends ASTVisitor {
             }
 
             for (MethodDeclaration m : publicMethods) {
-                String javadoc = Utils.getJavadoc(m, options.JAVADOC_TYPE);
                 callStack.push(m);
                 DSubTree ast = new DOMMethodDeclaration(m, this).handle();
                 callStack.pop();
                 if (ast.isValid()) {
                     asts.add(ast);
-                    javaDocs.add(javadoc);
                     methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
                     returnTypes.add(getReturnType(m));
                     bodys.add(m.toString());
@@ -166,13 +159,11 @@ public class Visitor extends ASTVisitor {
             }
         } else if (!constructors.isEmpty()) { // no public methods, only constructor
             for (MethodDeclaration c : constructors) {
-                String javadoc = Utils.getJavadoc(c, options.JAVADOC_TYPE);
                 callStack.push(c);
                 DSubTree ast = new DOMMethodDeclaration(c, this).handle();
                 callStack.pop();
                 if (ast.isValid()) {
                     asts.add(ast);
-                    javaDocs.add(javadoc);
                     methodNames.add(c.getName().getIdentifier() + "@" + getLineNumber(c));
                     returnTypes.add(getReturnType(c));
                     bodys.add(c.toString());
@@ -181,13 +172,11 @@ public class Visitor extends ASTVisitor {
             }
         } else if (!publicMethods.isEmpty()) { // no constructors, methods executed typically through Android callbacks
             for (MethodDeclaration m : publicMethods) {
-                String javadoc = Utils.getJavadoc(m, options.JAVADOC_TYPE);
                 callStack.push(m);
                 DSubTree ast = new DOMMethodDeclaration(m, this).handle();
                 callStack.pop();
                 if (ast.isValid()) {
                     asts.add(ast);
-                    javaDocs.add(javadoc);
                     methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
                     returnTypes.add(getReturnType(m));
                     bodys.add(m.toString());
@@ -200,7 +189,6 @@ public class Visitor extends ASTVisitor {
 
         for (int i = 0; i < asts.size(); i++) {
           DSubTree ast = asts.get(i);
-          String javaDoc = javaDocs.get(i);
           String methodName = methodNames.get(i);
           String returnType = returnTypes.get(i);
           List<String> formalParam = formalParams.get(i);
@@ -212,7 +200,7 @@ public class Visitor extends ASTVisitor {
               ast.updateSequences(sequences, options.MAX_SEQS, options.MAX_SEQ_LENGTH);
               List<Sequence> uniqSequences = new ArrayList<>(new HashSet<>(sequences));
               if (okToPrintAST(uniqSequences)){
-                addToJson(methodName, body, ast, uniqSequences, javaDoc, returnType, formalParam, classTypes);
+                addToJson(methodName, body, ast, uniqSequences, returnType, formalParam, classTypes);
               }
           } catch (DASTNode.TooManySequencesException e) {
               System.err.println("Too many sequences from AST");
@@ -224,10 +212,9 @@ public class Visitor extends ASTVisitor {
     }
 
 
-
-    private void addToJson(String methodName, String body, DSubTree ast, List<Sequence> sequences, String javadoc, String returnType,
+    private void addToJson(String methodName, String body, DSubTree ast, List<Sequence> sequences,  String returnType,
     List<String> formalParam, List<String> classTypes ) {
-       JSONOutputWrapper out = new JSONOutputWrapper(methodName, body, ast, sequences, javadoc, returnType, formalParam, classTypes);
+       JSONOutputWrapper out = new JSONOutputWrapper(methodName, body, ast, sequences, returnType, formalParam, classTypes);
        _js.programs.add(out);
    }
 
