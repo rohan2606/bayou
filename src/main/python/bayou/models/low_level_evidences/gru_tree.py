@@ -30,7 +30,7 @@ class TreeEncoder(object):
 
         # projection matrices for output
 		with tf.name_scope("projections"):
-			self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size*5, output_units])
+			self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size, output_units])
 			self.projection_b = tf.get_variable('projection_b', [output_units])
 
 		self.last_output = [None for i in range(5)]
@@ -61,6 +61,8 @@ class TreeEncoder(object):
 				
 		#after stack we have 5 * batch_size * cell.output(or units) # after transpose it is batch_size * units * 5 
 		merged_last_op = tf.reshape(tf.transpose(tf.stack(self.last_output), perm=[1, 2 ,0]), [-1, units * 5 ])
-		
-		self.last_output = tf.nn.xw_plus_b(merged_last_op, self.projection_w, self.projection_b)
+		merged_last_op0 = tf.layers.dense(merged_last_op, units, activation=tf.nn.tanh, reuse=tf.AUTO_REUSE, name='dense_last0')
+		merged_last_op1 = tf.layers.dense(merged_last_op0, units, activation=tf.nn.tanh, reuse=tf.AUTO_REUSE,  name='dense_last1')
+		merged_last_op2 = tf.layers.dense(merged_last_op1, units, activation=tf.nn.tanh, reuse=tf.AUTO_REUSE, name='dense_last2')
+		self.last_output = tf.nn.xw_plus_b(merged_last_op2, self.projection_w, self.projection_b)
 		return

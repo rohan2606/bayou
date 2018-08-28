@@ -158,7 +158,7 @@ def forward_pass(clargs):
         for j in range(config.num_batches):
             prob_Y, a1, b1, a2, b2, js_prog_ids, prog_ids = predictor.get_all_params_inago()
             for i in range(config.batch_size):
-                prog_id = prog_ids[i]
+                prog_id = js_prog_ids[i]
                 if prog_id not in infer_vars:
                     infer_vars[prog_id] = {}
                     infer_vars[prog_id]['a1'] = a1[i]
@@ -168,24 +168,13 @@ def forward_pass(clargs):
                     infer_vars[prog_id]['ProbY'] = prob_Y[i]
                     infer_vars[prog_id]['count_prog_ids'] = 1
                     infer_vars[prog_id]['JS'] = jsp[js_prog_ids[i]]
-                else:
-                    infer_vars[prog_id]['b1'] += b1[i]
-                    infer_vars[prog_id]['b2'] += b2[i]
-                    infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i] )
-                    infer_vars[prog_id]['count_prog_ids'] += 1
-
 
             if (j+1) % 1000 == 0:
                 print('Completed Processing {}/{} batches'.format(j+1, config.num_batches))
 
     print('Batch Processing Completed')
 
-    for prog_id in list(infer_vars.keys()):
-        infer_vars[prog_id]['b1'] /= infer_vars[prog_id]['count_prog_ids']
-        infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
-        infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
-
-
+ 
     print('Program Average done')
     return infer_vars, config
 

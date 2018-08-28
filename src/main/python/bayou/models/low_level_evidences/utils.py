@@ -48,7 +48,7 @@ def get_var_list():
 
     bayou_vars = decoder_vars + encoder_vars + emb_vars
     fix_encoder_vars = decoder_vars + rev_encoder_vars + emb_vars
-
+    rev_encoder_vars = rev_encoder_vars + emb_vars
     var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
                 'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
                 'bayou_vars':bayou_vars,
