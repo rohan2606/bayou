@@ -133,6 +133,9 @@ def forward_pass(clargs):
     targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
 
+    tree_nodes_placeholder = tf.placeholder(reader.tree_nodes.dtype, reader.tree_nodes.shape)
+    tree_edges_placeholder = tf.placeholder(reader.tree_edges.dtype, reader.tree_edges.shape)
+
     # reset batches
 
     feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
@@ -141,8 +144,9 @@ def forward_pass(clargs):
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
-
-    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    feed_dict.update({tree_nodes_placeholder: reader.tree_nodes})
+    feed_dict.update({tree_edges_placeholder: reader.tree_edges})
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, tree_nodes_placeholder, tree_edges_placeholder, *evidence_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
     jsp = reader.js_programs
@@ -223,7 +227,7 @@ if __name__ == '__main__':
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-	'/home/ubuntu/DATA-newer.json'])
+	'/home/ubuntu/DATA-newer-TOP.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

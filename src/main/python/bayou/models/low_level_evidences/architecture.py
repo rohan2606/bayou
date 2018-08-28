@@ -117,13 +117,13 @@ class BayesianDecoder(object):
 
 
 class BayesianReverseEncoder(object):
-    def __init__(self, config, emb, nodes, edges):
-        nodes = [ nodes[ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)]
-        edges = [ edges[ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)]
+    def __init__(self, config, emb, tree_nodes, tree_edges):
+        tree_nodes = [[ tree_nodes[j][ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)] for j in range(5)]
+        tree_edges = [[ tree_edges[j][ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)] for j in range(5)]
 
         with tf.variable_scope("Covariance"):
-            Covariance_Tree = TreeEncoder(emb, config.batch_size, nodes, edges, config.reverse_encoder.num_layers, \
-                                config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, 1)
+            Covariance_Tree = TreeEncoder(emb, config.batch_size, tree_nodes, tree_edges, config.reverse_encoder.num_layers, \
+                config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, 1)
             d = tf.square(Covariance_Tree.last_output)
             d = 1. +  d
             denom = tf.tile(d, [1, config.latent_size])
@@ -131,6 +131,6 @@ class BayesianReverseEncoder(object):
             self.psi_covariance = I / denom
 
         with tf.variable_scope("Mean"):
-            Mean_Tree = TreeEncoder(emb, config.batch_size, nodes, edges, config.reverse_encoder.num_layers, \
+            Mean_Tree = TreeEncoder(emb, config.batch_size, tree_nodes, tree_edges, config.reverse_encoder.num_layers, \
                                 config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, config.latent_size)
             self.psi_mean = Mean_Tree.last_output

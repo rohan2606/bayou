@@ -43,7 +43,7 @@ class Reader():
         random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+        prog_ids, raw_evidences, raw_targets, raw_trees, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
         print('Done!')
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
@@ -64,8 +64,10 @@ class Reader():
             raw_evidences[i] = raw_evidences[i][:sz]
 
         raw_targets = raw_targets[:sz]
+        raw_trees = raw_trees[:sz]
         prog_ids = prog_ids[:sz]
         js_programs = js_programs[:sz]
+		
 
     # setup input and target chars/vocab
         if clargs.continue_from is None:
@@ -80,33 +82,23 @@ class Reader():
         self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
         self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
         self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+        self.tree_nodes = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.int32)
+        self.tree_edges = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.bool)
         self.prog_ids = np.zeros(sz, dtype=np.int32)
         self.js_prog_ids = np.zeros(sz, dtype=np.int32)
+		
         for i, path in enumerate(raw_targets):
             self.nodes[i, :len(path)] = [p[0] for p in path]
             self.edges[i, :len(path)] = [p[1] for p in path]
+			
+            for j, tree_path_j in enumerate(raw_trees[i]):
+                self.tree_nodes[i, j, :len(tree_path_j) ] = [p[0] for p in tree_path_j]
+                self.tree_edges[i, j, :len(tree_path_j) ] = [p[1] for p in tree_path_j]
+
             self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
             self.prog_ids[i] = prog_ids[i]
             self.js_prog_ids[i] = i
         self.js_programs = js_programs
-
-        if not infer:
-            with open('data/inputs.txt', 'wb') as f:
-                pickle.dump(self.inputs, f)
-            with open('data/nodes.txt', 'wb') as f:
-                pickle.dump(self.nodes, f)
-            with open('data/edges.txt', 'wb') as f:
-                pickle.dump(self.edges, f)
-            with open('data/targets.txt', 'wb') as f:
-                pickle.dump(self.targets, f)
-            with open('data/prog_ids', 'wb') as f:
-                pickle.dump(self.prog_ids, f)
-            with open('data/js_prog_ids', 'wb') as f:
-                pickle.dump(self.js_prog_ids, f)
-            with open('data/js_programs', 'wb') as f:
-                pickle.dump(self.js_programs, f)
-
-
 
 
     def get_ast_paths(self, js, idx=0):
@@ -278,26 +270,30 @@ class Reader():
                 ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
 
                 self.validate_sketch_paths(program, ast_paths)
+                embPaths = []
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
 
-                    temp_arr = []
+                    embPath = []
                     for val in path:
                         nodeVal = val[0]
                         edgeVal = val[1]
                         if nodeVal not in self.CallMapDict:
                             if not infer:
                                 self.CallMapDict[nodeVal] = count
-                                temp_arr.append((count,edgeVal))
+                                embPath.append((count,edgeVal))
                                 count += 1
                         else:
-                            temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
+                            embPath.append((self.CallMapDict[nodeVal] , edgeVal))
 
-                        if infer and len(temp_arr)<len(path):
-                            for i in range(len(path) - len(temp_arr)):
-                                temp_arr.append((0,CHILD_EDGE))
-                    data_points.append((done - ignored, evidences, temp_arr, program))
-                    #data_points.append((done - ignored, evidences, temp_arr, {}))
+                        if infer and len(embPath)<len(path):
+                            for i in range(len(path) - len(embPath)):
+                                embPath.append((0,CHILD_EDGE))
+                    embPaths.append(embPath)
+				    
+                for embPath in embPaths:
+                    data_points.append((done - ignored, evidences, embPath, embPaths, program))
+                #data_points.append((done - ignored, evidences, embPath, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
@@ -318,7 +314,7 @@ class Reader():
 
         # randomly shuffle to avoid bias towards initial data points during training
         random.shuffle(data_points)
-        _ids, evidences, targets, js_programs = zip(*data_points) #unzip
+        _ids, evidences, targets, tree_targets, js_programs = zip(*data_points) #unzip
 
         # save callmap if save location is given
         if not infer:
@@ -329,4 +325,4 @@ class Reader():
             with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
                 pickle.dump(file_ptr, f)
 
-        return _ids, evidences, targets, js_programs
+        return _ids, evidences, targets, tree_targets, js_programs

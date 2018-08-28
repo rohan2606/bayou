@@ -95,6 +95,10 @@ def train(clargs):
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
     targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+
+    tree_nodes_placeholder = tf.placeholder(reader.tree_nodes.dtype, reader.tree_nodes.shape)
+    tree_edges_placeholder = tf.placeholder(reader.tree_edges.dtype, reader.tree_edges.shape)
+
     # reset batches
 
     feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
@@ -103,8 +107,11 @@ def train(clargs):
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
+    feed_dict.update({tree_nodes_placeholder: reader.tree_nodes})
+    feed_dict.update({tree_edges_placeholder: reader.tree_edges})
 
-    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, tree_nodes_placeholder, tree_edges_placeholder, *evidence_placeholder))
+	
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
@@ -185,7 +192,7 @@ if __name__ == '__main__':
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-top.json'])
+    '/home/ubuntu/DATA-newer-TOP.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

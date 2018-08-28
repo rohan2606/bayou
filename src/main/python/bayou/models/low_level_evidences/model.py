@@ -26,17 +26,20 @@ class Model():
 
 
         newBatch = iterator.get_next()
-        self.prog_ids, self.js_prog_ids, nodes, edges, targets = newBatch[:5]
-        ev_data = newBatch[5:]
+        self.prog_ids, self.js_prog_ids, nodes, edges, targets, tree_nodes, tree_edges = newBatch[:7]
+        ev_data = newBatch[7:]
 
-        if infer:
-            nodes = tf.expand_dims(nodes, axis=0)
-            edges = tf.expand_dims(edges, axis=0)
-            targets = tf.expand_dims(targets, axis=0)
-            ev_data = [tf.expand_dims(ev, axis=0) for ev in ev_data]
+        # if infer:
+            # nodes = tf.expand_dims(nodes, axis=0)
+            # edges = tf.expand_dims(edges, axis=0)
+            # targets = tf.expand_dims(targets, axis=0)
+            # ev_data = [tf.expand_dims(ev, axis=0) for ev in ev_data]
 
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
+        #tree nodes are batch_size * 2 * max_ast_depth
+        tree_nodes = tf.transpose(tree_nodes, perm=[1, 2, 0])
+        tree_edges = tf.transpose(tree_edges, perm=[1, 2, 0])
 
 
         with tf.variable_scope('Embedding'):
@@ -51,7 +54,7 @@ class Model():
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, emb, nodes, edges)
+            self.reverse_encoder = BayesianReverseEncoder(config, emb, tree_nodes, tree_edges)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2

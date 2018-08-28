@@ -15,49 +15,52 @@
 import tensorflow as tf
 
 class TreeEncoder(object):
-    def __init__(self, emb, batch_size, nodes, edges, num_layers, units, depth, output_units):
-        cells1 = []
-        cells2 = []
-        for _ in range(num_layers):
-            cells1.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(units))
-            cells2.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(units))
+	def __init__(self, emb, batch_size, tree_nodes, tree_edges, num_layers, units, depth, output_units):
+		cells1 = []
+		cells2 = []
+		for _ in range(num_layers):
+			cells1.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(units))
+			cells2.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(units))
 
-        self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
-        self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
+		self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
+		self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
 
-        # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
-        self.initial_state = [tf.truncated_normal([batch_size, units] , stddev=0.001 ) ] * num_layers
+		# initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
+		self.initial_state = [[tf.truncated_normal([batch_size, units] , stddev=0.001 ) ] * num_layers for j in range(5)]
 
         # projection matrices for output
-        with tf.name_scope("projections"):
-            self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size, output_units])
-            self.projection_b = tf.get_variable('projection_b', [output_units])
+		with tf.name_scope("projections"):
+			self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size*5, output_units])
+			self.projection_b = tf.get_variable('projection_b', [output_units])
 
-            # tf.summary.histogram("projection_w", self.projection_w)
-            # tf.summary.histogram("projection_b", self.projection_b)
+		self.last_output = [None for i in range(5)]
+		self.states = [None for i in range(5)]
+		for j, nodes, edges in zip(range(5), tree_nodes, tree_edges):
+			if j > 0:
+				tf.get_variable_scope().reuse_variables()
+			emb_inp = (tf.nn.embedding_lookup(emb, i) for i in nodes)
 
+			# the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
+			# TODO: update with dynamic decoder (being implemented in tf) once it is released
+			with tf.variable_scope('gru_tree'):
+				self.state = self.initial_state[j]
+				for i, inp in enumerate(emb_inp):
+					if i > 0:
+						tf.get_variable_scope().reuse_variables()
+					with tf.variable_scope('cell1'):  # handles CHILD_EDGE
+						output1, state1 = self.cell1(inp, self.state)
+					with tf.variable_scope('cell2'): # handles SIBLING EDGE
+						output2, state2 = self.cell2(inp, self.state)
 
-        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in nodes)
-        self.emb_inp = emb_inp
-
-
-        with tf.variable_scope('Tree_network'):
-
-            emb_inp = self.emb_inp
-            # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
-            # TODO: update with dynamic decoder (being implemented in tf) once it is released
-            with tf.variable_scope('rnn'):
-                self.state = self.initial_state
-                for i, inp in enumerate(emb_inp):
-                    if i > 0:
-                        tf.get_variable_scope().reuse_variables()
-                    with tf.variable_scope('cell1'):  # handles CHILD_EDGE
-                        output1, state1 = self.cell1(inp, self.state)
-                    with tf.variable_scope('cell2'): # handles SIBLING EDGE
-                        output2, state2 = self.cell2(inp, self.state)
-
-                    output = tf.where(edges[i], output1, output2)
-                    self.state = [tf.where(edges[i], state1[j], state2[j]) for j in range(num_layers)]
-
-        with tf.name_scope("Output"):
-            self.last_output = tf.nn.xw_plus_b(output, self.projection_w, self.projection_b)
+						output = tf.where(edges[i], output1, output2)
+						self.state = [tf.where(edges[i], state1[j], state2[j]) for j in range(num_layers)]
+			self.states.append(self.state)
+			
+			with tf.name_scope("Output"):
+				self.last_output[j] = output
+				
+		#after stack we have 5 * batch_size * cell.output(or units) # after transpose it is batch_size * units * 5 
+		merged_last_op = tf.reshape(tf.transpose(tf.stack(self.last_output), perm=[1, 2 ,0]), [-1, units * 5 ])
+		
+		self.last_output = tf.nn.xw_plus_b(merged_last_op, self.projection_w, self.projection_b)
+		return
