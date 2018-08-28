@@ -90,6 +90,7 @@ def train(clargs):
 
     # Placeholders for tf data
     prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
+    js_prog_ids_placeholder = tf.placeholder(reader.js_prog_ids.dtype, reader.js_prog_ids.shape)
     nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
     targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
@@ -98,11 +99,12 @@ def train(clargs):
 
     feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
     feed_dict.update({prog_ids_placeholder: reader.prog_ids})
+    feed_dict.update({js_prog_ids_placeholder: reader.js_prog_ids})
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
 
-    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
