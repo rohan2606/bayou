@@ -63,15 +63,9 @@ class BayesianPredictor(object):
 
         return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
 
-    def get_a1b1(self, evidences):
+    def get_a1b1(self):
         # setup initial states and feed
-        inputs = evidences
-        feed = {}
-        for j,ev in enumerate(self.model.config.evidence):
-            feed[self.model.encoder.inputs[j].name] = inputs[j]
-
-
-        [EncA, EncB] = self.sess.run([self.model.EncA, self.model.EncB], feed)
+        [EncA, EncB] = self.sess.run([self.model.EncA, self.model.EncB])
 
         return EncA, EncB
 

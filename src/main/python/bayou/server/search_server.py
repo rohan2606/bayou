@@ -49,49 +49,33 @@ def search_server(clargs):
     print('Loading Model, please wait _/\_ ...')
     model = bayou.models.low_level_evidences.infer.BayesianPredictor
 
-
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
 
-    config.num_batches = 1
     config.batch_size = 1
 
-    with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
 
-        print ('Model Loaded, All Ready to Predict Evidences!!')
+    print ('Model Loaded, All Ready to Predict Evidences!!')
+    while True:
+        print("\n\n Waiting for a new connection!")
+        s.listen(1)
+        conn, addr = s.accept()
+        print ('Connection address:', addr)
         while True:
-            print("\n\n Waiting for a new connection!")
-            s.listen(1)
-            conn, addr = s.accept()
-            print ('Connection address:', addr)
-            while True:
-                data = conn.recv(BUFFER_SIZE)
-                if not data:  break
+            data = conn.recv(BUFFER_SIZE)
+            if not data:  break
 
-                try:
-                    reader = Reader(clargs, config, infer=True)
-                    reader.reset_batches()
-                    _prog_ids, ev_data, n, e, y, jsp = reader.next_batch()
+            reader = Reader(clargs, config, infer=True)
+            dataset = tf.data.Dataset.from_tensor_slices((reader.prog_ids, reader.js_prog_ids, reader.nodes, reader.edges, reader.targets, *reader.inputs))
 
-                except:
-                    print ("\n BEWARE! The original Code was REMOVED from your Database")
-                    with open('/home/ubuntu/QueryProg.json') as f:
-                        js = json.load(f)
-                    program = js['programs'][0]
-                    # print (program)
-                    data_points = []
-                    ev_data = [ev.read_data_point(program) for ev in config.evidence]
-                    data_points.append(ev_data)
-                    raw_evidences = zip(*data_points)
-                    ev_data = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
+            iterator =  dataset.make_one_shot_iterator() #batched_dataset.make_initializable_iterator()
+            programs = []
+            with tf.Session() as sess:
+                predictor = model(clargs.save, sess, config, iterator, bayou_mode = False) # goes to infer.BayesianPredictor
 
+                a1, b1 = predictor.get_a1b1()
 
-
-                a1, b1 = predictor.get_a1b1(ev_data)
-
-                programs = []
                 # program = jsp[0]
                 # We do not need other paths in the program as all the evidences are the same for all the paths
                 # and for new test code we are only interested in the evidence encodings
@@ -106,15 +90,13 @@ def search_server(clargs):
 
                 programs.append(program)
 
-                print('\nWriting to {}...'.format('/home/ubuntu/QueryProgWEncoding.json'), end='\n')
-                with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
-                    json.dump({'programs': programs}, fp=f, indent=2)
-                print('done')
-
-
-
-                print ("Received data from client:", data)
-                conn.send(data)  # echo
+            print('\nWriting to {}...'.format('/home/ubuntu/QueryProgWEncoding.json'), end='\n')
+            with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
+                json.dump({'programs': programs}, fp=f, indent=2)
+            tf.reset_default_graph()
+            print('done')
+            print ("Received data from client:", data)
+            conn.send(data)  # echo
 
     return
 

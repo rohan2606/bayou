@@ -24,11 +24,20 @@ class Model():
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
         self.config = config
 
+
         newBatch = iterator.get_next()
         self.prog_ids, self.js_prog_ids, nodes, edges, targets = newBatch[:5]
+        ev_data = newBatch[5:]
+
+        if infer:
+            nodes = tf.expand_dims(nodes, axis=0)
+            edges = tf.expand_dims(edges, axis=0)
+            targets = tf.expand_dims(targets, axis=0)
+            ev_data = [tf.expand_dims(ev, axis=0) for ev in ev_data]
+
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
-        ev_data = newBatch[5:]
+
 
         with tf.variable_scope('Embedding'):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
@@ -88,6 +97,8 @@ class Model():
                 # last step by importace_sampling
                 # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
 				# P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
+
+
                 self.probY = -1 * self.gen_loss + self.get_multinormal_lnprob(self.psi_encoder) \
                                             - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
                 self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)

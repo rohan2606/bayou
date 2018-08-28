@@ -71,18 +71,19 @@ class Evidence(object):
             evidences.append(e)
         return evidences
 
-    def word2num(self, listOfWords):
+    def word2num(self, listOfWords, infer):
         output = []
         for word in listOfWords:
             if word not in self.vocab:
-                self.vocab[word] = self.vocab_size
-                self.vocab_size += 1
-                output.append(self.vocab[word])
+                if not infer:
+                    self.vocab[word] = self.vocab_size
+                    self.vocab_size += 1
+                    output.append(self.vocab[word])
             else:
                 output.append(self.vocab[word])
         return output
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         raise NotImplementedError('read_data() has not been implemented')
 
     def set_chars_vocab(self, data):
@@ -237,9 +238,9 @@ class APICalls(Sets):
         self.vocab_size = 1
 
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         apicalls = program['apicalls'] if 'apicalls' in program else []
-        return self.word2num(list(set(apicalls)))
+        return self.word2num(list(set(apicalls)) , infer)
 
 
     @staticmethod
@@ -257,9 +258,9 @@ class Types(Sets):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         types = program['types'] if 'types' in program else []
-        return self.word2num(list(set(types)))
+        return self.word2num(list(set(types)), infer)
 
     @staticmethod
     def get_types_re(s):
@@ -333,9 +334,9 @@ class Keywords(Sets):
         return self.lemmatizer.lemmatize(w, 'n')
 
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         keywords = [self.lemmatize(k) for k in program['keywords']] if 'keywords' in program else []
-        return self.word2num(list(set(keywords)))
+        return self.word2num(list(set(keywords)), infer)
 
 
 
@@ -369,9 +370,9 @@ class ReturnType(Sets):
         self.vocab_size = 1
 
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         returnType = [program['returnType'] if 'returnType' in program else 'NONE']
-        return self.word2num(list(set(returnType)))
+        return self.word2num(list(set(returnType)), infer)
 
 class ClassTypes(Sets):
 
@@ -380,9 +381,9 @@ class ClassTypes(Sets):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         classType = program['classTypes'] if 'classTypes' in program else []
-        return self.word2num(list(set(classType)))
+        return self.word2num(list(set(classType)), infer)
 
 
 # handle sequences as i/p
@@ -392,13 +393,13 @@ class CallSequences(Sequences):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         json_sequences = program['sequences'] if 'sequences' in program else []
         list_seqs = [[]]
         for json_seq in json_sequences:
             tmp_list = json_seq['calls']
             if len(tmp_list) > 1:
-                list_seqs.append(self.word2num(tmp_list))
+                list_seqs.append(self.word2num(tmp_list, infer))
         if len(list_seqs) > 1:
             list_seqs.remove([])
         #return list_seqs
@@ -435,9 +436,9 @@ class FormalParam(Sequences):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
-        return [self.word2num(json_sequence)]
+        return [self.word2num(json_sequence, infer)]
 
     def f_write(self, data, f):
         f.write('---------------' + self.name + '-------------------------\n')
@@ -459,7 +460,7 @@ class sorrCallSequences(Sequences):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         json_sequences = program['sorrsequences'] if 'sorrsequences' in program else []
         list_seqs = [[]]
         for i, list_json_seq in enumerate(json_sequences):
@@ -468,7 +469,7 @@ class sorrCallSequences(Sequences):
             for json_seq in list_json_seq:
                 tmp_list = json_seq['calls']
                 if len(tmp_list) > 1:
-                    list_seqs.append(self.word2num(tmp_list))
+                    list_seqs.append(self.word2num(tmp_list, infer))
         if len(list_seqs) > 1:
             list_seqs.remove([])
         #return list_seqs
@@ -483,7 +484,7 @@ class sorrFormalParam(Sequences):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         json_sequence = program['sorrformalparam'] if 'sorrformalparam' in program else [[]]
         list_seqs = [[]]
         for i, seqs in enumerate(json_sequence):
@@ -491,7 +492,7 @@ class sorrFormalParam(Sequences):
                 continue
             if len(seqs) == 0:
                 continue
-            list_seqs.append(self.word2num(seqs))
+            list_seqs.append(self.word2num(seqs, infer))
         if len(list_seqs) > 1:
             list_seqs.remove([])
         return list_seqs
@@ -504,6 +505,6 @@ class sorrReturnType(Sets):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program):
+    def read_data_point(self, program, infer):
         sorrreturnType = program['sorrreturntype'] if 'sorrreturntype' in program else []
-        return self.word2num(list(set(sorrreturnType)))
+        return self.word2num(list(set(sorrreturnType)), infer)

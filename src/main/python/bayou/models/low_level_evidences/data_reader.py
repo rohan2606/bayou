@@ -43,16 +43,19 @@ class Reader():
         random.seed(12)
         # read the raw evidences and targets
         print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0],save=clargs.save)
+        prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
         print('Done!')
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                          enumerate(config.evidence)]
 
 
         # align with number of batches and have it as a multiple of #GPUs
-        devices = get_available_gpus()
-        config.num_batches = int(len(raw_targets) / config.batch_size)
-        config.num_batches = config.num_batches - (config.num_batches % len(devices))
+        if not infer:
+            devices = get_available_gpus()
+            config.num_batches = int(len(raw_targets) / config.batch_size)
+            config.num_batches = config.num_batches - (config.num_batches % len(devices))
+        else:
+            config.num_batches = int(len(raw_targets) / config.batch_size)
         ################################
 
         assert config.num_batches > 0, 'Not enough data'
@@ -87,20 +90,21 @@ class Reader():
             self.js_prog_ids[i] = i
         self.js_programs = js_programs
 
-        with open('data/inputs.txt', 'wb') as f:
-            pickle.dump(self.inputs, f)
-        with open('data/nodes.txt', 'wb') as f:
-            pickle.dump(self.nodes, f)
-        with open('data/edges.txt', 'wb') as f:
-            pickle.dump(self.edges, f)
-        with open('data/targets.txt', 'wb') as f:
-            pickle.dump(self.targets, f)
-        with open('data/prog_ids', 'wb') as f:
-            pickle.dump(self.prog_ids, f)
-        with open('data/js_prog_ids', 'wb') as f:
-            pickle.dump(self.js_prog_ids, f)
-        with open('data/js_programs', 'wb') as f:
-            pickle.dump(self.js_programs, f)
+        if not infer:
+            with open('data/inputs.txt', 'wb') as f:
+                pickle.dump(self.inputs, f)
+            with open('data/nodes.txt', 'wb') as f:
+                pickle.dump(self.nodes, f)
+            with open('data/edges.txt', 'wb') as f:
+                pickle.dump(self.edges, f)
+            with open('data/targets.txt', 'wb') as f:
+                pickle.dump(self.targets, f)
+            with open('data/prog_ids', 'wb') as f:
+                pickle.dump(self.prog_ids, f)
+            with open('data/js_prog_ids', 'wb') as f:
+                pickle.dump(self.js_prog_ids, f)
+            with open('data/js_programs', 'wb') as f:
+                pickle.dump(self.js_programs, f)
 
 
 
@@ -250,7 +254,7 @@ class Reader():
             if nodes.count('DBranch') > 1 or nodes.count('DLoop') > 1 or nodes.count('DExcept') > 1:
                 raise TooLongPathError
 
-    def read_data(self, filename, save=None):
+    def read_data(self, filename, infer, save=None):
         # with open(filename) as f:
         #     js = json.load(f)
         f = open(filename , 'rb')
@@ -259,14 +263,18 @@ class Reader():
         callmap = dict()
         file_ptr = dict()
         ignored, done = 0, 0
-        self.CallMapDict = dict()
-        self.CallMapDict['STOP'] = 0
-        count = 1
+        if not infer:
+            self.CallMapDict = dict()
+            self.CallMapDict['STOP'] = 0
+            count = 1
+        else:
+            self.CallMapDict = self.config.decoder.vocab
+            count = self.config.decoder.vocab_size
         for program in ijson.items(f, 'programs.item'): #js['programs']:
             if 'ast' not in program:
                 continue
             try:
-                evidences = [ev.read_data_point(program) for ev in self.config.evidence]
+                evidences = [ev.read_data_point(program, infer) for ev in self.config.evidence]
                 ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
 
                 self.validate_sketch_paths(program, ast_paths)
@@ -278,11 +286,16 @@ class Reader():
                         nodeVal = val[0]
                         edgeVal = val[1]
                         if nodeVal not in self.CallMapDict:
-                            self.CallMapDict[nodeVal] = count
-                            temp_arr.append((count,edgeVal))
-                            count += 1
+                            if not infer:
+                                self.CallMapDict[nodeVal] = count
+                                temp_arr.append((count,edgeVal))
+                                count += 1
                         else:
                             temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
+
+                        if infer and len(temp_arr)<len(path):
+                            for i in range(len(path) - len(temp_arr)):
+                                temp_arr.append((0,CHILD_EDGE))
                     data_points.append((done - ignored, evidences, temp_arr, program))
                     #data_points.append((done - ignored, evidences, temp_arr, {}))
                 calls = gather_calls(program['ast'])
@@ -308,11 +321,12 @@ class Reader():
         _ids, evidences, targets, js_programs = zip(*data_points) #unzip
 
         # save callmap if save location is given
-        if save is not None:
-            with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
-                pickle.dump(callmap, f)
-        #
-        with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
-            pickle.dump(file_ptr, f)
+        if not infer:
+            if save is not None:
+                with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
+                    pickle.dump(callmap, f)
+
+            with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
+                pickle.dump(file_ptr, f)
 
         return _ids, evidences, targets, js_programs

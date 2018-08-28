@@ -153,7 +153,7 @@ def extract_evidence(clargs):
                 sample[evidence].append(choice)
 
         programs.append(sample)
-
+        
         done += 1
         print('Extracted evidence for {} programs'.format(done), end='\n')
 

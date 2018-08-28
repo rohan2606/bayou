@@ -75,7 +75,7 @@ def test_get_vals(clargs):
     else:
         infer_vars, config = forward_pass(clargs)
         programs = []
-        a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[] 
+        a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
         for prog_id in sorted(list(infer_vars.keys())):
             a1s += [infer_vars[prog_id]['a1']]
             a2s += [infer_vars[prog_id]['a2']]
@@ -97,14 +97,14 @@ def test_get_vals(clargs):
         print('New arrays saving done')
         #prob_Ys = normalize_log_probs(prob_Ys)
         #print('Normalizing done')
-      
+
 
         print('\nWriting to {}...'.format('Program_output_json.json'), end='')
         with open('Program_output_json.json', 'w') as f:
             json.dump({'programs': programs}, fp=f, indent=2)
         print('Files Saved')
 
-    return a1s, b1s, a2s, b2s, prob_Ys 
+    return a1s, b1s, a2s, b2s, prob_Ys
 
 def forward_pass(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
@@ -121,10 +121,10 @@ def forward_pass(clargs):
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
-		
-	
-    reader = Reader(clargs, config)
-	
+
+
+    reader = Reader(clargs, config, infer=True)
+
 	# Placeholders for tf data
     prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
     js_prog_ids_placeholder = tf.placeholder(reader.js_prog_ids.dtype, reader.js_prog_ids.shape)
