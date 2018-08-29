@@ -293,9 +293,6 @@ class Reader():
                         else:
                             temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
 
-                        if infer and len(temp_arr)<len(path):
-                            for i in range(len(path) - len(temp_arr)):
-                                temp_arr.append((0,CHILD_EDGE))
                     data_points.append((done - ignored, evidences, temp_arr, program))
                     #data_points.append((done - ignored, evidences, temp_arr, {}))
                 calls = gather_calls(program['ast'])
