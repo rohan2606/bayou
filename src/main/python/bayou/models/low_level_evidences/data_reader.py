@@ -67,7 +67,7 @@ class Reader():
         raw_trees = raw_trees[:sz]
         prog_ids = prog_ids[:sz]
         js_programs = js_programs[:sz]
-		
+
 
     # setup input and target chars/vocab
         if clargs.continue_from is None:
@@ -86,11 +86,11 @@ class Reader():
         self.tree_edges = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.bool)
         self.prog_ids = np.zeros(sz, dtype=np.int32)
         self.js_prog_ids = np.zeros(sz, dtype=np.int32)
-		
+
         for i, path in enumerate(raw_targets):
             self.nodes[i, :len(path)] = [p[0] for p in path]
             self.edges[i, :len(path)] = [p[1] for p in path]
-			
+
             for j, tree_path_j in enumerate(raw_trees[i]):
                 self.tree_nodes[i, j, :len(tree_path_j) ] = [p[0] for p in tree_path_j]
                 self.tree_edges[i, j, :len(tree_path_j) ] = [p[1] for p in tree_path_j]
@@ -286,11 +286,8 @@ class Reader():
                         else:
                             embPath.append((self.CallMapDict[nodeVal] , edgeVal))
 
-                        if infer and len(embPath)<len(path):
-                            for i in range(len(path) - len(embPath)):
-                                embPath.append((0,CHILD_EDGE))
                     embPaths.append(embPath)
-				    
+
                 for embPath in embPaths:
                     data_points.append((done - ignored, evidences, embPath, embPaths, program))
                 #data_points.append((done - ignored, evidences, embPath, {}))

@@ -42,8 +42,6 @@ class Model():
         tree_edges = tf.transpose(tree_edges, perm=[1, 2, 0])
 
 
-        with tf.variable_scope('Embedding'):
-            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
 
         with tf.variable_scope("Encoder"):
 
@@ -54,13 +52,15 @@ class Model():
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, emb, tree_nodes, tree_edges)
+            emb_re = tf.get_variable('emb', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
+            self.reverse_encoder = BayesianReverseEncoder(config, emb_re, tree_nodes, tree_edges)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
+            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
             if bayou_mode or infer:

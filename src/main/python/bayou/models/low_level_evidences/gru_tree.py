@@ -33,8 +33,8 @@ class TreeEncoder(object):
 			self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size, output_units])
 			self.projection_b = tf.get_variable('projection_b', [output_units])
 
-		self.last_output = [None for i in range(5)]
-		self.states = [None for i in range(5)]
+		self.last_outputs = []
+		self.states = []
 		for j, nodes, edges in zip(range(5), tree_nodes, tree_edges):
 			if j > 0:
 				tf.get_variable_scope().reuse_variables()
@@ -55,14 +55,14 @@ class TreeEncoder(object):
 						output = tf.where(edges[i], output1, output2)
 						self.state = [tf.where(edges[i], state1[j], state2[j]) for j in range(num_layers)]
 			self.states.append(self.state)
-			
+
 			with tf.name_scope("Output"):
-				self.last_output[j] = output
-				
-		#after stack we have 5 * batch_size * cell.output(or units) # after transpose it is batch_size * units * 5 
+				self.last_outputs.append(output)
+
+		#after stack we have 5 * batch_size * cell.output(or units) # after transpose it is batch_size * units * 5
 		merged_last_op = tf.reshape(tf.transpose(tf.stack(self.last_output), perm=[1, 2 ,0]), [-1, units * 5 ])
-		merged_last_op0 = tf.layers.dense(merged_last_op, units, activation=tf.nn.tanh, reuse=tf.AUTO_REUSE, name='dense_last0')
-		merged_last_op1 = tf.layers.dense(merged_last_op0, units, activation=tf.nn.tanh, reuse=tf.AUTO_REUSE,  name='dense_last1')
-		merged_last_op2 = tf.layers.dense(merged_last_op1, units, activation=tf.nn.tanh, reuse=tf.AUTO_REUSE, name='dense_last2')
+		merged_last_op0 = tf.layers.dense(merged_last_op, units, activation=tf.nn.tanh, name='dense_last0') #reuse=tf.AUTO_REUSE,
+		merged_last_op1 = tf.layers.dense(merged_last_op0, units, activation=tf.nn.tanh,  name='dense_last1') # reuse=tf.AUTO_REUSE,
+		merged_last_op2 = tf.layers.dense(merged_last_op1, units, activation=tf.nn.tanh,  name='dense_last2') # reuse=tf.AUTO_REUSE,
 		self.last_output = tf.nn.xw_plus_b(merged_last_op2, self.projection_w, self.projection_b)
 		return
