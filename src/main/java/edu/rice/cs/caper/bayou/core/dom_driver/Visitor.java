@@ -125,14 +125,27 @@ public class Visitor extends ASTVisitor {
         List<List<String>> formalParams = new ArrayList<>();
         List<String> classTypes = new ArrayList<>();
 
+
+
+        Collections.shuffle(allTypes);
+        int maxClass = 10;
+        int i = 0;
         for (FieldDeclaration type : allTypes){
           classTypes.add(type.getType().toString());
+          i += 1;
+          if (i>maxClass)
+            break;
         }
 
-
+        Collections.shuffle(constructors);
+        Collections.shuffle(publicMethods);
+        int maxSamples =  10;
         if (!constructors.isEmpty() && !publicMethods.isEmpty()) {
 
+            i = 0;
             for (MethodDeclaration c : constructors){
+              if (i>maxSamples)
+                break;
               callStack.push(c);
               DSubTree ast = new DOMMethodDeclaration(c, this).handle();
               callStack.pop();
@@ -143,9 +156,13 @@ public class Visitor extends ASTVisitor {
                   bodys.add(c.toString());
                   formalParams.add(getFormalParams(c));
               }
+              i += 1;
             }
 
+            i = 0;
             for (MethodDeclaration m : publicMethods) {
+                if (i>maxSamples)
+                  break;
                 callStack.push(m);
                 DSubTree ast = new DOMMethodDeclaration(m, this).handle();
                 callStack.pop();
@@ -156,9 +173,13 @@ public class Visitor extends ASTVisitor {
                     bodys.add(m.toString());
                     formalParams.add(getFormalParams(m));
                 }
+                i += 1;
             }
         } else if (!constructors.isEmpty()) { // no public methods, only constructor
+            i = 0;
             for (MethodDeclaration c : constructors) {
+                if (i>maxSamples)
+                  break;
                 callStack.push(c);
                 DSubTree ast = new DOMMethodDeclaration(c, this).handle();
                 callStack.pop();
@@ -168,10 +189,14 @@ public class Visitor extends ASTVisitor {
                     returnTypes.add(getReturnType(c));
                     bodys.add(c.toString());
                     formalParams.add(getFormalParams(c));
-                  }
+                }
+                i += 1;
             }
         } else if (!publicMethods.isEmpty()) { // no constructors, methods executed typically through Android callbacks
+            i = 0;
             for (MethodDeclaration m : publicMethods) {
+                if (i>maxSamples)
+                  break;
                 callStack.push(m);
                 DSubTree ast = new DOMMethodDeclaration(m, this).handle();
                 callStack.pop();
@@ -182,12 +207,13 @@ public class Visitor extends ASTVisitor {
                     bodys.add(m.toString());
                     formalParams.add(getFormalParams(m));
                 }
+                i += 1;
             }
         }
 
 
 
-        for (int i = 0; i < asts.size(); i++) {
+        for (i = 0; i < asts.size(); i++) {
           DSubTree ast = asts.get(i);
           String methodName = methodNames.get(i);
           String returnType = returnTypes.get(i);
@@ -260,7 +286,7 @@ public class Visitor extends ASTVisitor {
 
     private boolean okToPrintAST(List<Sequence> sequences) {
          int n = sequences.size();
-         if (n == 0) //  || (n == 1 && sequences.get(0).getCalls().size() <= 1))
+         if (n == 0  || (n == 1 && sequences.get(0).getCalls().size() <= 1))
              return false;
          return true;
     }
