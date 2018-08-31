@@ -29,45 +29,6 @@ from bayou.models.low_level_evidences.utils import read_config, dump_config, get
 
 
 HELP = """\
-Config options should be given as a JSON file (see config.json for example):
-{                                         |
-    "model": "lle"                        | The implementation id of this model (do not change)
-    "latent_size": 32,                    | Latent dimensionality
-    "batch_size": 50,                     | Minibatch size
-    "num_epochs": 100,                    | Number of training epochs
-    "learning_rate": 0.02,                | Learning rate
-    "print_step": 1,                      | Print training output every given steps
-    "evidence": [                         | Provide each evidence type in this list
-        {                                 |
-            "name": "apicalls",           | Name of evidence ("apicalls")
-            "units": 64,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        },                                |
-        {                                 |
-            "name": "types",              | Name of evidence ("types")
-            "units": 32,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        },                                |
-        {                                 |
-            "name": "keywords",           | Name of evidence ("keywords")
-            "units": 64,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        }                                 |
-    ],                                    |
-    "decoder": {                          | Provide parameters for the decoder here
-        "units": 256,                     | Size of the decoder hidden state
-        "num_layers": 3,                  | Number of layers in the decoder
-        "max_ast_depth": 32               | Maximum depth of the AST (length of the longest path)
-    }
-    "reverse_encoder": {
-        "units": 256,
-        "num_layers": 3,
-        "max_ast_depth": 32
-    }                                   |
-}                                         |
 """
 #%%
 
@@ -111,7 +72,7 @@ def train(clargs):
     feed_dict.update({tree_edges_placeholder: reader.tree_edges})
 
     dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, tree_nodes_placeholder, tree_edges_placeholder, *evidence_placeholder))
-	
+
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
