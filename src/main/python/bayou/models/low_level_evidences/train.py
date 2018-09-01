@@ -127,13 +127,17 @@ def train(clargs):
             old_saver.restore(sess, ckpt.model_checkpoint_path)
 
         devices = get_available_gpus()
+        if len(devices) > 0:
+            NUM_BATCHES = config.num_batches // len(devices)
+        else:
+            NUM_BATCHES = config.num_batches
         # training
         epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
             sess.run(iterator.initializer, feed_dict=feed_dict)
             start = time.time()
             avg_loss, avg_gen_loss, avg_KL_loss = 0.,0.,0.
-            for b in range(config.num_batches // len(devices)): # TODO divide the data evenly
+            for b in range(NUM_BATCHES):
                 # run the optimizer
                 loss, KL_loss, gen_loss , _ = sess.run([model.avg_loss, model.avg_KL_loss, model.avg_gen_loss, model.apply_gradient_op])
 
@@ -185,7 +189,7 @@ if __name__ == '__main__':
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-top.json'])
+    '/home/ubuntu/DATA-newer-TOP.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

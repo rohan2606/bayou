@@ -31,30 +31,47 @@ class MultiGPUModel():
         controller = '/cpu:0'
 
         tower_grads = []
-        losses, KL_loss, gen_loss = [], [], []
+        if len(devices) > 0:
+            losses, KL_loss, gen_loss = [], [], []
 
-        self.gpuModels = [None for i in range(len(devices))]
-        with tf.variable_scope(tf.get_variable_scope()) as outer_scope:
-            for i, id in enumerate(devices):
-                name = 'tower_{}'.format(i)
-                # Use the assign_to_device function to ensure that variables are created on the controller.
-                with tf.device(self.assign_to_device(id, controller)), tf.name_scope(name):
-                    self.gpuModels[i] = Model(config, iterator, infer=infer, bayou_mode=bayou_mode)
-                    with tf.name_scope("compute_gradients"):
-                        # `compute_gradients` returns a list of (gradient, variable) pairs
-                        if bayou_mode:
-                            train_ops = get_var_list()['bayou_vars']
-                        else:
-                            train_ops = get_var_list()['rev_encoder_vars']
-                        # print(train_ops)
-                        grads = opt.compute_gradients(self.gpuModels[i].loss, train_ops)
-                        tower_grads.append(grads)
+            self.gpuModels = [None for i in range(len(devices))]
+            with tf.variable_scope(tf.get_variable_scope()) as outer_scope:
+                for i, id in enumerate(devices):
+                    name = 'tower_{}'.format(i)
+                    # Use the assign_to_device function to ensure that variables are created on the controller.
+                    with tf.device(self.assign_to_device(id, controller)), tf.name_scope(name):
+                        self.gpuModels[i] = Model(config, iterator, infer=infer, bayou_mode=bayou_mode)
+                        with tf.name_scope("compute_gradients"):
+                            # `compute_gradients` returns a list of (gradient, variable) pairs
+                            if bayou_mode:
+                                train_ops = get_var_list()['bayou_vars']
+                            else:
+                                train_ops = get_var_list()['rev_encoder_vars']
+                            # print(train_ops)
+                            grads = opt.compute_gradients(self.gpuModels[i].loss, train_ops)
+                            tower_grads.append(grads)
 
-                    losses.append(self.gpuModels[i].loss)
-                    KL_loss.append(self.gpuModels[i].KL_loss)
-                    gen_loss.append(self.gpuModels[i].gen_loss)
-                # After the first iteration, we want to reuse the variables.
-                outer_scope.reuse_variables()
+                        losses.append(self.gpuModels[i].loss)
+                        KL_loss.append(self.gpuModels[i].KL_loss)
+                        gen_loss.append(self.gpuModels[i].gen_loss)
+                    # After the first iteration, we want to reuse the variables.
+                    outer_scope.reuse_variables()
+        else:
+            self.gpuModels = [None for i in range(1)]
+            self.gpuModels[0] = Model(config, iterator, infer=infer, bayou_mode=bayou_mode)
+            with tf.name_scope("compute_gradients"):
+                # `compute_gradients` returns a list of (gradient, variable) pairs
+                if bayou_mode:
+                    train_ops = get_var_list()['bayou_vars']
+                else:
+                    train_ops = get_var_list()['rev_encoder_vars']
+                # print(train_ops)
+                grads = opt.compute_gradients(self.gpuModels[0].loss, train_ops)
+                tower_grads.append(grads)
+                losses = [self.gpuModels[0].loss]
+                KL_loss = [self.gpuModels[0].KL_loss]
+                gen_loss = [self.gpuModels[0].gen_loss]
+
 
             # Apply the gradients on the controlling device
         with tf.name_scope("apply_gradients"), tf.device(controller):

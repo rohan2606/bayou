@@ -37,60 +37,78 @@ class InvalidSketchError(Exception):
 
 
 class Reader():
-    def __init__(self, clargs, config, infer=False):
+    def __init__(self, clargs, config, infer=False, dataIsThere=False):
         self.infer = infer
         self.config = config
-        random.seed(12)
-        # read the raw evidences and targets
-        print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
-        print('Done!')
-        raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
-                         enumerate(config.evidence)]
+
+        if clargs.continue_from is not None:
+            with open('data/inputs.txt', 'rb') as f:
+                self.inputs = pickle.load(f)
+            with open('data/nodes.txt', 'rb') as f:
+                self.nodes = pickle.load(f)
+            with open('data/edges.txt', 'rb') as f:
+                self.edges = pickle.load(f)
+            with open('data/targets.txt', 'rb') as f:
+                self.targets = pickle.load(f)
+            with open('data/prog_ids', 'rb') as f:
+                self.prog_ids = pickle.load(f)
+            with open('data/js_prog_ids', 'rb') as f:
+                self.js_prog_ids = pickle.load(f)
+            if infer:
+                with open('data/js_programs.json', 'rb') as f:
+                    self.js_programs = ijson.parse(f)
+            config.num_batches = int(len(self.nodes) / config.batch_size)
+
+        else:
+            random.seed(12)
+            # read the raw evidences and targets
+            print('Reading data file...')
+            prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+            print('Done!')
+            raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
+                             enumerate(config.evidence)]
 
 
-        # align with number of batches and have it as a multiple of #GPUs
-        if not infer:
+            # align with number of batches and have it as a multiple of #GPUs
             devices = get_available_gpus()
             config.num_batches = int(len(raw_targets) / config.batch_size)
-            config.num_batches = config.num_batches - (config.num_batches % len(devices))
-        else:
-            config.num_batches = int(len(raw_targets) / config.batch_size)
-        ################################
+            if len(devices) > 0:
+                config.num_batches = config.num_batches - (config.num_batches % len(devices))
 
-        assert config.num_batches > 0, 'Not enough data'
-        sz = config.num_batches * config.batch_size
-        for i in range(len(raw_evidences)):
-            raw_evidences[i] = raw_evidences[i][:sz]
+            ################################
 
-        raw_targets = raw_targets[:sz]
-        prog_ids = prog_ids[:sz]
-        js_programs = js_programs[:sz]
+            assert config.num_batches > 0, 'Not enough data'
+            sz = config.num_batches * config.batch_size
+            for i in range(len(raw_evidences)):
+                raw_evidences[i] = raw_evidences[i][:sz]
+            raw_targets = raw_targets[:sz]
+            prog_ids = prog_ids[:sz]
+            js_programs = js_programs[:sz]
 
-    # setup input and target chars/vocab
-        if clargs.continue_from is None:
-            config.decoder.vocab = self.CallMapDict
-            config.decoder.vocab_size = len(self.CallMapDict)
-            # adding the same variables for reverse Encoder
-            config.reverse_encoder.vocab = self.CallMapDict
-            config.reverse_encoder.vocab_size = len(self.CallMapDict)
+        # setup input and target chars/vocab
+            if clargs.continue_from is None:
+                config.decoder.vocab = self.CallMapDict
+                config.decoder.vocab_size = len(self.CallMapDict)
+                # adding the same variables for reverse Encoder
+                config.reverse_encoder.vocab = self.CallMapDict
+                config.reverse_encoder.vocab_size = len(self.CallMapDict)
 
-        # wrangle the evidences and targets into numpy arrays
-        self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
-        self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
-        self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
-        self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
-        self.prog_ids = np.zeros(sz, dtype=np.int32)
-        self.js_prog_ids = np.zeros(sz, dtype=np.int32)
-        for i, path in enumerate(raw_targets):
-            self.nodes[i, :len(path)] = [p[0] for p in path]
-            self.edges[i, :len(path)] = [p[1] for p in path]
-            self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
-            self.prog_ids[i] = prog_ids[i]
-            self.js_prog_ids[i] = i
-        self.js_programs = js_programs
+            # wrangle the evidences and targets into numpy arrays
+            self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
+            self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+            self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
+            self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+            self.prog_ids = np.zeros(sz, dtype=np.int32)
+            self.js_prog_ids = np.zeros(sz, dtype=np.int32)
+            for i, path in enumerate(raw_targets):
+                self.nodes[i, :len(path)] = [p[0] for p in path]
+                self.edges[i, :len(path)] = [p[1] for p in path]
+                self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
+                self.prog_ids[i] = prog_ids[i]
+                self.js_prog_ids[i] = i
+            self.js_programs = js_programs
 
-        if not infer:
+
             with open('data/inputs.txt', 'wb') as f:
                 pickle.dump(self.inputs, f)
             with open('data/nodes.txt', 'wb') as f:
@@ -103,8 +121,8 @@ class Reader():
                 pickle.dump(self.prog_ids, f)
             with open('data/js_prog_ids', 'wb') as f:
                 pickle.dump(self.js_prog_ids, f)
-            with open('data/js_programs', 'wb') as f:
-                pickle.dump(self.js_programs, f)
+            with open('data/js_programs.json', 'w') as f:
+                json.dump({'programs': self.js_programs}, fp=f, indent=2)
 
 
 
