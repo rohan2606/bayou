@@ -62,9 +62,7 @@ def test(clargs):
 
 
 def test_get_vals(clargs):
-    if os.path.isfile(File_Name + '/a1s.npy') and os.path.isfile(File_Name + '/a2s.npy') \
-            and os.path.isfile(File_Name + '/b1s.npy') and os.path.isfile(File_Name + '/b2s.npy') \
-            and os.path.isfile(File_Name + '/prob_Ys.npy') and os.path.isfile(File_Name + '/Ys.npy') :
+    if False :
         a1s = np.load(File_Name  + '/a1s.npy')
         b1s = np.load(File_Name  + '/b1s.npy')
         a2s = np.load(File_Name  + '/a2s.npy')
@@ -158,7 +156,7 @@ def forward_pass(clargs):
         for j in range(config.num_batches):
             prob_Y, a1, b1, a2, b2, js_prog_ids, prog_ids = predictor.get_all_params_inago()
             for i in range(config.batch_size):
-                prog_id = js_prog_ids[i]
+                prog_id = prog_ids[i]
                 if prog_id not in infer_vars:
                     infer_vars[prog_id] = {}
                     infer_vars[prog_id]['a1'] = a1[i]
@@ -216,7 +214,7 @@ if __name__ == '__main__':
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-	'/home/ubuntu/DATA-newer-TOP.json'])
+	'/home/ubuntu/DATA-newer.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

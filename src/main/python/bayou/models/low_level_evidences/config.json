@@ -1,11 +1,11 @@
 {
     "model": "lle",
     "latent_size": 64,
-    "batch_size": 50,
+    "batch_size": 200,
     "num_epochs": 100,
     "learning_rate": 0.0006,
     "print_step": 50,
-    "checkpoint_step": 10,
+    "checkpoint_step": 1,
     "evidence": [
         {
             "name": "apicalls",

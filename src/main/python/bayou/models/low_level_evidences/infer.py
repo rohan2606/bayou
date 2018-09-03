@@ -56,11 +56,21 @@ class BayesianPredictor(object):
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
 
-    def get_all_params_inago(self):
+    def get_all_params_inago(self, num_samples=100):
         # setup initial states and feed
         [probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
                                                         self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
-
+	
+        '''
+        probYs = np.zeros([self.model.config.batch_size])
+        probYs += probY
+        for i in range(1, num_samples): # start from 1 since 1 case is already done
+             probY = self.sess.run(self.model.probY)
+             probYs += probY
+        
+        probY = probYs / num_samples
+        '''
+        #probY *= 0.0
         return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
 
     def get_a1b1(self):

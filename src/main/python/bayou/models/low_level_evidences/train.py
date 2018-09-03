@@ -76,7 +76,7 @@ def train(clargs):
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
-    model = MultiGPUModel(config , iterator, bayou_mode=True)
+    model = MultiGPUModel(config , iterator, bayou_mode=False)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
@@ -89,7 +89,7 @@ def train(clargs):
 
         # restore model
         if clargs.continue_from is not None:
-            bayou_vars = get_var_list()['bayou_vars']
+            bayou_vars = get_var_list()['all_vars']
             old_saver = tf.train.Saver(bayou_vars, max_to_keep=None)
             ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
             old_saver.restore(sess, ckpt.model_checkpoint_path)
@@ -140,7 +140,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save',
+    parser.add_argument('--save', type=str, default='save1',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -148,12 +148,12 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     # ['--continue_from', 'save',
-     ['--config','config.json',
+     ['--continue_from', 'save',
+     #['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-newer-TOP.json'])
+    '/home/ubuntu/DATA-newer.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

@@ -23,7 +23,7 @@ from bayou.models.low_level_evidences.utils import get_var_list, get_available_g
 
 
 class MultiGPUModel():
-    def __init__(self, config, iterator, bayou_mode=True, infer=False,):
+    def __init__(self, config, iterator, bayou_mode=True, infer=False):
 
         opt = tf.train.AdamOptimizer(config.learning_rate)
 
@@ -42,11 +42,13 @@ class MultiGPUModel():
                     self.gpuModels[i] = Model(config, iterator, infer=infer, bayou_mode=bayou_mode)
                     with tf.name_scope("compute_gradients"):
                         # `compute_gradients` returns a list of (gradient, variable) pairs
-                        if bayou_mode:
+                        '''if bayou_mode:
                             train_ops = get_var_list()['bayou_vars']
                         else:
                             train_ops = get_var_list()['rev_encoder_vars']
                         # print(train_ops)
+                        '''
+                        train_ops = get_var_list()['all_vars']
                         grads = opt.compute_gradients(self.gpuModels[i].loss, train_ops)
                         tower_grads.append(grads)
 

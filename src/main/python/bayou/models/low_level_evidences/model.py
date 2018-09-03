@@ -66,7 +66,7 @@ class Model():
             if bayou_mode or infer:
                 initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
-                initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+                initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges, infer=infer)
 
 
@@ -91,7 +91,7 @@ class Model():
             if bayou_mode:
                 self.loss = self.gen_loss
             else:
-                self.loss = self.KL_loss
+                self.loss = self.gen_loss + 0.001 * self.KL_loss
 
 
             if infer:
@@ -101,7 +101,7 @@ class Model():
                 # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
 				# P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
 
-
+		
                 self.probY = -1 * self.gen_loss + self.get_multinormal_lnprob(self.psi_encoder) \
                                             - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
                 self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
