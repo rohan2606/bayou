@@ -38,8 +38,8 @@ def test(clargs):
     a1s, b1s, a2s, b2s, prob_Ys  = test_get_vals(clargs)
 
 
-    latent_size, num_progs, batch_size = len(b1s[0]), len(a1s), 1000
-    hit_points = [2,5,10,50,100,500,1000,5000,10000]
+    latent_size, num_progs, batch_size = len(b1s[0]), len(a1s), 10000
+    hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
     hit_counts = np.zeros(len(hit_points))
     for i in range(num_progs):
         prob_Y_Xs = []

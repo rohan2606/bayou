@@ -55,12 +55,14 @@ class Reader():
             with open('data/js_prog_ids', 'rb') as f:
                 self.js_prog_ids = pickle.load(f)
             if infer:
+                self.js_programs = []
                 with open('data/js_programs.json', 'rb') as f:
-                    self.js_programs = ijson.parse(f)
+                    for program in ijson.items(f, 'programs.item'):
+                        self.js_programs.append(program)
             config.num_batches = int(len(self.nodes) / config.batch_size)
 
         else:
-            random.seed(12)
+            # random.seed(12)
             # read the raw evidences and targets
             print('Reading data file...')
             prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
@@ -288,7 +290,7 @@ class Reader():
         else:
             self.CallMapDict = self.config.decoder.vocab
             count = self.config.decoder.vocab_size
-        for program in ijson.items(f, 'programs.item'): #js['programs']:
+        for program in ijson.items(f, 'programs.item'):
             if 'ast' not in program:
                 continue
             try:
