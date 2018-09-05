@@ -65,7 +65,6 @@ public class Visitor extends ASTVisitor {
 
         // Evidence inputs
         List<Sequence> sequences;
-        String javadoc;
 
         // New Evidences Types
         String returnType;
@@ -74,7 +73,7 @@ public class Visitor extends ASTVisitor {
 
 
 
-        public JSONOutputWrapper(String methodName, String body, DSubTree ast, List<Sequence> sequences, String javadoc,  String returnType, List<String> formalParam,
+        public JSONOutputWrapper(String methodName, String body, DSubTree ast, List<Sequence> sequences,  String returnType, List<String> formalParam,
         List<String> classTypes ) {
 
             this.file = options.file;
@@ -84,7 +83,6 @@ public class Visitor extends ASTVisitor {
             this.ast = ast;
 
             this.sequences = sequences;
-            this.javadoc = javadoc;
 
             this.returnType = returnType;
             this.formalParam = formalParam;
@@ -121,64 +119,68 @@ public class Visitor extends ASTVisitor {
 
         // synchronized lists
         List<DSubTree> asts = new ArrayList<>();
-        List<String> javaDocs = new ArrayList<>();
         List<String> methodNames = new ArrayList<>();
         List<String> returnTypes = new ArrayList<>();
         List<String> bodys = new ArrayList<>();
         List<List<String>> formalParams = new ArrayList<>();
         List<String> classTypes = new ArrayList<>();
 
+        Collections.shuffle(allTypes);
         for (FieldDeclaration type : allTypes){
           classTypes.add(type.getType().toString());
         }
 
-
+        Collections.shuffle(constructors);
+        Collections.shuffle(publicMethods);
         if (!constructors.isEmpty() && !publicMethods.isEmpty()) {
-            for (MethodDeclaration c : constructors)
-                for (MethodDeclaration m : publicMethods) {
-                    String javadoc = Utils.getJavadoc(m, options.JAVADOC_TYPE);
-                    callStack.push(c);
-                    DSubTree ast = new DOMMethodDeclaration(c, this).handle();
-                    callStack.push(m);
-                    ast.addNodes(new DOMMethodDeclaration(m, this).handle().getNodes());
-                    callStack.pop();
-                    callStack.pop();
-                    if (true) {
-                        asts.add(ast);
-                        javaDocs.add(javadoc);
-                        methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
-                        returnTypes.add(getReturnType(m));
-                        bodys.add(getBody(c) + "\n\n" +  getBody(m));
-                        formalParams.add(getFormalParams(m));
-                    }
-                }
-        } else if (!constructors.isEmpty()) { // no public methods, only constructor
-            for (MethodDeclaration c : constructors) {
-                String javadoc = Utils.getJavadoc(c, options.JAVADOC_TYPE);
+              for (MethodDeclaration c : constructors){
                 callStack.push(c);
                 DSubTree ast = new DOMMethodDeclaration(c, this).handle();
                 callStack.pop();
                 if (true) {
                     asts.add(ast);
-                    javaDocs.add(javadoc);
                     methodNames.add(c.getName().getIdentifier() + "@" + getLineNumber(c));
                     returnTypes.add(getReturnType(c));
-                    bodys.add(getBody(c));
+                    bodys.add(c.toString());
+                    formalParams.add(getFormalParams(c));
+                }
+              }
+
+              for (MethodDeclaration m : publicMethods) {
+                  callStack.push(m);
+                  DSubTree ast = new DOMMethodDeclaration(m, this).handle();
+                  callStack.pop();
+                  if (true) {
+                      asts.add(ast);
+                      methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
+                      returnTypes.add(getReturnType(m));
+                      bodys.add(m.toString());
+                      formalParams.add(getFormalParams(m));
+                  }
+              }
+        } else if (!constructors.isEmpty()) { // no public methods, only constructor
+            for (MethodDeclaration c : constructors) {
+                callStack.push(c);
+                DSubTree ast = new DOMMethodDeclaration(c, this).handle();
+                callStack.pop();
+                if (true) {
+                    asts.add(ast);
+                    methodNames.add(c.getName().getIdentifier() + "@" + getLineNumber(c));
+                    returnTypes.add(getReturnType(c));
+                    bodys.add(c.toString());
                     formalParams.add(getFormalParams(c));
                   }
             }
         } else if (!publicMethods.isEmpty()) { // no constructors, methods executed typically through Android callbacks
             for (MethodDeclaration m : publicMethods) {
-                String javadoc = Utils.getJavadoc(m, options.JAVADOC_TYPE);
                 callStack.push(m);
                 DSubTree ast = new DOMMethodDeclaration(m, this).handle();
                 callStack.pop();
                 if (true) {
                     asts.add(ast);
-                    javaDocs.add(javadoc);
                     methodNames.add(m.getName().getIdentifier() + "@" + getLineNumber(m));
                     returnTypes.add(getReturnType(m));
-                    bodys.add(getBody(m));
+                    bodys.add(m.toString());
                     formalParams.add(getFormalParams(m));
                 }
             }
@@ -188,7 +190,6 @@ public class Visitor extends ASTVisitor {
 
         for (int i = 0; i < asts.size(); i++) {
           DSubTree ast = asts.get(i);
-          String javaDoc = javaDocs.get(i);
           String methodName = methodNames.get(i);
           String returnType = returnTypes.get(i);
           List<String> formalParam = formalParams.get(i);
@@ -199,15 +200,15 @@ public class Visitor extends ASTVisitor {
           try {
               ast.updateSequences(sequences, options.MAX_SEQS, options.MAX_SEQ_LENGTH);
               List<Sequence> uniqSequences = new ArrayList<>(new HashSet<>(sequences));
-              addToJson(methodName, body, ast, uniqSequences, javaDoc, returnType, formalParam, classTypes);
+              addToJson(methodName, body, ast, uniqSequences, returnType, formalParam, classTypes);
           } catch (DASTNode.TooManySequencesException e) {
               System.err.println("Too many sequences from AST");
               List<Sequence> uniqSequences = new ArrayList<>(new HashSet<>(sequences));
-              addToJson(methodName, body, ast, uniqSequences, javaDoc, returnType, formalParam, classTypes);
+              addToJson(methodName, body, ast, uniqSequences, returnType, formalParam, classTypes);
           } catch (DASTNode.TooLongSequenceException e) {
               System.err.println("Too long sequence from AST");
               List<Sequence> uniqSequences = new ArrayList<>(new HashSet<>(sequences));
-              addToJson(methodName, body, ast, uniqSequences, javaDoc, returnType, formalParam, classTypes);
+              addToJson(methodName, body, ast, uniqSequences, returnType, formalParam, classTypes);
           }
         }
         return false;
@@ -215,9 +216,9 @@ public class Visitor extends ASTVisitor {
 
 
 
-    private void addToJson(String methodName, String body, DSubTree ast, List<Sequence> sequences, String javadoc, String returnType,
+    private void addToJson(String methodName, String body, DSubTree ast, List<Sequence> sequences, String returnType,
     List<String> formalParam, List<String> classTypes ) {
-       JSONOutputWrapper out = new JSONOutputWrapper(methodName, body, ast, sequences, javadoc, returnType, formalParam, classTypes);
+       JSONOutputWrapper out = new JSONOutputWrapper(methodName, body, ast, sequences, returnType, formalParam, classTypes);
        _js.programs.add(out);
    }
 
@@ -260,22 +261,6 @@ public class Visitor extends ASTVisitor {
       return parameters;
     }
 
-    public String getBody(MethodDeclaration m){
-      String temp;
-      if (m == null){
-        temp = "";
-        return temp;
-      }
-
-      if (m.getBody() != null){
-        temp = m.getBody().toString();
-        temp = temp.trim().replaceAll("\n ", "");
-      }
-      else{
-        temp = "";
-      }
-      return temp;
-    }
 
     private boolean okToPrintAST(List<Sequence> sequences) {
          int n = sequences.size();
