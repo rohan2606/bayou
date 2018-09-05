@@ -35,7 +35,7 @@ class BayesianPredictor(object):
         config.batch_size = 1
         self.config = config
         self.sess = sess
-
+	
         self.inputs = [ev.placeholder(config) for ev in self.config.evidence]
         with tf.variable_scope("Encoder"):
             self.encoder = BayesianEncoder(config, self.inputs)
@@ -56,14 +56,11 @@ class BayesianPredictor(object):
         # setup initial states and feed
         # read and wrangle (with batch_size 1) the data
         inputs = [ev.wrangle([ev.read_data_point(evidences, infer=True)]) for ev in self.config.evidence]
-        print(inputs)
         # setup initial states and feed
         feed = {}
         for j, ev in enumerate(self.config.evidence):
             feed[self.inputs[j].name] = inputs[j]
         [EncA, EncB] = self.sess.run( [ self.EncA, self.EncB ] , feed )
-        print(EncA)
-        print(EncB)
         return EncA, EncB
 
     def calculate_ab(self, mu, Sigma):

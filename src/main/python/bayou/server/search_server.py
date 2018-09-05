@@ -63,7 +63,7 @@ def search_server(clargs):
                 
                 with open('/home/ubuntu/QueryProg.json', 'r') as f:
                     js = json.load(f)
-                a1, b1 = predictor.get_a1b1(js)
+                a1, b1 = predictor.get_a1b1(js['programs'][0])
 
                 # program = jsp[0]
                 # We do not need other paths in the program as all the evidences are the same for all the paths
