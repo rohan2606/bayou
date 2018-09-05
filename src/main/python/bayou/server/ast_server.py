@@ -74,7 +74,7 @@ def _generate_asts(evidence_json: str, predictor, okay_check=True):
     #
     # Generate ASTs from evidence.
     #
-    asts = predictor.infer(js)
+    asts = predictor.get_a1b1(js)
 
     #
     # If okay_check is set, retain only those asts that pass the _okay(...) filter. Otherwise retain all asts.
@@ -159,9 +159,9 @@ if __name__ == '__main__':
         with open(os.path.join(args.save_dir, 'config.json')) as f:
             model_type = json.load(f)['model']
         if model_type == 'core':
-            model = bayou.models.core.infer.BayesianPredictor
+            model = bayou.models.core.predict.BayesianPredictor
         elif model_type == 'lle':
-            model = bayou.models.low_level_evidences.infer.BayesianPredictor
+            model = bayou.models.low_level_evidences.predict.BayesianPredictor
         else:
             raise ValueError('Invalid model type in config: ' + model_type)
         bp = model(args.save_dir, sess)  # create a predictor that can generates ASTs from evidence

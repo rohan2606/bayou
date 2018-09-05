@@ -56,7 +56,7 @@ class BayesianEncoder(object):
 
 
 class BayesianDecoder(object):
-    def __init__(self, config, emb, initial_state, nodes, edges, infer=False):
+    def __init__(self, config, emb, initial_state, nodes, edges):
 
         cells1, cells2 = [], []
         for _ in range(config.decoder.num_layers):
@@ -84,24 +84,15 @@ class BayesianDecoder(object):
         self.emb_inp = emb_inp
 
         with tf.variable_scope('decoder_network'):
-            def loop_fn(prev, _):
-                prev = tf.nn.xw_plus_b(prev, self.projection_w, self.projection_b)
-                prev_symbol = tf.argmax(prev, 1)
-                return tf.nn.embedding_lookup(emb, prev_symbol)
-            loop_function = loop_fn if infer else None
+
 
             emb_inp = self.emb_inp
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
-            # TODO: update with dynamic decoder (being implemented in tf) once it is released
             with tf.variable_scope('rnn'):
 
                 self.state = self.initial_state
                 self.outputs = []
-                prev = None
                 for i, inp in enumerate(emb_inp):
-                    if loop_function is not None and prev is not None:
-                        with tf.variable_scope('loop_function', reuse=True):
-                            inp = loop_function(prev, i)
                     if i > 0:
                         tf.get_variable_scope().reuse_variables()
                     with tf.variable_scope('cell1'):  # handles CHILD_EDGE
@@ -112,8 +103,7 @@ class BayesianDecoder(object):
                     self.state = [tf.where(self.edges[i], state1[j], state2[j])
                                   for j in range(config.decoder.num_layers)]
                     self.outputs.append(output)
-                    if loop_function is not None:
-                        prev = output
+
 
 
 class BayesianReverseEncoder(object):

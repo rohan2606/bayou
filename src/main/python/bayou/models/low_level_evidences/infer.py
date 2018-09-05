@@ -62,37 +62,3 @@ class BayesianPredictor(object):
                                                         self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
 
         return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
-
-    def get_a1b1(self):
-        # setup initial states and feed
-        [EncA, EncB] = self.sess.run([self.model.EncA, self.model.EncB])
-
-        return EncA, EncB
-
-    def similarity(self, _a1, _b1, _a2, _b2, prob_Y):
-            # a1 = tf.placeholder(tf.float32,[self.model.config.latent_size])
-            a1_in = tf.placeholder(tf.float32,[])
-            a1 = tf.tile(tf.reshape(a1_in,[1]),[self.model.config.latent_size])
-
-            b1_in = tf.placeholder(tf.float32,[self.model.config.latent_size])
-            b1 = b1_in
-            # a2 = tf.placeholder(tf.float32,[self.model.config.batch_size,self.model.config.latent_size])
-            a2_in = tf.placeholder(tf.float32,[self.model.config.batch_size])
-            a2 = tf.tile(tf.expand_dims(a2_in,axis=1),[1,self.model.config.latent_size])
-
-            b2_in = tf.placeholder(tf.float32,[self.model.config.batch_size,self.model.config.latent_size])
-            b2 = b2_in
-            t1 = tf.reduce_sum(tf.square(b1)/(4*a1), axis=0) + 0.5 * tf.reduce_sum(tf.log(-a1/np.pi), axis=0)
-            t2 = tf.reduce_sum(tf.square(b2)/(4*a2), axis=1) + 0.5 * tf.reduce_sum(tf.log(-a2/np.pi), axis=1)
-            t3 = 0.5 * self.model.config.latent_size * tf.log(2*np.pi)
-            c = t1 + t2 - t3
-
-            b_star = b1 + b2
-            a_star = a1 + a2 + 0.5
-            c_star = tf.reduce_sum(tf.square(b_star)/(4*a_star), axis=1) + 0.5 * tf.reduce_sum(tf.log(-a_star/np.pi), axis=1)
-            prob = (c - c_star)
-
-            _prob = self.sess.run(prob, feed_dict={a1_in:_a1, b1_in:_b1, a2_in:_a2, b2_in:_b2})
-
-            _prob += np.array(prob_Y)
-            return _prob

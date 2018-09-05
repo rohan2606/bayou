@@ -29,12 +29,6 @@ class Model():
         self.prog_ids, self.js_prog_ids, nodes, edges, targets = newBatch[:5]
         ev_data = newBatch[5:]
 
-        # if infer:
-        #     nodes = tf.expand_dims(nodes, axis=0)
-        #     edges = tf.expand_dims(edges, axis=0)
-        #     targets = tf.expand_dims(targets, axis=0)
-        #     ev_data = [tf.expand_dims(ev, axis=0) for ev in ev_data]
-
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
 
