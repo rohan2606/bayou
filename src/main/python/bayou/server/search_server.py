@@ -35,7 +35,7 @@ HELP = """ Help me! :( """
 
 TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
-BUFFER_SIZE = 10024 #Normally 1024, but we want fast response
+BUFFER_SIZE = 1024 #Normally 1024, but we want fast response
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((TCP_IP, TCP_PORT))
@@ -59,9 +59,11 @@ def search_server(clargs):
             print ('Connection address:', addr)
             while True:
                 data = conn.recv(BUFFER_SIZE)
-                print(data)
                 if not data:  break
-                a1, b1 = predictor.get_a1b1(json.loads(data))
+                
+                with open('/home/ubuntu/QueryProg.json', 'r') as f:
+                    js = json.load(f)
+                a1, b1 = predictor.get_a1b1(js)
 
                 # program = jsp[0]
                 # We do not need other paths in the program as all the evidences are the same for all the paths
@@ -76,11 +78,11 @@ def search_server(clargs):
 
                 programs.append(program)
 
-                # print('\nWriting to {}...'.format('/home/ubuntu/QueryProgWEncoding.json'), end='\n')
-                # with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
-                #     json.dump({'programs': programs}, fp=f, indent=2)
+                print('\nWriting to {}...'.format('/home/ubuntu/QueryProgWEncoding.json'), end='\n')
+                with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
+                    json.dump({'programs': programs}, fp=f, indent=2)
                 print ("Received data from client:", data)
-                conn.send(json.dumps({'programs': programs}, indent=2).encode('utf-8'))  # echo
+                conn.send(data)  # echo
 
     return
 

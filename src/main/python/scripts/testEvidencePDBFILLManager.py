@@ -28,8 +28,8 @@ You can also filter programs based on number and length of sequences, and contro
 
 TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
-BUFFER_SIZE = 10024
-# MESSAGE = "Start Encoding"
+BUFFER_SIZE = 1024
+MESSAGE = "Start Encoding"
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((TCP_IP, TCP_PORT))
 
@@ -159,16 +159,14 @@ def extract_evidence(clargs):
         done += 1
         print('Extracted evidence for {} programs'.format(done), end='\n')
 
+    with open('/home/ubuntu/QueryProg.json', 'w') as f:
+         json.dump({'programs': programs}, fp=f, indent=2)
 
-    s.sendall(json.dumps({'programs': programs}, indent=2).encode('utf-8'))
+
+    s.sendall(MESSAGE.encode('utf-8'))
     data = s.recv(BUFFER_SIZE)
     s.close()
     
-    
-    print('\nWriting to {}...'.format('QueryProgWEncoding.json'), end='')
-    with open('QueryProgWEncoding.json', 'w') as f:
-         simplejson.dump(json.loads(data), fp=f, indent=2)
-
     print ("received ACK:")
     return
 
