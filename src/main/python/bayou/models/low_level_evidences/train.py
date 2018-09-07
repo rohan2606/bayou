@@ -72,19 +72,23 @@ Config options should be given as a JSON file (see config.json for example):
 #%%
 
 def train(clargs):
-    config_file = clargs.config if clargs.continue_from is None \
-                                else os.path.join(clargs.continue_from, 'config.json')
+
+    dataIsThere = False
+
+    if clargs.continue_from is not None:
+        config_file = os.path.join(clargs.continue_from, 'config.json')
+    elif dataIsThere:
+        config_file = os.path.join('data', 'config.json')
+    else:
+        config_file = clargs.config
 
     with open(config_file) as f:
         config = read_config(json.load(f), chars_vocab=clargs.continue_from)
-    reader = Reader(clargs, config)
 
-    jsconfig = dump_config(config)
-    # print(clargs)
-    # print(json.dumps(jsconfig, indent=2))
 
-    with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
-        json.dump(jsconfig, fp=f, indent=2)
+    reader = Reader(clargs, config, dataIsThere=dataIsThere)
+    
+
 
     # merged_summary = tf.summary.merge_all()
 

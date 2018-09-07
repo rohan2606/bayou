@@ -58,7 +58,7 @@ class Model():
                 initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
                 initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
-            self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges, infer=infer)
+            self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges)
 
 
         # get the decoder outputs

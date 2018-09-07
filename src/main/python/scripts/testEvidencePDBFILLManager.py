@@ -108,6 +108,11 @@ def extract_evidence(clargs):
         if '__PDB_FILL__' not in program['body']:
             continue
 
+        apicalls = []
+        types = []
+        keywords = []
+
+
         calls = gather_calls(program['ast'])
         apicalls = list(set(chain.from_iterable([APICallsFromCall(call)
                                                  for call in calls])))
@@ -115,6 +120,14 @@ def extract_evidence(clargs):
                                               for call in calls])))
         keywords = list(set(chain.from_iterable([KeywordsFromCall(call)
                                                 for call in calls])))
+
+        for string in re.findall(r"\S+", program['body']): # separates out all lines of a program
+            if 'call:' in string:
+                apicalls.append(string.split(":")[1])
+            if 'type:' in string:
+                types.append(string.split(":")[1])
+            if 'keyword:' in string:
+                keywords.append(string.split(":")[1])
 
         file_name = program['file']
         method_name = program['method']
@@ -166,7 +179,7 @@ def extract_evidence(clargs):
     s.sendall(MESSAGE.encode('utf-8'))
     data = s.recv(BUFFER_SIZE)
     s.close()
-    
+
     print ("received ACK:")
     return
 

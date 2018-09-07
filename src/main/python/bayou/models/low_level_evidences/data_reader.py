@@ -22,7 +22,7 @@ import pickle
 from collections import Counter
 import gc
 
-from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus
+from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus, dump_config
 from bayou.models.low_level_evidences.node import Node
 CHILD_EDGE = True
 SIBLING_EDGE = False
@@ -40,8 +40,8 @@ class Reader():
     def __init__(self, clargs, config, infer=False, dataIsThere=False):
         self.infer = infer
         self.config = config
-
-        if clargs.continue_from is not None:
+        print('Reading saved data file from data/...')
+        if clargs.continue_from is not None or dataIsThere:
             with open('data/inputs.txt', 'rb') as f:
                 self.inputs = pickle.load(f)
             with open('data/nodes.txt', 'rb') as f:
@@ -54,19 +54,24 @@ class Reader():
                 self.prog_ids = pickle.load(f)
             with open('data/js_prog_ids', 'rb') as f:
                 self.js_prog_ids = pickle.load(f)
+
+            jsconfig = dump_config(config)
+            with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
+                json.dump(jsconfig, fp=f, indent=2)
+
             if infer:
                 self.js_programs = []
                 with open('data/js_programs.json', 'rb') as f:
                     for program in ijson.items(f, 'programs.item'):
                         self.js_programs.append(program)
             config.num_batches = int(len(self.nodes) / config.batch_size)
+            print('Done!')
 
         else:
             # random.seed(12)
             # read the raw evidences and targets
             print('Reading data file...')
             prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
-            print('Done!')
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                              enumerate(config.evidence)]
 
@@ -125,8 +130,12 @@ class Reader():
                 pickle.dump(self.js_prog_ids, f)
             with open('data/js_programs.json', 'w') as f:
                 json.dump({'programs': self.js_programs}, fp=f, indent=2)
-
-
+            jsconfig = dump_config(config)
+            with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
+                json.dump(jsconfig, fp=f, indent=2)
+            with open('data/config.json', 'w') as f:
+                json.dump(jsconfig, fp=f, indent=2)
+            print('Done!')
 
 
     def get_ast_paths(self, js, idx=0):

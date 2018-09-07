@@ -42,8 +42,8 @@ class BayesianPredictor(object):
         self.model = Model(config, iterator, infer=True, bayou_mode=bayou_mode)
 
         # load the callmap
-        with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:
-            self.callmap = pickle.load(f)
+        # with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:
+        #     self.callmap = pickle.load(f)
 
         # restore the saved model
         tf.global_variables_initializer().run()
