@@ -211,6 +211,10 @@ class Sequences(Evidence):
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
             latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+
+            zeros = tf.zeros([config.batch_size * self.max_nums , config.latent_size])
+            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inp, axis=1),0),latent_encoding, zeros)
+
             latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
 
             return latent_encoding

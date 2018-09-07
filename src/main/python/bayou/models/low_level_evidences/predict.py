@@ -35,17 +35,17 @@ class BayesianPredictor(object):
         config.batch_size = 1
         self.config = config
         self.sess = sess
-	
+
         self.inputs = [ev.placeholder(config) for ev in self.config.evidence]
         with tf.variable_scope("Encoder"):
             self.encoder = BayesianEncoder(config, self.inputs)
-	
+
 
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
 
         # restore the saved model
         tf.global_variables_initializer().run()
-        encoder_vars = get_var_list()['encoder_vars']
+        encoder_vars = tf.global_variables() #get_var_list()['all_vars']
         saver = tf.train.Saver(encoder_vars)
 
         ckpt = tf.train.get_checkpoint_state(save)
@@ -56,12 +56,26 @@ class BayesianPredictor(object):
         # setup initial states and feed
         # read and wrangle (with batch_size 1) the data
         inputs = [ev.wrangle([ev.read_data_point(evidences, infer=True)]) for ev in self.config.evidence]
+        print(inputs)
         # setup initial states and feed
         feed = {}
         for j, ev in enumerate(self.config.evidence):
             feed[self.inputs[j].name] = inputs[j]
+
+
         [EncA, EncB] = self.sess.run( [ self.EncA, self.EncB ] , feed )
         return EncA, EncB
+
+    def get_ev_sigma(self, evidences):
+        # setup initial states and feed
+        # read and wrangle (with batch_size 1) the data
+        inputs = [ev.wrangle([ev.read_data_point(evidences, infer=True)]) for ev in self.config.evidence]
+        # setup initial states and feed
+        feed = {}
+        for j, ev in enumerate(self.config.evidence):
+            feed[self.inputs[j].name] = inputs[j]
+        allEvSigmas = self.sess.run( [ ev.sigma for ev in self.config.evidence ] , feed )
+        return allEvSigmas
 
     def calculate_ab(self, mu, Sigma):
         a = -1 /(2*Sigma[:,0]) # slicing a so that a is now of shape (batch_size, 1)
