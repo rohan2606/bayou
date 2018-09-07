@@ -83,7 +83,7 @@ def train(clargs):
         config_file = clargs.config
 
     with open(config_file) as f:
-        config = read_config(json.load(f), chars_vocab=clargs.continue_from)
+        config = read_config(json.load(f), chars_vocab=(clargs.continue_from or dataIsThere))
 
 
     reader = Reader(clargs, config, dataIsThere=dataIsThere)
