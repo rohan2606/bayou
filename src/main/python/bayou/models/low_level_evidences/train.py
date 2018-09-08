@@ -73,7 +73,7 @@ Config options should be given as a JSON file (see config.json for example):
 
 def train(clargs):
 
-    dataIsThere = False
+    dataIsThere = True
 
     if clargs.continue_from is not None:
         config_file = os.path.join(clargs.continue_from, 'config.json')
@@ -87,7 +87,7 @@ def train(clargs):
 
 
     reader = Reader(clargs, config, dataIsThere=dataIsThere)
-    
+
 
 
     # merged_summary = tf.summary.merge_all()
@@ -188,12 +188,12 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     # ['--continue_from', 'save',
+      #['--continue_from', 'save1',
      ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-newer-TOP.json'])
+    '/home/ubuntu/DATA-newer.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

@@ -40,7 +40,7 @@ class Reader():
     def __init__(self, clargs, config, infer=False, dataIsThere=False):
         self.infer = infer
         self.config = config
-        print('Reading saved data file from data/...')
+
         if clargs.continue_from is not None or dataIsThere:
             with open('data/inputs.txt', 'rb') as f:
                 self.inputs = pickle.load(f)
@@ -65,13 +65,13 @@ class Reader():
                     for program in ijson.items(f, 'programs.item'):
                         self.js_programs.append(program)
             config.num_batches = int(len(self.nodes) / config.batch_size)
-            print('Done!')
 
         else:
             # random.seed(12)
             # read the raw evidences and targets
             print('Reading data file...')
             prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+            print('Done!')
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                              enumerate(config.evidence)]
 
@@ -135,7 +135,6 @@ class Reader():
                 json.dump(jsconfig, fp=f, indent=2)
             with open('data/config.json', 'w') as f:
                 json.dump(jsconfig, fp=f, indent=2)
-            print('Done!')
 
 
     def get_ast_paths(self, js, idx=0):
