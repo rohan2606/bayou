@@ -53,10 +53,16 @@ class BayesianPredictor(object):
 
 
     def get_a1b1(self, evidences):
+        # evidences is json
         # setup initial states and feed
         # read and wrangle (with batch_size 1) the data
-        inputs = [ev.wrangle([ev.read_data_point(evidences, infer=True)]) for ev in self.config.evidence]
-        print(inputs)
+        rdp = [ev.read_data_point(evidences, infer=True) for ev in self.config.evidence]
+        inputs = [ev.wrangle([ev_rdp]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
+
+        old_inputs = [ev.wrangle([ev.read_data_point(evidences, infer=True)]) for ev in self.config.evidence]
+        assert(old_inputs == inputs)
+        # print(inputs)
+        print(rdp)
         # setup initial states and feed
         feed = {}
         for j, ev in enumerate(self.config.evidence):

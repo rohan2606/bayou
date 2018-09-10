@@ -111,7 +111,9 @@ def extract_evidence(clargs):
         apicalls = []
         types = []
         keywords = []
+        sequences = []
 
+        sample = dict(program)
 
         calls = gather_calls(program['ast'])
         apicalls = list(set(chain.from_iterable([APICallsFromCall(call)
@@ -121,6 +123,7 @@ def extract_evidence(clargs):
         keywords = list(set(chain.from_iterable([KeywordsFromCall(call)
                                                 for call in calls])))
 
+        sequences = []
         for string in re.findall(r"\S+", program['body']): # separates out all lines of a program
             if 'call:' in string:
                 apicalls.append(string.split(":")[1])
@@ -128,7 +131,17 @@ def extract_evidence(clargs):
                 types.append(string.split(":")[1])
             if 'keyword:' in string:
                 keywords.append(string.split(":")[1])
+            sequence = []
+            if 'sequence:' in string:
+                for call in string.split(":")[1:]:
+                    sequence.append(call)
+                sequences.append(sequence)
 
+        print(sequences)
+        sample['sequences'] = []
+        for sequence in sequences:
+            temp = {'calls': sequence}
+            sample['sequences'].append(temp)
         file_name = program['file']
         method_name = program['method']
 
@@ -140,7 +153,6 @@ def extract_evidence(clargs):
         classTypes = program['classTypes'] if 'classTypes' in program else []
         random.shuffle(classTypes)
 
-        sample = dict(program)
         sample['sorrreturntype'] = []
         sample['sorrformalparam'] = []
         sample['sorrsequences'] = []

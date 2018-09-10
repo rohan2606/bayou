@@ -64,9 +64,9 @@ def search_server(clargs):
                 with open('/home/ubuntu/QueryProg.json', 'r') as f:
                     js = json.load(f)
                 a1, b1 = predictor.get_a1b1(js['programs'][0])
-                evSigmas = predictor.get_ev_sigma(js['programs'][0])
+                # evSigmas = predictor.get_ev_sigma(js['programs'][0])
 
-                print(evSigmas)
+                # print(evSigmas)
                 # program = jsp[0]
                 # We do not need other paths in the program as all the evidences are the same for all the paths
                 # and for new test code we are only interested in the evidence encodings
