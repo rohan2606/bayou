@@ -73,7 +73,7 @@ Config options should be given as a JSON file (see config.json for example):
 
 def train(clargs):
 
-    dataIsThere = True
+    dataIsThere = False
 
     if clargs.continue_from is not None:
         config_file = os.path.join(clargs.continue_from, 'config.json')
@@ -191,7 +191,7 @@ if __name__ == '__main__':
       #['--continue_from', 'save1',
      ['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
-     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+     # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-newer.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
     '/home/ubuntu/DATA-newer.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)

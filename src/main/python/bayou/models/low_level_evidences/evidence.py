@@ -131,7 +131,7 @@ class Sets(Evidence):
     def init_sigma(self, config):
         with tf.variable_scope(self.name):
             self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-        with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+        #with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             self.sigma = tf.get_variable('sigma', [])
 
     def encode(self, inputs, config):
@@ -194,7 +194,7 @@ class Sequences(Evidence):
     def init_sigma(self, config):
         with tf.variable_scope(self.name):
             self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-        with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+        #with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             self.sigma = tf.get_variable('sigma', [])
     
     def encode(self, inputs, config):

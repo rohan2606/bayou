@@ -59,10 +59,10 @@ class BayesianPredictor(object):
         rdp = [ev.read_data_point(evidences, infer=True) for ev in self.config.evidence]
         inputs = [ev.wrangle([ev_rdp]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
 
-        old_inputs = [ev.wrangle([ev.read_data_point(evidences, infer=True)]) for ev in self.config.evidence]
-        assert(old_inputs == inputs)
+        #old_inputs = [ev.wrangle([ev.read_data_point(evidences, infer=True)]) for ev in self.config.evidence]
+        #assert(old_inputs == inputs)
         # print(inputs)
-        print(rdp)
+        #print(rdp)
         # setup initial states and feed
         feed = {}
         for j, ev in enumerate(self.config.evidence):
