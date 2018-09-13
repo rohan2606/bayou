@@ -78,7 +78,7 @@ class Reader():
 
             # align with number of batches and have it as a multiple of #GPUs
             devices = get_available_gpus()
-            config.num_batches = int(len(raw_targets) / config.batch_size)
+            config.num_batches = 1000 #int(len(raw_targets) / config.batch_size)
             if len(devices) > 0:
                 config.num_batches = config.num_batches - (config.num_batches % len(devices))
 
@@ -342,7 +342,7 @@ class Reader():
         print('{:8d} data points total'.format(len(data_points)))
 
         # randomly shuffle to avoid bias towards initial data points during training
-        random.shuffle(data_points)
+        #random.shuffle(data_points)
         _ids, evidences, targets, js_programs = zip(*data_points) #unzip
 
         # save callmap if save location is given

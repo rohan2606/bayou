@@ -73,7 +73,7 @@ Config options should be given as a JSON file (see config.json for example):
 
 def train(clargs):
 
-    dataIsThere = False
+    dataIsThere = True
 
     if clargs.continue_from is not None:
         config_file = os.path.join(clargs.continue_from, 'config.json')
@@ -166,9 +166,11 @@ def train(clargs):
             if (i+1) % config.checkpoint_step == 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
+
+                mul = 1 if len(devices) == 0 else len(devices)
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
-                      (checkpoint_dir, avg_loss / config.num_batches* len(devices)))
+                      (checkpoint_dir, avg_loss / config.num_batches * mul))
         #static_plot(epocLoss , epocGenL , epocKlLoss)
 
 
@@ -190,10 +192,10 @@ if __name__ == '__main__':
     clargs = parser.parse_args(
       #['--continue_from', 'save1',
      ['--config','config.json',
-     # '..\..\..\..\..\..\data\DATA-training-top.json'])
-     # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-newer.json'])
+     # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
+     '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-newer.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-newer.json'])
+    # '/home/ubuntu/DATA-newer.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

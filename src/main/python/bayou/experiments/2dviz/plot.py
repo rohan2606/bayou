@@ -15,50 +15,64 @@
 import argparse
 import json
 from collections import Counter
+import ijson.backends.yajl2_cffi as ijson
 
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import os
+import re
 import numpy as np
 import tensorflow as tf
 from sklearn.manifold import TSNE
 
-from bayou.models.core import BayesianPredictor
-
+from scripts.ast_extractor import get_ast_paths
+from bayou.models.low_level_evidences.predict import BayesianPredictor
 
 def plot(clargs):
-    with tf.Session() as sess:
-        predictor = BayesianPredictor(clargs.save, sess)
-        with open(clargs.input_file[0]) as f:
-            js = json.load(f)
-        psis = np.array([predictor.psi_from_evidence(program) for program in js['programs']])
-        ast_calls = []
-        for i, psi in enumerate(psis):
-            print('Generate AST {}'.format(i))
-            predictor.calls_in_last_ast = []
-            try:
-                predictor.generate_ast(psi)
-                ast_calls.append(predictor.calls_in_last_ast)
-            except AssertionError:
-                ast_calls.append([])
-        psis = np.array([psi[0] for psi in psis])  # drop batch
+    sess = tf.InteractiveSession()
+    predictor = BayesianPredictor(clargs.save, sess)
+    with open(clargs.input_file[0], 'rb') as f:
+        psis = []
+        labels = []
+        item_num = 0
+        for program in ijson.items(f, 'programs.item'):
+            #switch this on if you want to load pre-computed b1
+            #psis.append(program['b1']) # b1 is basically a scaled (by a1) version of psis
+            #switch this on if you are calculating based on evidences (which you can manipulate)
+            #program = {'apicalls':program['apicalls'], 'types':program['types'], 'ast':program['ast']}
+            psis.append(predictor.get_a1b1(program)[1][0])
+            ast_calls = get_calls_from_ast(program['ast']['_nodes'])
+            labels.append(get_api(ast_calls))
+            item_num += 1
+            if item_num > 10000:
+                break
+        psis = np.array(psis)
         model = TSNE(n_components=2, init='pca')
         psis_2d = model.fit_transform(psis)
-        labels = [get_api(calls) for calls in ast_calls]
         assert len(psis_2d) == len(labels)
 
-        for psi_2d, label in zip(psis_2d, labels):
-            print('{} : {}'.format(psi_2d, label))
+        # for psi_2d, label in zip(psis_2d, labels):
+        #     print('{} : {}'.format(psi_2d, label))
+
         scatter(clargs, zip(psis_2d, labels))
 
 
 def get_api(calls):
-    apis = ['.'.join(call.split('.')[:2]) for call in calls]
+    calls = [call.replace('$NOT$', '') for call in calls]
+    apis = ['.'.join(re.findall(r"[\w']+", call)[:3]) for call in calls]
+    # apis = [api if 'NOT' not in api else api[5:] for api in apis]
     counts = Counter(apis)
+    counts['STOP'] = 0
+    counts['DBranch'] = 0
+    counts['DLoop'] = 0
+    counts['DExcept'] = 0
     apis = sorted(counts.keys(), key=lambda a: counts[a], reverse=True)
     return apis[0] if apis != [] else 'N/A'
 
 
 def scatter(clargs, data):
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
     dic = {}
     for psi_2d, label in data:
         if label == 'N/A':
@@ -69,9 +83,12 @@ def scatter(clargs, data):
 
     labels = list(dic.keys())
     labels.sort(key=lambda l: len(dic[l]), reverse=True)
-    for label in labels[clargs.top:]:
+    for label in labels[2*clargs.top:]:
         del dic[label]
 
+    for label in labels[:clargs.top]:
+        del dic[label]
+    
     labels = dic.keys()
     colors = cm.rainbow(np.linspace(0, 1, len(dic)))
     plotpoints = []
@@ -80,11 +97,19 @@ def scatter(clargs, data):
         y = list(map(lambda s: s[1], dic[label]))
         plotpoints.append(plt.scatter(x, y, color=color))
 
-    plt.legend(plotpoints, labels, scatterpoints=1, loc='lower left', ncol=3, fontsize=12)
+    #plt.legend(plotpoints, labels, scatterpoints=1, loc='lower left', ncol=3, fontsize=12)
     plt.axhline(0, color='black')
     plt.axvline(0, color='black')
-    plt.show()
+    plt.savefig(os.path.join(os.getcwd(), "tSNE.jpeg"), bbox_inches='tight')
+    # plt.show()
 
+
+def get_calls_from_ast(ast):
+    calls = []
+    _, ast_paths = get_ast_paths(ast)
+    for path in ast_paths:
+        calls += [call[0] for call in path]
+    return calls
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)

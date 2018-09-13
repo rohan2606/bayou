@@ -80,7 +80,7 @@ class Model():
               , axis=1))
 
             if bayou_mode:
-                self.loss = self.gen_loss
+                self.loss = self.gen_loss #+ 0.001* self.KL_loss
             else:
                 self.loss = self.KL_loss
 
