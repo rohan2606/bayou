@@ -30,6 +30,10 @@ from sklearn.manifold import TSNE
 from scripts.ast_extractor import get_ast_paths
 from bayou.models.low_level_evidences.predict import BayesianPredictor
 
+_classes = ['java.util', 'android.app', 'android.view', 'android.widget', 'java.io', 'javax.xml', 'java.net', \
+'android.graphics', 'android.content', 'android.webkit']
+
+
 def plot(clargs):
     sess = tf.InteractiveSession()
     predictor = BayesianPredictor(clargs.save, sess)
@@ -44,13 +48,13 @@ def plot(clargs):
 
             api_call = get_api(get_calls_from_ast(program['ast']['_nodes']))
             if api_call != 'N/A':
-            # if True:
                 labels.append(api_call)
                 psis.append(predictor.get_a1b1(program)[1][0])
                 # psis.append(program['b1']) # b1 is basically a scaled (by a1) version of psis
                 item_num += 1
 
-
+            if item_num > 10000:
+                break
         psis = np.array(psis)
         model = TSNE(n_components=2, init='pca')
         psis_2d = model.fit_transform(psis)
@@ -64,56 +68,19 @@ def plot(clargs):
 
 def get_api(calls):
     calls = [call.replace('$NOT$', '') for call in calls]
-    apis = [[re.findall(r"[\w']+", call)[:3]] for call in calls]
-    apis = [call for _list in apis for calls in _list for call in calls]
-    # print(apis)
+    apis = ['.'.join(re.findall(r"[\w']+", call)[:3]) for call in calls]
     # apis = [api if 'NOT' not in api else api[5:] for api in apis]
-    # counts = Counter(apis)
-    # counts['STOP'] = 0
-    # counts['DBranch'] = 0
-    # counts['DLoop'] = 0
-    # counts['DExcept'] = 0
-    # for key in counts.keys():
-    #     if 'java.util' in key or 'java.lang' in key or 'java.io' in key:
-    #         counts[key] = 0
-    # apis = sorted(counts.keys(), key=lambda a: counts[a], reverse=True)
+    counts = Counter(apis)
+    counts['STOP'] = 0
+    counts['DBranch'] = 0
+    counts['DLoop'] = 0
+    counts['DExcept'] = 0
+    for key in counts.keys():
+        if 'java.util' in key or 'java.lang' in key or 'java.io' in key:
+            counts[key] = 0
+    apis = sorted(counts.keys(), key=lambda a: counts[a], reverse=True)
 
-    label = "N/A"
-    guard = []
-    for api in apis:
-        # if 'io' == api:
-        #     label = 'io'
-        #     guard.append(label)
-        if 'xml' == api:
-            label = 'xml'
-            guard.append(label)
-        if 'sql' == api:
-            label = 'sql'
-            guard.append(label)
-        if 'crypto' == api:
-            label = 'crypto'
-            guard.append(label)
-        if 'awt' == api:
-            label = 'awt'
-            guard.append(label)
-        if 'swing' == api:
-            label = 'swing'
-            guard.append(label)
-        if 'security' == api:
-            label = 'security'
-            guard.append(label)
-        if 'net' == api:
-            label = 'net'
-            guard.append(label)
-        if 'math' == api:
-            label = 'math'
-            guard.append(label)
-
-    if len(set(guard)) != 1:
-        return 'N/A'
-    else:
-        return guard[0]
-
+    return apis[0] if counts[apis[0]] != 0 else 'N/A'
 
 
 def scatter(clargs, data):

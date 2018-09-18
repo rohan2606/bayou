@@ -81,6 +81,9 @@ class Evidence(object):
                     output.append(self.vocab[word])
             else:
                 output.append(self.vocab[word])
+                # with open("/home/ubuntu/evidences_used.txt", "a") as f:
+                #      f.write('Evidence Type :: ' + self.name + " , " + "Evidence Value :: " + word + "\n")
+
         return output
 
     def read_data_point(self, program, infer):
@@ -196,7 +199,7 @@ class Sequences(Evidence):
             self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
         #with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             self.sigma = tf.get_variable('sigma', [])
-    
+
     def encode(self, inputs, config):
         with tf.variable_scope(self.name):
             #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
@@ -372,7 +375,7 @@ class ReturnType(Sets):
 
     def __init__(self):
         self.vocab = dict()
-        self.vocab['None'] = 0
+        self.vocab['void'] = 0
         self.vocab_size = 1
 
 
