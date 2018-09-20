@@ -15,7 +15,7 @@
 import tensorflow as tf
 from tensorflow.contrib import legacy_seq2seq as seq2seq
 import numpy as np
-
+from bayou.models.low_level_evidences.utils import get_var_list
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder
 
 
@@ -85,7 +85,7 @@ class Model():
                 self.loss = self.KL_loss
 
 
-            # self.allEvSigmas = [ ev.sigma for ev in self.config.evidence ]
+            self.allEvSigmas = [ ev.sigma for ev in self.config.evidence ]
 
 
             if infer:
@@ -101,7 +101,17 @@ class Model():
                 self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
                 self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
+           
+            #unused if MultiGPU is being used 
+        with tf.name_scope("train"):
+            if bayou_mode:
+                train_ops = get_var_list()['bayou_vars']
+            else:
+                train_ops = get_var_list()['rev_encoder_vars']
 
+        if not infer:
+            opt = tf.train.AdamOptimizer(config.learning_rate)
+            self.train_op = opt.minimize(self.loss, var_list=train_ops)
 
             # tf.summary.scalar('loss', self.loss)
             # tf.summary.scalar('gen_loss', self.gen_loss)

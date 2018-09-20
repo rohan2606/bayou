@@ -15,38 +15,15 @@
 import tensorflow as tf
 
 class seqEncoder(object):
-    def __init__(self, num_layers, state_size, inputs, batch_size, emb):
-        with tf.variable_scope('GRU_Encoder'):
+    def __init__(self, num_layers, state_size, inputs):
+        with tf.variable_scope('LSTM_Encoder'):
             cell_list = []
             for cell in range(num_layers) :
-                cell = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(state_size ) #both default behaviors
+                cell = tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell (state_size ) #both default behaviors
                 #cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.8,input_keep_prob=0.8,state_keep_prob=0.8)
                 cell_list.append(cell)
             cell = tf.contrib.rnn.MultiRNNCell(cell_list)
-
-            # inputs is BS * depth
             inputs = tf.unstack(inputs, axis=1)
-            # after unstack it is depth * BS
-
-            initial_state = [tf.truncated_normal([batch_size, state_size] , stddev=0.001 ) ] * num_layers
-
-            state = initial_state
-            outputs = []
-
-            default_out = tf.zeros([batch_size , state_size])
-            for i, inp in enumerate(inputs):
-                emb_inp = tf.nn.embedding_lookup(emb, inp)
-                if i > 0:
-                    tf.get_variable_scope().reuse_variables()
-
-                with tf.variable_scope('cell0'):  # handles CHILD_EDGE
-                    output, state1 = cell(emb_inp, state)
-
-                output = tf.where(tf.not_equal(inp, 0), output, default_out)
-                state = [tf.where(tf.not_equal(inp, 0), state1[j], initial_state[j])
-                              for j in range(num_layers)]
-                outputs.append(output)
-
-
+            outputs, current_state = tf.nn.static_rnn(cell, inputs, dtype=tf.float32)
             output = outputs[-1]
             self.output = output

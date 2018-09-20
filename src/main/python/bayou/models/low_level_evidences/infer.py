@@ -40,7 +40,7 @@ class BayesianPredictor(object):
     def __init__(self, save, sess, config, iterator, bayou_mode=False):
         self.sess = sess
         self.model = Model(config, iterator, infer=True, bayou_mode=bayou_mode)
-        self.config = config
+
         #
         # restore the saved model
         tf.global_variables_initializer().run()
@@ -59,9 +59,3 @@ class BayesianPredictor(object):
                                                         self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
 
         return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
-
-    def get_ev_sigma(self):
-        allEvSigmas = self.sess.run( [ ev.sigma for ev in self.config.evidence ] )
-        allEvSigmas = [ (ev.name, allEvSigmas[i]) for i, ev in enumerate(self.config.evidence)]
-
-        return allEvSigmas

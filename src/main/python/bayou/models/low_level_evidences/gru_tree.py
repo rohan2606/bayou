@@ -33,12 +33,19 @@ class TreeEncoder(object):
             self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size, output_units])
             self.projection_b = tf.get_variable('projection_b', [output_units])
 
+            # tf.summary.histogram("projection_w", self.projection_w)
+            # tf.summary.histogram("projection_b", self.projection_b)
+
 
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in nodes)
+        self.emb_inp = emb_inp
+
 
         with tf.variable_scope('Tree_network'):
 
+            emb_inp = self.emb_inp
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
+            # TODO: update with dynamic decoder (being implemented in tf) once it is released
             with tf.variable_scope('rnn'):
                 self.state = self.initial_state
                 for i, inp in enumerate(emb_inp):

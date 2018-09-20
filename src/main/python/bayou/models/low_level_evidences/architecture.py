@@ -81,8 +81,12 @@ class BayesianDecoder(object):
 
         # setup embedding
         emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+        self.emb_inp = emb_inp
 
         with tf.variable_scope('decoder_network'):
+
+
+            emb_inp = self.emb_inp
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
             with tf.variable_scope('rnn'):
 
