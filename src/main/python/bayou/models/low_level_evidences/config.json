@@ -4,12 +4,12 @@
     "batch_size": 50,
     "num_epochs": 100,
     "learning_rate": 0.0006,
-    "print_step": 1,
-    "checkpoint_step": 1,
+    "print_step": 50,
+    "checkpoint_step": 5,
     "evidence": [
         {
             "name": "apicalls",
-            "units": 32,
+            "units": 128,
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
@@ -17,20 +17,36 @@
         },
         {
             "name": "types",
-            "units": 32,
+            "units": 128,
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8
+        },
+        {
+            "name": "keywords",
+            "units": 128,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": -1,
+            "max_nums": 8
+        },
+        {
+            "name": "callsequences",
+            "units": 128,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 8,
+            "max_nums": 1
         }
     ],
     "decoder": {
-        "units": 32,
+        "units": 256,
         "num_layers": 1,
         "max_ast_depth": 32
     },
     "reverse_encoder": {
-        "units": 64,
+        "units": 256,
         "num_layers": 1,
         "max_ast_depth": 32
     }

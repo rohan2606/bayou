@@ -40,7 +40,10 @@ def plot(clargs):
         for program in ijson.items(f, 'programs.item'):
             #switch this on if you want to load pre-computed b1
             #switch this on if you are calculating based on evidences (which you can manipulate)
-            #program = {'apicalls':program['apicalls'], 'types':program['types'], 'ast':program['ast']}
+            # program = {'apicalls':program['apicalls'], 'types':program['types'], 'ast':program['ast']}
+            #program = {'sequences':program['sequences'], 'ast':program['ast']}
+            #if len(program['sequences'])==0:
+            #    continue
 
             api_call = get_api(get_calls_from_ast(program['ast']['_nodes']))
             if api_call != 'N/A':
@@ -50,6 +53,8 @@ def plot(clargs):
                 # psis.append(program['b1']) # b1 is basically a scaled (by a1) version of psis
                 item_num += 1
 
+            if item_num > 10000:
+                break
 
         psis = np.array(psis)
         model = TSNE(n_components=2, init='pca')

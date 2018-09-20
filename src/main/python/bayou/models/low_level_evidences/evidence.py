@@ -134,7 +134,7 @@ class Sets(Evidence):
     def init_sigma(self, config):
         with tf.variable_scope(self.name):
             self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-        #with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+        # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             self.sigma = tf.get_variable('sigma', [])
 
     def encode(self, inputs, config):
@@ -157,86 +157,48 @@ class Sets(Evidence):
 
             return latent_encoding
 
-
-
-    def f_write(self, data, f):
-        f.write('---------------' + self.name +'-------------------------\n')
-        arrs = np.squeeze(data) # Now only [self.max_nums]
-        inv_map = {v: k for k, v in self.vocab.items()}
-        if arrs.shape == ():
-            return
-        for val in arrs:
-            if val == 0:
-                continue
-            f.write(inv_map[val] + ", ")
-        f.write('\n')
-        return
-
 # handle sequences as i/p
 class Sequences(Evidence):
 
 
     def placeholder(self, config):
         # type: (object) -> object
-        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums , self.max_depth])
+        return tf.placeholder(tf.int32, [config.batch_size, self.max_depth])
 
     def wrangle(self, data):
-        wrangled = np.zeros((len(data), self.max_nums, self.max_depth), dtype=np.int32)
+        wrangled = np.zeros((len(data), self.max_depth), dtype=np.int32)
         for i, seqs in enumerate(data):
-            for j, seq in enumerate(seqs):
-                if j < self.max_nums : #and seq[0] != 'STOP: # assuming no sequence start with stop and stop has vocab key 0
-                    for pos,c in enumerate(seq):
-                        if pos < self.max_depth:
-                            wrangled[i, j, pos] = c
+            seq = seqs[0]
+            for pos,c in enumerate(seq):
+                if pos < self.max_depth and c != 0:
+                    wrangled[i, self.max_depth - 1 - pos] = c
         return wrangled
 
     def exists(self, inputs):
-        i = tf.reduce_sum(inputs, axis=2)
-        return tf.not_equal(tf.reduce_sum(i, axis=1), 0)
+        i = tf.reduce_sum(inputs, axis=1)
+        return tf.not_equal(i, 0)
 
     def init_sigma(self, config):
         with tf.variable_scope(self.name):
             self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-        #with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+        # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             self.sigma = tf.get_variable('sigma', [])
 
     def encode(self, inputs, config):
         with tf.variable_scope(self.name):
-            #latent_encoding = tf.zeros([config.batch_size, config.latent_size])
-            #inp = tf.slice(inputs, [0, 0], [config.batch_size, max_depth])
-            #can do inversion of input here
 
-            inp = tf.reshape(inputs, [-1, self.max_depth])
-            emb_inp = tf.nn.embedding_lookup(self.emb, inp)
-            #emb_inp = tf.reverse(emb_inp, axis=[False,True]) # reversed i/p to the encoder
-
-            LSTM_Encoder = seqEncoder(self.num_layers, self.units, emb_inp)
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size, self.emb)
             encoding = LSTM_Encoder.output
 
             w = tf.get_variable('w', [self.units, config.latent_size])
             b = tf.get_variable('b', [config.latent_size])
             latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
 
-            zeros = tf.zeros([config.batch_size * self.max_nums , config.latent_size])
-            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inp, axis=1),0),latent_encoding, zeros)
-
-            latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding, [config.batch_size, self.max_nums, config.latent_size]), axis=1)
+            zeros = tf.zeros([config.batch_size , config.latent_size])
+            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
 
             return latent_encoding
 
-    def f_write(self, data, f):
-        f.write('---------------' + self.name + '-------------------------\n')
-        arrs = np.squeeze(data)
-        inv_map = {v: k for k, v in self.vocab.items()}
-        for arr in arrs:
-            if sum(arr)==0:
-                continue
-            for val in arr:
-                if val == 0:
-                    continue
-                string = inv_map[val]
-                f.write(string + ', ')
-            f.write('\n')
 
 
 class APICalls(Sets):
@@ -405,14 +367,21 @@ class CallSequences(Sequences):
     def read_data_point(self, program, infer):
         json_sequences = program['sequences'] if 'sequences' in program else []
         list_seqs = [[]]
+
         for json_seq in json_sequences:
-            tmp_list = json_seq['calls']
-            if len(tmp_list) > 1:
-                list_seqs.append(self.word2num(tmp_list, infer))
+            tmp_list = [self.shorten(call) for call in json_seq['calls']]
+            list_seqs.append(self.word2num(tmp_list, infer))
         if len(list_seqs) > 1:
             list_seqs.remove([])
         #return list_seqs
         return list_seqs
+
+
+    def shorten(self, call):
+        call = re.sub('^\$.*\$', '', call)  # get rid of predicates
+        name = call.split('(')[0].split('.')[-1]
+        name = name.split('<')[0]  # remove generics from call name
+        return name
 
 
     @staticmethod
@@ -423,18 +392,6 @@ class CallSequences(Sequences):
         name = name.split('<')[0]  # remove generics from call name
         return [name] if name[0].islower() else []  # Java convention
 
-    def count_occurence(self, data, f):
-        count  = 0
-        arr = np.squeeze(data)
-        inv_map = {v: k for k, v in self.vocab.items()}
-        for arr in arrs:
-            for val in arr:
-                if val != 0:
-                    subarr = re.findall(r"[\w']+", inv_map[val].lower()) # excluding java util
-                    for sub in subarr:
-                        if sub in f:
-                            count += 1
-        return count
 
 
 # handle sequences as i/p
@@ -449,17 +406,6 @@ class FormalParam(Sequences):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
         return [self.word2num(json_sequence, infer)]
 
-    def f_write(self, data, f):
-        f.write('---------------' + self.name + '-------------------------\n')
-        arr = np.squeeze(data)
-        inv_map = {v: k for k, v in self.vocab.items()}
-
-        for val in arr:
-            if val == 0:
-                continue
-            string = inv_map[val]
-            f.write(string + ', ')
-        f.write('\n')
 
 
 class sorrCallSequences(Sequences):

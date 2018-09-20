@@ -85,6 +85,9 @@ class Model():
                 self.loss = self.KL_loss
 
 
+            # self.allEvSigmas = [ ev.sigma for ev in self.config.evidence ]
+
+
             if infer:
                 # self.gen_loss is  P(Y|Z) where Z~P(Z|X)
 				# P(Y) = int_Z P(YZ) = int_Z P(Y|Z)P(Z) = int_Z P(Y|Z)P(Z|X)P(Z)/P(Z|X) = sum_Z P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
