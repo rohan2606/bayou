@@ -62,47 +62,36 @@ def test(clargs):
 
 
 def test_get_vals(clargs):
-    if os.path.isfile(File_Name + '/a1s.npy') and os.path.isfile(File_Name + '/a2s.npy') \
-            and os.path.isfile(File_Name + '/b1s.npy') and os.path.isfile(File_Name + '/b2s.npy') \
-            and os.path.isfile(File_Name + '/prob_Ys.npy') and os.path.isfile(File_Name + '/Ys.npy') :
-        a1s = np.load(File_Name  + '/a1s.npy')
-        b1s = np.load(File_Name  + '/b1s.npy')
-        a2s = np.load(File_Name  + '/a2s.npy')
-        b2s = np.load(File_Name  + '/b2s.npy')
-        prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
-        bodys = np.loadtxt(File_Name  + '/bodys.npy.gz')
-        #Ys = np.load(File_Name  + '/Ys.npy'), Xs = np.load(File_Name  + '/Xs.npy')
-    else:
-        infer_vars, config = forward_pass(clargs)
-        programs = []
-        a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
-        for prog_id in sorted(list(infer_vars.keys())):
-            a1s += [infer_vars[prog_id]['a1']]
-            a2s += [infer_vars[prog_id]['a2']]
-            b1s += [list(infer_vars[prog_id]['b1'])]
-            b2s += [list(infer_vars[prog_id]['b2'])]
-            prob_Ys += [infer_vars[prog_id]['ProbY']]
-            #Ys += [infer_vars[prog_id]['Y']]
+    infer_vars, config = forward_pass(clargs)
+    programs = []
+    a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
+    for prog_id in sorted(list(infer_vars.keys())):
+        a1s += [infer_vars[prog_id]['a1']]
+        a2s += [infer_vars[prog_id]['a2']]
+        b1s += [list(infer_vars[prog_id]['b1'])]
+        b2s += [list(infer_vars[prog_id]['b2'])]
+        prob_Ys += [infer_vars[prog_id]['ProbY']]
+        #Ys += [infer_vars[prog_id]['Y']]
 
-            program = infer_vars[prog_id]['JS']
-            # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
-            program['a1'] = infer_vars[prog_id]['a1'].item()
-            program['b1'] = [val.item() for val in infer_vars[prog_id]['b1']]
-            program['a2'] = infer_vars[prog_id]['a2'].item()
-            program['b2'] = [val.item() for val in infer_vars[prog_id]['b2']]
-            program['ProbY'] = infer_vars[prog_id]['ProbY'].item()
+        program = infer_vars[prog_id]['JS']
+        # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
+        program['a1'] = infer_vars[prog_id]['a1'].item()
+        program['b1'] = [val.item() for val in infer_vars[prog_id]['b1']]
+        program['a2'] = infer_vars[prog_id]['a2'].item()
+        program['b2'] = [val.item() for val in infer_vars[prog_id]['b2']]
+        program['ProbY'] = infer_vars[prog_id]['ProbY'].item()
 
-            programs.append(program)
+        programs.append(program)
 
-        print('New arrays saving done')
-        #prob_Ys = normalize_log_probs(prob_Ys)
-        #print('Normalizing done')
+    print('New arrays saving done')
+    #prob_Ys = normalize_log_probs(prob_Ys)
+    #print('Normalizing done')
 
 
-        print('\nWriting to {}...'.format('Program_output_json.json'), end='')
-        with open('Program_output_json.json', 'w') as f:
-            json.dump({'programs': programs}, fp=f, indent=2)
-        print('Files Saved')
+    print('\nWriting to {}...'.format('Program_output_json.json'), end='')
+    with open('Program_output_json.json', 'w') as f:
+        json.dump({'programs': programs}, fp=f, indent=2)
+    print('Files Saved')
 
     return a1s, b1s, a2s, b2s, prob_Ys
 
@@ -110,18 +99,12 @@ def forward_pass(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
     clargs.continue_from = True
 
-    with open(os.path.join(clargs.save, 'config.json')) as f:
-        model_type = json.load(f)['model']
 
-    if model_type == 'lle':
-        model = bayou.models.low_level_evidences.infer.BayesianPredictor
-    else:
-        raise ValueError('Invalid model type in config: ' + model_type)
+    model = bayou.models.low_level_evidences.infer.BayesianPredictor
 
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
-
 
     reader = Reader(clargs, config, infer=True)
 
@@ -149,6 +132,9 @@ def forward_pass(clargs):
     with tf.Session() as sess:
         predictor = model(clargs.save, sess, config, iterator, bayou_mode = False) # goes to infer.BayesianPredictor
         # testing
+        allSigmas = predictor.get_ev_sigma()
+        print(allSigmas)
+
         sess.run(iterator.initializer, feed_dict=feed_dict)
         infer_vars = {}
         for j in range(config.num_batches):
@@ -222,7 +208,7 @@ if __name__ == '__main__':
     clargs = parser.parse_args(['--save', 'save1',
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
-    #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+    # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-newer-TOP.json'])
 	'/home/ubuntu/DATA-newer.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

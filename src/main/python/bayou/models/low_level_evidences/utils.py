@@ -20,6 +20,9 @@ from tensorflow.python.client import device_lib
 from itertools import chain
 import numpy as np
 import os
+
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
 CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',

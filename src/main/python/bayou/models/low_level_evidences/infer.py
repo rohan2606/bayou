@@ -59,3 +59,8 @@ class BayesianPredictor(object):
                                                         self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
 
         return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
+
+    def get_ev_sigma(self):
+
+        allEvSigmas = self.sess.run( model.allEvSigmas )
+        return allEvSigmas
