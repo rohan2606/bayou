@@ -29,89 +29,91 @@ from sklearn.manifold import TSNE
 
 from scripts.ast_extractor import get_ast_paths
 from bayou.models.low_level_evidences.predict import BayesianPredictor
+from bayou.models.low_level_evidences.utils import read_config
 
 def plot(clargs):
     sess = tf.InteractiveSession()
     predictor = BayesianPredictor(clargs.save, sess)
+
+    with open(os.path.join(clargs.save, 'config.json')) as f:
+        config = read_config(json.load(f), chars_vocab=True)
+
+    # Plot for indicidual evidences
+    for ev in config.evidence:
+        print(ev.name)
+        with open(clargs.input_file[0], 'rb') as f:
+            deriveAndScatter(f, predictor, [ev])
+
+    # Plot with all Evidences
     with open(clargs.input_file[0], 'rb') as f:
-        psis = []
-        labels = []
-        item_num = 0
-        for program in ijson.items(f, 'programs.item'):
-            #switch this on if you want to load pre-computed b1
-            #switch this on if you are calculating based on evidences (which you can manipulate)
-            # program = {'apicalls':program['apicalls'], 'types':program['types'], 'ast':program['ast']}
-            #program = {'sequences':program['sequences'], 'ast':program['ast']}
-            #if len(program['sequences'])==0:
-            #    continue
+        deriveAndScatter(f, predictor, [ev for ev in config.evidence])
 
-            api_call = get_api(get_calls_from_ast(program['ast']['_nodes']))
-            if api_call != 'N/A':
-            # if True:
-                labels.append(api_call)
-                psis.append(predictor.get_a1b1(program)[1][0])
-                # psis.append(program['b1']) # b1 is basically a scaled (by a1) version of psis
-                item_num += 1
+    with open(clargs.input_file[0], 'rb') as f:
+        useAttributeAndScatter(f, 'b2')
 
-            if item_num > 10000:
-                break
 
-        psis = np.array(psis)
-        model = TSNE(n_components=2, init='pca')
-        psis_2d = model.fit_transform(psis)
-        assert len(psis_2d) == len(labels)
+def useAttributeAndScatter(f, att, max_nums=10000):
+    psis = []
+    labels = []
+    item_num = 0
+    for program in ijson.items(f, 'programs.item'):
+        api_call = get_api(get_calls_from_ast(program['ast']['_nodes']))
+        if api_call != 'N/A':
+            labels.append(api_call)
+            if att not in program:
+                return
+            psis.append(program[att])
+            item_num += 1
 
-        # for psi_2d, label in zip(psis_2d, labels):
-        #     print('{} : {}'.format(psi_2d, label))
+        if item_num > max_nums:
+            break
 
-        scatter(clargs, zip(psis_2d, labels))
+    psis = np.array(psis)
+    name = "RE" if att == "b2" else att
+    fitTSEandplot(psis, labels, name)
 
+
+def deriveAndScatter(f, predictor, evList, max_nums=10000):
+    psis = []
+    labels = []
+    item_num = 0
+    for program in ijson.items(f, 'programs.item'):
+        shortProgram = {'ast':program['ast']}
+        for ev in evList:
+            if ev.name == "callsequences":
+                ev.name = "sequences"
+            shortProgram[ev.name] = program[ev.name]
+
+        if len(evList) == 1 and len(program[evList[0].name]) == 0:
+            continue
+
+        api_call = get_api(get_calls_from_ast(shortProgram['ast']['_nodes']))
+        if api_call != 'N/A':
+            labels.append(api_call)
+            psis.append(predictor.get_a1b1(shortProgram)[1][0])
+            item_num += 1
+
+        if item_num > max_nums:
+            break
+
+    name = "_".join([ev.name for ev in evList])
+    fitTSEandplot(psis, labels, name)
+
+def fitTSEandplot(psis, labels, name):
+    model = TSNE(n_components=2, init='random')
+    psis_2d = model.fit_transform(psis)
+    assert len(psis_2d) == len(labels)
+    scatter(clargs, zip(psis_2d, labels), name)
 
 def get_api(calls):
     calls = [call.replace('$NOT$', '') for call in calls]
     apis = [[re.findall(r"[\w']+", call)[:3]] for call in calls]
     apis = [call for _list in apis for calls in _list for call in calls]
-    # print(apis)
-    # apis = [api if 'NOT' not in api else api[5:] for api in apis]
-    # counts = Counter(apis)
-    # counts['STOP'] = 0
-    # counts['DBranch'] = 0
-    # counts['DLoop'] = 0
-    # counts['DExcept'] = 0
-    # for key in counts.keys():
-    #     if 'java.util' in key or 'java.lang' in key or 'java.io' in key:
-    #         counts[key] = 0
-    # apis = sorted(counts.keys(), key=lambda a: counts[a], reverse=True)
-
     label = "N/A"
     guard = []
     for api in apis:
-        # if 'io' == api:
-        #     label = 'io'
-        #     guard.append(label)
-        if 'xml' == api:
-            label = 'xml'
-            guard.append(label)
-        if 'sql' == api:
-            label = 'sql'
-            guard.append(label)
-        if 'crypto' == api:
-            label = 'crypto'
-            guard.append(label)
-        if 'awt' == api:
-            label = 'awt'
-            guard.append(label)
-        if 'swing' == api:
-            label = 'swing'
-            guard.append(label)
-        if 'security' == api:
-            label = 'security'
-            guard.append(label)
-        if 'net' == api:
-            label = 'net'
-            guard.append(label)
-        if 'math' == api:
-            label = 'math'
+        if api in ['xml', 'sql', 'crypto', 'awt', 'swing', 'security', 'net', 'math']:
+            label = api
             guard.append(label)
 
     if len(set(guard)) != 1:
@@ -121,7 +123,7 @@ def get_api(calls):
 
 
 
-def scatter(clargs, data):
+def scatter(clargs, data, name):
     dic = {}
     for psi_2d, label in data:
         if label == 'N/A':
@@ -147,7 +149,7 @@ def scatter(clargs, data):
     plt.legend(plotpoints, labels, scatterpoints=1, loc='lower left', ncol=3, fontsize=12)
     plt.axhline(0, color='black')
     plt.axvline(0, color='black')
-    plt.savefig(os.path.join(os.getcwd(), "tSNE.jpeg"), bbox_inches='tight')
+    plt.savefig(os.path.join(os.getcwd(), "tSNE_" + name + ".jpeg"), bbox_inches='tight')
     # plt.show()
 
 

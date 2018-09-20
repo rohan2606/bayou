@@ -97,7 +97,7 @@ def test_get_vals(clargs):
 
 def forward_pass(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
-    clargs.continue_from = True
+    clargs.continue_from = None
 
 
     model = bayou.models.low_level_evidences.infer.BayesianPredictor
@@ -106,7 +106,7 @@ def forward_pass(clargs):
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
 
-    reader = Reader(clargs, config, infer=True)
+    reader = Reader(clargs, config, infer=False)
 
 	# Placeholders for tf data
     prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
@@ -205,11 +205,11 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save1',
+    clargs = parser.parse_args(['--save', '/home/rm38/Research/Bayou_Code_Search/progressiveRuns/ATKplusSprobSeq/save1',
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
-    # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-newer-TOP.json'])
-	'/home/ubuntu/DATA-newer.json'])
+    '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-newer-TOP.json'])
+	# '/home/ubuntu/DATA-newer.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)
