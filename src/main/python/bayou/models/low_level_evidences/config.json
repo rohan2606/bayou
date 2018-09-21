@@ -5,7 +5,7 @@
     "num_epochs": 100,
     "learning_rate": 0.0006,
     "print_step": 50,
-    "checkpoint_step": 5,
+    "checkpoint_step": 10,
     "evidence": [
         {
             "name": "apicalls",
@@ -13,7 +13,9 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 8
+            "max_nums": 8,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.7
         },
         {
             "name": "types",
@@ -21,7 +23,9 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 8
+            "max_nums": 8,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.7
         },
         {
             "name": "keywords",
@@ -29,7 +33,9 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 8
+            "max_nums": 8,
+            "ev_drop_prob":0.4,
+            "ev_call_drop_prob":0.5
         },
         {
             "name": "callsequences",
@@ -37,7 +43,9 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": 8,
-            "max_nums": 1
+            "max_nums": 1,
+            "ev_drop_prob":0.4,
+            "ev_call_drop_prob":0.6
         }
     ],
     "decoder": {

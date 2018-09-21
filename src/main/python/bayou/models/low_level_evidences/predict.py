@@ -38,7 +38,7 @@ class BayesianPredictor(object):
 
         self.inputs = [ev.placeholder(config) for ev in self.config.evidence]
         with tf.variable_scope("Encoder"):
-            self.encoder = BayesianEncoder(config, self.inputs)
+            self.encoder = BayesianEncoder(config, self.inputs, infer=True)
 
 
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)

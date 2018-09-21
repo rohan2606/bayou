@@ -17,10 +17,10 @@ from itertools import chain
 from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 
 class BayesianEncoder(object):
-    def __init__(self, config, inputs):
+    def __init__(self, config, inputs, infer=False):
 
-        # self.inputs = [ev.placeholder(config) for ev in config.evidence]
-        exists = [ev.exists(i) for ev, i in zip(config.evidence, inputs)]
+        exists = [ev.exists(i, config, infer) for ev, i in zip(config.evidence, inputs)]
+
         zeros = tf.zeros([config.batch_size, config.latent_size], dtype=tf.float32)
 
         # Compute the denominator used for mean and covariance
@@ -35,7 +35,8 @@ class BayesianEncoder(object):
         # Compute the mean of Psi
         with tf.variable_scope('mean'):
             # 1. compute encoding
-            self.encodings = [ev.encode(i, config) for ev, i in zip(config.evidence, inputs)]
+
+            self.encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence, inputs)]
             encodings = [encoding / tf.square(ev.sigma) for ev, encoding in
                          zip(config.evidence, self.encodings)]
 

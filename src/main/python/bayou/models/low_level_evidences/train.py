@@ -144,7 +144,7 @@ def train(clargs):
             for b in range(NUM_BATCHES):
                 # run the optimizer
                 loss, KL_loss, gen_loss , _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.train_op])
-                # allEvSigmas = sess.run(model.allEvSigmas)
+                
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
 
@@ -193,9 +193,9 @@ if __name__ == '__main__':
       #['--continue_from', 'save1',
      ['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
-     # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
+     '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-Sigmod-TOP.json'])
+    # '/home/ubuntu/DATA-Sigmod-TOP.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

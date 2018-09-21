@@ -149,7 +149,7 @@ def scatter(clargs, data, name):
     plt.legend(plotpoints, labels, scatterpoints=1, loc='lower left', ncol=3, fontsize=12)
     plt.axhline(0, color='black')
     plt.axvline(0, color='black')
-    plt.savefig(os.path.join(os.getcwd(), "tSNE_" + name + ".jpeg"), bbox_inches='tight')
+    plt.savefig(os.path.join(os.getcwd(), "plots/tSNE_" + name + ".jpeg"), bbox_inches='tight')
     # plt.show()
 
 

@@ -33,13 +33,12 @@ class Model():
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
 
-
         with tf.variable_scope('Embedding'):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
 
         with tf.variable_scope("Encoder"):
 
-            self.encoder = BayesianEncoder(config, ev_data)
+            self.encoder = BayesianEncoder(config, ev_data, infer)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1

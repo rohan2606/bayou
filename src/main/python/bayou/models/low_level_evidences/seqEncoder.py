@@ -16,6 +16,7 @@ import tensorflow as tf
 
 class seqEncoder(object):
     def __init__(self, num_layers, state_size, inputs, batch_size, emb):
+
         with tf.variable_scope('GRU_Encoder'):
             cell_list = []
             for cell in range(num_layers) :
@@ -28,25 +29,20 @@ class seqEncoder(object):
             inputs = tf.unstack(inputs, axis=1)
             # after unstack it is depth * BS
 
-            initial_state = [tf.truncated_normal([batch_size, state_size] , stddev=0.001 ) ] * num_layers
+            curr_state = [tf.truncated_normal([batch_size, state_size] , stddev=0.001 ) ] * num_layers
+            curr_out = tf.zeros([batch_size , state_size])
 
-            state = initial_state
-            outputs = []
-
-            default_out = tf.zeros([batch_size , state_size])
             for i, inp in enumerate(inputs):
-                emb_inp = tf.nn.embedding_lookup(emb, inp)
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
+                emb_inp = tf.nn.embedding_lookup(emb, inp)
 
                 with tf.variable_scope('cell0'):  # handles CHILD_EDGE
-                    output, state1 = cell(emb_inp, state)
+                    output, out_state = cell(emb_inp, curr_state)
 
-                output = tf.where(tf.not_equal(inp, 0), output, default_out)
-                state = [tf.where(tf.not_equal(inp, 0), state1[j], initial_state[j])
+                curr_state = [tf.where(tf.not_equal(inp, 0), out_state[j], curr_state[j])
                               for j in range(num_layers)]
-                outputs.append(output)
+                curr_out = tf.where(tf.not_equal(inp, 0), output, curr_out)
 
 
-            output = outputs[-1]
-            self.output = output
+            self.output = curr_out
