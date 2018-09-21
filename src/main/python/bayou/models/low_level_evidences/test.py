@@ -144,8 +144,8 @@ def forward_pass(clargs):
 
 
         allEvSigmas = predictor.get_ev_sigma()
-        
         print(allEvSigmas)
+        
         for j in range(config.num_batches):
             prob_Y, a1, b1, a2, b2, js_prog_ids, prog_ids = predictor.get_all_params_inago()
             for i in range(config.batch_size):

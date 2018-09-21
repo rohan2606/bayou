@@ -24,7 +24,7 @@ import json
 import textwrap
 
 from bayou.models.low_level_evidences.data_reader import Reader
-from bayou.models.low_level_evidences.MultiGPUModel import MultiGPUModel
+from bayou.models.low_level_evidences.model import Model
 from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot, get_available_gpus
 
 
@@ -112,7 +112,7 @@ def train(clargs):
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
-    model = MultiGPUModel(config , iterator, bayou_mode=True)
+    model = Model(config , iterator, bayou_mode=True)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
@@ -143,7 +143,7 @@ def train(clargs):
             avg_loss, avg_gen_loss, avg_KL_loss = 0.,0.,0.
             for b in range(NUM_BATCHES):
                 # run the optimizer
-                loss, KL_loss, gen_loss , _ = sess.run([model.avg_loss, model.avg_KL_loss, model.avg_gen_loss, model.apply_gradient_op])
+                loss, KL_loss, gen_loss , _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.train_op])
                 # allEvSigmas = sess.run(model.allEvSigmas)
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
@@ -193,7 +193,7 @@ if __name__ == '__main__':
       #['--continue_from', 'save1',
      ['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
-     # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod.json'])
+     # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
     '/home/ubuntu/DATA-Sigmod-TOP.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
