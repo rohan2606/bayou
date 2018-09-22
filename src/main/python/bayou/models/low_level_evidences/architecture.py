@@ -19,8 +19,8 @@ from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 class BayesianEncoder(object):
     def __init__(self, config, inputs, infer=False):
 
+        # exists  = #ev * batch_size
         exists = [ev.exists(i, config, infer) for ev, i in zip(config.evidence, inputs)]
-
         zeros = tf.zeros([config.batch_size, config.latent_size], dtype=tf.float32)
 
         # Compute the denominator used for mean and covariance

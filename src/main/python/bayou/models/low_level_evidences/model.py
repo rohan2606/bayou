@@ -70,8 +70,12 @@ class Model():
 
 
             # 1. generation loss: log P(Y | Z)
+            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
+            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
+            cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
+
             self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(targets, [-1])],
-                                                  [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
+                                                  [cond])
 
               # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
             self.KL_loss = tf.reduce_mean( 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
@@ -83,9 +87,6 @@ class Model():
                 self.loss = self.gen_loss #+ 0.001* self.KL_loss
             else:
                 self.loss = self.KL_loss
-
-
-
 
             if infer:
                 # self.gen_loss is  P(Y|Z) where Z~P(Z|X)

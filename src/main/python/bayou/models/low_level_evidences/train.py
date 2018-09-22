@@ -144,7 +144,6 @@ def train(clargs):
             for b in range(NUM_BATCHES):
                 # run the optimizer
                 loss, KL_loss, gen_loss , _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.train_op])
-                
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
 
