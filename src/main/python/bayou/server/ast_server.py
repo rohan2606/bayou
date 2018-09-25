@@ -63,7 +63,11 @@ def _handle_generate_asts_request(request_dict, predictor):
 def _generate_asts(evidence_json: str, predictor, okay_check=True):
     logging.debug("entering")
 
+
+
     js = json.loads(evidence_json)  # parse evidence as a JSON string
+
+
 
     # enhance keywords evidence from others
     keywords = list(chain.from_iterable([Keywords.split_camel(c) for c in js['apicalls']])) + \
@@ -78,15 +82,15 @@ def _generate_asts(evidence_json: str, predictor, okay_check=True):
 
     #
     # If okay_check is set, retain only those asts that pass the _okay(...) filter. Otherwise retain all asts.
-    #
-    if okay_check:
-        okay_asts = []
-        for ast in asts:
-            if _okay(js, ast, predictor):
-                okay_asts.append(ast)
-        okay_asts = asts if okay_asts == [] else okay_asts
-    else:
-        okay_asts = asts
+    # #
+    # if okay_check:
+    #     okay_asts = []
+    #     for ast in asts:
+    #         if _okay(js, ast, predictor):
+    #             okay_asts.append(ast)
+    #     okay_asts = asts if okay_asts == [] else okay_asts
+    # else:
+    #     okay_asts = asts
 
     logging.debug("exiting")
     return json.dumps({'evidences': js, 'asts': okay_asts}, indent=2)

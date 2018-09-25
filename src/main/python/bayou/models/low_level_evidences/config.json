@@ -1,11 +1,11 @@
 {
     "model": "lle",
     "latent_size": 64,
-    "batch_size": 50,
+    "batch_size": 500,
     "num_epochs": 100,
     "learning_rate": 0.0006,
     "print_step": 50,
-    "checkpoint_step": 10,
+    "checkpoint_step": 5,
     "evidence": [
         {
             "name": "apicalls",
@@ -46,6 +46,26 @@
             "max_nums": 1,
             "ev_drop_prob":0.25,
             "ev_call_drop_prob":0.25
+        },
+        {
+            "name": "returntype",
+            "units": 256,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": -1,
+            "max_nums": 1,
+            "ev_drop_prob":0.5,
+            "ev_call_drop_prob":1.00
+        },
+        {
+            "name": "formalparam",
+            "units": 256,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 8,
+            "max_nums": 1,
+            "ev_drop_prob":0.5,
+            "ev_call_drop_prob":0.80
         }
     ],
     "decoder": {

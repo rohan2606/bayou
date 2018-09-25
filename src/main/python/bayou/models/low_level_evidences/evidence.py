@@ -364,7 +364,7 @@ class ReturnType(Sets):
 
     def __init__(self):
         self.vocab = dict()
-        self.vocab['void'] = 0
+        self.vocab['None'] = 0
         self.vocab_size = 1
 
 
@@ -432,7 +432,6 @@ class FormalParam(Sequences):
     def read_data_point(self, program, infer):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
         return [self.word2num(json_sequence, infer)]
-
 
 
 class sorrCallSequences(Sequences):
