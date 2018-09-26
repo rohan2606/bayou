@@ -22,7 +22,7 @@ import pickle
 from collections import Counter
 import gc
 
-from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus
+from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus, dump_config
 from bayou.models.low_level_evidences.node import Node
 CHILD_EDGE = True
 SIBLING_EDGE = False
@@ -37,24 +37,47 @@ class InvalidSketchError(Exception):
 
 
 class Reader():
-    def __init__(self, clargs, config, infer=False):
+    def __init__(self, clargs, config, infer=False, dataIsThere=False):
         self.infer = infer
         self.config = config
-        random.seed(12)
-        # read the raw evidences and targets
-        print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets, raw_trees, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
-        print('Done!')
-        raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
-                         enumerate(config.evidence)]
 
+        if clargs.continue_from is not None or dataIsThere:
+            with open('data/inputs.txt', 'rb') as f:
+                self.inputs = pickle.load(f)
+            with open('data/nodes.txt', 'rb') as f:
+                self.nodes = pickle.load(f)
+            with open('data/edges.txt', 'rb') as f:
+                self.edges = pickle.load(f)
+            with open('data/targets.txt', 'rb') as f:
+                self.targets = pickle.load(f)
+            with open('data/prog_ids', 'rb') as f:
+                self.prog_ids = pickle.load(f)
+            with open('data/js_prog_ids', 'rb') as f:
+                self.js_prog_ids = pickle.load(f)
 
-        # align with number of batches and have it as a multiple of #GPUs
-        if not infer:
-            devices = get_available_gpus()
-            config.num_batches = int(len(raw_targets) / config.batch_size)
-            config.num_batches = config.num_batches - (config.num_batches % len(devices))
+            jsconfig = dump_config(config)
+            with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
+                json.dump(jsconfig, fp=f, indent=2)
+
+            if infer:
+                self.js_programs = []
+                with open('data/js_programs.json', 'rb') as f:
+                    for program in ijson.items(f, 'programs.item'):
+                        self.js_programs.append(program)
+            config.num_batches = int(len(self.nodes) / config.batch_size)
+
         else:
+            random.seed(12)
+            # read the raw evidences and targets
+            print('Reading data file...')
+            prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+            print('Done!')
+            raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
+                             enumerate(config.evidence)]
+
+
+            # align with number of batches and have it as a multiple of #GPUs
+            devices = get_available_gpus()
             config.num_batches = int(len(raw_targets) / config.batch_size)
         ################################
 
@@ -262,7 +285,7 @@ class Reader():
         else:
             self.CallMapDict = self.config.decoder.vocab
             count = self.config.decoder.vocab_size
-        for program in ijson.items(f, 'programs.item'): #js['programs']:
+        for program in ijson.items(f, 'programs.item'):
             if 'ast' not in program:
                 continue
             try:
@@ -288,9 +311,14 @@ class Reader():
 
                     embPaths.append(embPath)
 
+<<<<<<< HEAD
                 for embPath in embPaths:
                     data_points.append((done - ignored, evidences, embPath, embPaths, program))
                 #data_points.append((done - ignored, evidences, embPath, {}))
+=======
+                    data_points.append((done - ignored, evidences, temp_arr, program))
+                    #data_points.append((done - ignored, evidences, temp_arr, {}))
+>>>>>>> master
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:

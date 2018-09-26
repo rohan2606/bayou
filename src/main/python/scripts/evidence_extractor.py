@@ -49,50 +49,50 @@ def extract_evidence(clargs):
     #This part appends sorrounding evidences
     done = 0
     ignored = 0
-    for program in js['programs']:
-        try:
-            ast_node_graph, ast_paths = ast_extractor.get_ast_paths(program['ast']['_nodes'])
-            ast_extractor.validate_sketch_paths(program, ast_paths, clargs.max_ast_depth)
-
-            file_name = program['file']
-            method_name = program['method']
-
-            sequences = program['sequences']
-            returnType = program['returnType'] if 'returnType' in program else "void"
-            formalParam = program['formalParam'] if 'formalParam' in program else []
-
-            if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
-                any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
-                    raise ast_extractor.TooLongPathError
-
-
-            if file_name not in programs_dict:
-                programs_dict[file_name] = dict()
-
-            if method_name not in programs_dict[file_name]:
-                programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
-            else:
-                # Choose the MethodDeclaration with lowest number of nodes in sequences, the reason being you want to
-                # ignore the calls from constructor, as it is present in every sorrounding sequence, and also this target_link_libraries
-                # care of the problem of having multiple constructors while extracting from DOM Driver, where you basically  extract multiple
-                # copies of same method. However they appear in the data as we again iterate over js[programs]
-                if numNodesInSequences(sequences) < numNodesInSequences(programs_dict[file_name][method_name][2]):
-                    programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
-
-            valid.append(True)
-
-        except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
-            ignored += 1
-            valid.append(False)
-
-        done += 1
-        print('Extracted evidences of sorrounding features for {} programs'.format(done), end='\r')
-
-    print('')
-
-    print('{:8d} programs/asts in training data'.format(done))
-    print('{:8d} programs/asts ignored by given config'.format(ignored))
-    print('{:8d} programs/asts to search over'.format(done - ignored))
+    # for program in js['programs']:
+    #     try:
+    #         ast_node_graph, ast_paths = ast_extractor.get_ast_paths(program['ast']['_nodes'])
+    #         ast_extractor.validate_sketch_paths(program, ast_paths, clargs.max_ast_depth)
+    #
+    #         file_name = program['file']
+    #         method_name = program['method']
+    #
+    #         sequences = program['sequences']
+    #         returnType = program['returnType'] if 'returnType' in program else "void"
+    #         formalParam = program['formalParam'] if 'formalParam' in program else []
+    #
+    #         if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
+    #             any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
+    #                 raise ast_extractor.TooLongPathError
+    #
+    #
+    #         if file_name not in programs_dict:
+    #             programs_dict[file_name] = dict()
+    #
+    #         if method_name not in programs_dict[file_name]:
+    #             programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
+    #         else:
+    #             # Choose the MethodDeclaration with lowest number of nodes in sequences, the reason being you want to
+    #             # ignore the calls from constructor, as it is present in every sorrounding sequence, and also this target_link_libraries
+    #             # care of the problem of having multiple constructors while extracting from DOM Driver, where you basically  extract multiple
+    #             # copies of same method. However they appear in the data as we again iterate over js[programs]
+    #             if numNodesInSequences(sequences) < numNodesInSequences(programs_dict[file_name][method_name][2]):
+    #                 programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
+    #
+    #         valid.append(True)
+    #
+    #     except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
+    #         ignored += 1
+    #         valid.append(False)
+    #
+    #     done += 1
+    #     print('Extracted evidences of sorrounding features for {} programs'.format(done), end='\r')
+    #
+    # print('')
+    #
+    # print('{:8d} programs/asts in training data'.format(done))
+    # print('{:8d} programs/asts ignored by given config'.format(ignored))
+    # print('{:8d} programs/asts to search over'.format(done - ignored))
 
 
     # print('Loading data file...')
@@ -103,8 +103,8 @@ def extract_evidence(clargs):
     done = 0
     for pid, program in enumerate(js['programs']):
 
-        if valid[pid] == False:
-            continue
+        # if valid[pid] == False:
+        #     continue
 
         file_name = program['file']
         method_name = program['method']
@@ -113,16 +113,16 @@ def extract_evidence(clargs):
         returnType = program['returnType'] if 'returnType' in program else "void"
         formalParam = program['formalParam'] if 'formalParam' in program else []
 
-        # Take in classTypes and sample a few
-        classTypes = program['classTypes'] if 'classTypes' in program else []
-        random.shuffle(classTypes)
-        num = np.random.choice(range(len(clargs.distribution)), p=clargs.distribution)
-        classTypes = classTypes[:num+1]
+        # # Take in classTypes and sample a few
+        # classTypes = program['classTypes'] if 'classTypes' in program else []
+        # random.shuffle(classTypes)
+        # num = np.random.choice(range(len(clargs.distribution)), p=clargs.distribution)
+        # classTypes = classTypes[:num+1]
         ####
 
-        if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
-                any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
-            continue
+        # if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
+        #         any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
+        #     continue
 
         calls = gather_calls(program['ast'])
 
@@ -134,60 +134,48 @@ def extract_evidence(clargs):
                                                 for call in calls])))
 
 
+        # num_samples = clargs.num_samples if clargs.num_samples > 0 else math.ceil(len(evidences)/-clargs.num_samples)
+        random.shuffle(apicalls)
+        random.shuffle(types)
+        random.shuffle(keywords)
 
-        if clargs.num_samples == 0:
-            program['apicalls'] = apicalls
-            program['types'] = types
-            program['keywords'] = keywords
-            programs.append(program)
-        else:
-            # put all evidences in the same bag (to avoid bias during sampling)
-            evidences = [(e, 'apicalls') for e in apicalls] + [(e, 'types') for e in types] + \
-                        [(e, 'keywords') for e in keywords]
-            num_samples = clargs.num_samples if clargs.num_samples > 0 else math.ceil(len(evidences)/-clargs.num_samples)
+        sample = dict(program)
+        sample['apicalls'] = apicalls
+        sample['types'] = types
+        sample['keywords'] = keywords
 
-            for i in range(num_samples): # This is 1 in our case
-                sample = dict(program)
-                sample['apicalls'] = []
-                sample['types'] = []
-                sample['keywords'] = []
+        del sample['classTypes']
+        del sample['sorrreturntype']
+        del sample['sorrformalparam']
+        del sample['sorrsequences']
 
-                sample['sorrreturntype'] = []
-                sample['sorrformalparam'] = []
-                sample['sorrsequences'] = []
+        # sample['sorrreturntype'] = []
+        # sample['sorrformalparam'] = []
+        # sample['sorrsequences'] = []
 
-                sample['classTypes'] = classTypes
+        # sample['classTypes'] = classTypes
 
-                if clargs.distribution is not None:
-                    random.shuffle(evidences)
-                    num = np.random.choice(range(len(clargs.distribution)), p=clargs.distribution)
-                    choices = evidences[:num+1]
-                else:
-                    raise ValueError('Invalid option for sampling')
 
-                for choice, evidence in choices:
-                    sample[evidence].append(choice)
+        #    (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
+        # otherMethods = list(programs_dict[file_name].keys())
+        # random.shuffle(otherMethods)
+        # num = np.random.choice(range(len(clargs.distribution)), p=clargs.distribution) + 1
+        #
+        # countSorrMethods = 0
+        # for method in otherMethods: # Each iterator is a method Name with @linenumber
+        #
+        #     # Ignore the current method from list of sorrounding methods
+        #     if method == method_name:
+        #         continue
+        #     # Keep a count on number of sorrounding methods, if it exceeds the random choice, break
+        #     countSorrMethods += 1
+        #     if countSorrMethods > num:
+        #         break
+        #
+        #     for choice, evidence in zip(programs_dict[file_name][method],['sorrreturntype', 'sorrformalparam', 'sorrsequences']):
+        #         sample[evidence].append(choice)
 
-                #    (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
-                otherMethods = list(programs_dict[file_name].keys())
-                random.shuffle(otherMethods)
-                num = np.random.choice(range(len(clargs.distribution)), p=clargs.distribution) + 1
-
-                countSorrMethods = 0
-                for method in otherMethods: # Each iterator is a method Name with @linenumber
-
-                    # Ignore the current method from list of sorrounding methods
-                    if method == method_name:
-                        continue
-                    # Keep a count on number of sorrounding methods, if it exceeds the random choice, break
-                    countSorrMethods += 1
-                    if countSorrMethods > num:
-                        break
-
-                    for choice, evidence in zip(programs_dict[file_name][method],['sorrreturntype', 'sorrformalparam', 'sorrsequences']):
-                        sample[evidence].append(choice)
-
-                programs.append(sample)
+        programs.append(sample)
 
         done += 1
         print('Extracted evidence [API/Type/Keywords/Sorrounding Evidences] for {} programs'.format(done), end='\r')
@@ -201,12 +189,12 @@ def extract_evidence(clargs):
     print('done')
 
 
-def numNodesInSequences(sequences):
-    totLen = 0
-    for elem in sequences:
-        totLen += len(elem['calls'])
-    return totLen
-
+# def numNodesInSequences(sequences):
+#     totLen = 0
+#     for elem in sequences:
+#         totLen += len(elem['calls'])
+#     return totLen
+#
 
 
 
@@ -219,23 +207,9 @@ if __name__ == '__main__':
                         help='output data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--max_seqs', type=int, default=9999,
-                        help='maximum number of sequences in a program')
-    parser.add_argument('--max_seq_length', type=int, default=9999,
-                        help='maximum length of each sequence in a program')
-    parser.add_argument('--max_ast_depth', type=int, default=32,
-                        help='maximum depth of decoder')
-    parser.add_argument('--num_samples', type=int, default=0,
-                        help='number of samples per program (< 0 = adaptive, e.g., -k = number of evidences/k)')
-    parser.add_argument('--observability', type=int, default=None,
-                        help='percentage of observable evidence (e.g., 100, 75, 50, etc.. 0 = random)')
-    parser.add_argument('--distribution', nargs='+', type=float, default=None,
-                        help='distribution over number of evidences in each sample (e.g., 0.3 0.5 0.2). Must sum to 1.')
+
+
+
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
-    if clargs.num_samples > 0:
-        if clargs.observability is not None and clargs.distribution is not None:
-            parser.error('Provide exactly one of --observability or --distribution')
-        if clargs.observability is None and clargs.distribution is None:
-            parser.error('Provide exactly one of --observability or --distribution')
     extract_evidence(clargs)

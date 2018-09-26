@@ -1,11 +1,11 @@
 {
     "model": "lle",
     "latent_size": 64,
-    "batch_size": 200,
+    "batch_size": 500,
     "num_epochs": 100,
     "learning_rate": 0.0006,
     "print_step": 50,
-    "checkpoint_step": 1,
+    "checkpoint_step": 5,
     "evidence": [
         {
             "name": "apicalls",
@@ -13,7 +13,9 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 8
+            "max_nums": 8,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.25
         },
         {
             "name": "types",
@@ -21,7 +23,9 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 8
+            "max_nums": 8,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.25
         },
         {
             "name": "keywords",
@@ -29,72 +33,48 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 8
+            "max_nums": 8,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.25
         },
         {
             "name": "callsequences",
-            "units": 64,
+            "units": 128,
             "num_layers": 1,
             "tile": 1,
             "max_depth": 8,
-            "max_nums": 2
-        },
-        {
-            "name": "formalparam",
-            "units": 32,
-            "num_layers": 1,
-            "tile": 1,
-            "max_depth": 8,
-            "max_nums": 1
+            "max_nums": 1,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.25
         },
         {
             "name": "returntype",
-            "units": 16,
+            "units": 256,
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 1
+            "max_nums": 1,
+            "ev_drop_prob":0.5,
+            "ev_call_drop_prob":1.00
         },
         {
-            "name": "classtype",
-            "units": 32,
-            "num_layers": 1,
-            "tile": 1,
-            "max_depth": -1,
-            "max_nums": 10
-        },
-        {
-            "name": "sorrreturntype",
-            "units": 32,
-            "num_layers": 1,
-            "tile": 1,
-            "max_depth": -1,
-            "max_nums": 4
-        },
-        {
-            "name": "sorrformalparam",
-            "units": 32,
+            "name": "formalparam",
+            "units": 256,
             "num_layers": 1,
             "tile": 1,
             "max_depth": 8,
-            "max_nums": 4
-        },
-        {
-            "name": "sorrcallsequences",
-            "units": 64,
-            "num_layers": 1,
-            "tile": 1,
-            "max_depth": 8,
-            "max_nums": 4
+            "max_nums": 1,
+            "ev_drop_prob":0.5,
+            "ev_call_drop_prob":0.80
         }
     ],
     "decoder": {
-        "units": 512,
+        "units": 256,
         "num_layers": 1,
         "max_ast_depth": 32
     },
     "reverse_encoder": {
-        "units": 512,
+        "units": 256,
         "num_layers": 1,
         "max_ast_depth": 32
     }

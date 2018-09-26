@@ -24,7 +24,7 @@ import json
 import textwrap
 
 from bayou.models.low_level_evidences.data_reader import Reader
-from bayou.models.low_level_evidences.MultiGPUModel import MultiGPUModel
+from bayou.models.low_level_evidences.model import Model
 from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot, get_available_gpus
 
 
@@ -33,19 +33,23 @@ HELP = """\
 #%%
 
 def train(clargs):
-    config_file = clargs.config if clargs.continue_from is None \
-                                else os.path.join(clargs.continue_from, 'config.json')
+
+    dataIsThere = False
+
+    if clargs.continue_from is not None:
+        config_file = os.path.join(clargs.continue_from, 'config.json')
+    elif dataIsThere:
+        config_file = os.path.join('data', 'config.json')
+    else:
+        config_file = clargs.config
 
     with open(config_file) as f:
-        config = read_config(json.load(f), chars_vocab=clargs.continue_from)
-    reader = Reader(clargs, config)
+        config = read_config(json.load(f), chars_vocab=(clargs.continue_from or dataIsThere))
 
-    jsconfig = dump_config(config)
-    # print(clargs)
-    # print(json.dumps(jsconfig, indent=2))
 
-    with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
-        json.dump(jsconfig, fp=f, indent=2)
+    reader = Reader(clargs, config, dataIsThere=dataIsThere)
+
+
 
     # merged_summary = tf.summary.merge_all()
 
@@ -76,7 +80,7 @@ def train(clargs):
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
-    model = MultiGPUModel(config , iterator, bayou_mode=False)
+    model = Model(config , iterator, bayou_mode=True)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
@@ -95,16 +99,19 @@ def train(clargs):
             old_saver.restore(sess, ckpt.model_checkpoint_path)
 
         devices = get_available_gpus()
+        if len(devices) > 0:
+            NUM_BATCHES = config.num_batches // len(devices)
+        else:
+            NUM_BATCHES = config.num_batches
         # training
         epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
             sess.run(iterator.initializer, feed_dict=feed_dict)
             start = time.time()
             avg_loss, avg_gen_loss, avg_KL_loss = 0.,0.,0.
-            for b in range(config.num_batches // len(devices)): # TODO divide the data evenly
+            for b in range(NUM_BATCHES):
                 # run the optimizer
-                loss, KL_loss, gen_loss , _ = sess.run([model.avg_loss, model.avg_KL_loss, model.avg_gen_loss, model.apply_gradient_op])
-
+                loss, KL_loss, gen_loss , _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.train_op])
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
 
@@ -126,9 +133,11 @@ def train(clargs):
             if (i+1) % config.checkpoint_step == 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
+
+                mul = 1 if len(devices) == 0 else len(devices)
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
-                      (checkpoint_dir, avg_loss / config.num_batches* len(devices)))
+                      (checkpoint_dir, avg_loss / config.num_batches * mul))
         #static_plot(epocLoss , epocGenL , epocKlLoss)
 
 
@@ -148,12 +157,21 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
+<<<<<<< HEAD
      ['--continue_from', 'save',
      #['--config','config.json',
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
     '/home/ubuntu/DATA-newer.json'])
+=======
+      #['--continue_from', 'save1',
+     ['--config','config.json',
+     # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
+     # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
+      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
+    '/home/ubuntu/DATA-Sigmod.json'])
+>>>>>>> master
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

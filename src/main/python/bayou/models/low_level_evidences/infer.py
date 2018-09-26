@@ -40,11 +40,8 @@ class BayesianPredictor(object):
     def __init__(self, save, sess, config, iterator, bayou_mode=False):
         self.sess = sess
         self.model = Model(config, iterator, infer=True, bayou_mode=bayou_mode)
-
-        # load the callmap
-        with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:
-            self.callmap = pickle.load(f)
-
+        self.config = config
+        #
         # restore the saved model
         tf.global_variables_initializer().run()
         if bayou_mode == True:
@@ -60,14 +57,14 @@ class BayesianPredictor(object):
         # setup initial states and feed
         [probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
                                                         self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
-	
+
         '''
         probYs = np.zeros([self.model.config.batch_size])
         probYs += probY
         for i in range(1, num_samples): # start from 1 since 1 case is already done
              probY = self.sess.run(self.model.probY)
              probYs += probY
-        
+
         probY = probYs / num_samples
         '''
         #probY *= 0.0
@@ -78,4 +75,3 @@ class BayesianPredictor(object):
         [EncA, EncB] = self.sess.run([self.model.EncA, self.model.EncB])
 
         return EncA, EncB
-

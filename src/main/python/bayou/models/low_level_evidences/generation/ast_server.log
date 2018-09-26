@@ -1,0 +1,24 @@
+26-09-2018:14:25:54,720 DEBUG    [MainThread ast_server.py:150] entering
+26-09-2018:14:25:54,725 INFO     [MainThread ast_server.py:157] loading model
+26-09-2018:14:27:58,135 DEBUG    [MainThread ast_server.py:150] entering
+26-09-2018:14:27:58,152 INFO     [MainThread ast_server.py:157] loading model
+26-09-2018:14:28:03,294 INFO     [MainThread tf_logging.py:115] Restoring parameters from /home/rm38/Research/Bayou_Code_Search/progressiveRuns/ATKSRF_Drop_zero_newProbs/save1/model35.ckpt
+26-09-2018:14:28:03,983 INFO     [MainThread _internal.py:88]  * Running on http://0.0.0.0:8084/ (Press CTRL+C to quit)
+26-09-2018:14:28:34,486 INFO     [Thread-1 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:28:34] "[1m[31mGET / HTTP/1.1[0m" 405 -
+26-09-2018:14:28:34,923 INFO     [Thread-2 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:28:34] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+26-09-2018:14:28:35,93 INFO     [Thread-3 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:28:35] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+26-09-2018:14:28:58,670 INFO     [Thread-4 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:28:58] "[1m[31mGET / HTTP/1.1[0m" 405 -
+26-09-2018:14:30:26,278 DEBUG    [MainThread ast_server.py:150] entering
+26-09-2018:14:30:26,293 INFO     [MainThread ast_server.py:157] loading model
+26-09-2018:14:30:33,69 INFO     [MainThread tf_logging.py:115] Restoring parameters from /home/rm38/Research/Bayou_Code_Search/progressiveRuns/ATKSRF_Drop_zero_newProbs/save1/model35.ckpt
+26-09-2018:14:30:33,183 INFO     [MainThread _internal.py:88]  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+26-09-2018:14:31:20,196 INFO     [Thread-1 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:31:20] "[1m[31mGET / HTTP/1.1[0m" 405 -
+26-09-2018:14:31:20,591 INFO     [Thread-2 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:31:20] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+26-09-2018:14:31:20,787 INFO     [Thread-3 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:31:20] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+26-09-2018:14:33:31,95 DEBUG    [MainThread ast_server.py:150] entering
+26-09-2018:14:33:31,109 INFO     [MainThread ast_server.py:157] loading model
+26-09-2018:14:33:38,41 INFO     [MainThread tf_logging.py:115] Restoring parameters from /home/rm38/Research/Bayou_Code_Search/progressiveRuns/ATKSRF_Drop_zero_newProbs/save1/model35.ckpt
+26-09-2018:14:33:38,157 INFO     [MainThread _internal.py:88]  * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+26-09-2018:14:33:42,262 INFO     [Thread-1 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:33:42] "[1m[31mGET / HTTP/1.1[0m" 405 -
+26-09-2018:14:33:44,29 INFO     [Thread-2 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:33:44] "[1m[31mGET / HTTP/1.1[0m" 405 -
+26-09-2018:14:34:13,843 INFO     [Thread-3 _internal.py:88] 127.0.0.1 - - [26/Sep/2018 14:34:13] "[37mGET /asthealth HTTP/1.1[0m" 200 -

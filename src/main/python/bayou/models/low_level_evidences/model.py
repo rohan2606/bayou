@@ -17,6 +17,7 @@ from tensorflow.contrib import legacy_seq2seq as seq2seq
 import numpy as np
 
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder
+from bayou.models.low_level_evidences.utils import get_var_list
 
 
 class Model():
@@ -29,12 +30,6 @@ class Model():
         self.prog_ids, self.js_prog_ids, nodes, edges, targets, tree_nodes, tree_edges = newBatch[:7]
         ev_data = newBatch[7:]
 
-        # if infer:
-            # nodes = tf.expand_dims(nodes, axis=0)
-            # edges = tf.expand_dims(edges, axis=0)
-            # targets = tf.expand_dims(targets, axis=0)
-            # ev_data = [tf.expand_dims(ev, axis=0) for ev in ev_data]
-
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
         #tree nodes are batch_size * 2 * max_ast_depth
@@ -45,7 +40,7 @@ class Model():
 
         with tf.variable_scope("Encoder"):
 
-            self.encoder = BayesianEncoder(config, ev_data)
+            self.encoder = BayesianEncoder(config, ev_data, infer)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
@@ -76,8 +71,12 @@ class Model():
 
 
             # 1. generation loss: log P(Y | Z)
+            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
+            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
+            cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
+
             self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(targets, [-1])],
-                                                  [tf.ones([config.batch_size * config.decoder.max_ast_depth])])
+                                                  [cond])
 
               # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
             self.KL_loss = tf.reduce_mean( 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
@@ -86,10 +85,9 @@ class Model():
               , axis=1))
 
             if bayou_mode:
-                self.loss = self.gen_loss
+                self.loss = self.gen_loss #+ 0.001* self.KL_loss
             else:
                 self.loss = self.gen_loss + 0.001 * self.KL_loss
-
 
             if infer:
                 # self.gen_loss is  P(Y|Z) where Z~P(Z|X)
@@ -97,18 +95,27 @@ class Model():
                 # last step by importace_sampling
                 # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
 				# P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
-
-		
                 self.probY = -1 * self.gen_loss + self.get_multinormal_lnprob(self.psi_encoder) \
                                             - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
                 self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
                 self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
 
+            self.allEvSigmas = [ ev.sigma for ev in self.config.evidence ]
+            #unused if MultiGPU is being used
+            with tf.name_scope("train"):
+                if bayou_mode:
+                    train_ops = get_var_list()['bayou_vars']
+                else:
+                    train_ops = get_var_list()['rev_encoder_vars']
 
-            # tf.summary.scalar('loss', self.loss)
-            # tf.summary.scalar('gen_loss', self.gen_loss)
-            # tf.summary.scalar('KL_loss', self.KL_loss)
+        if not infer:
+            opt = tf.train.AdamOptimizer(config.learning_rate)
+            self.train_op = opt.minimize(self.loss, var_list=train_ops)
+
+            var_params = [np.prod([dim.value for dim in var.get_shape()])
+                          for var in tf.trainable_variables()]
+            print('Model parameters: {}'.format(np.sum(var_params)))
 
 
     def get_multinormal_lnprob(self, x, mu=None , Sigma=None ):

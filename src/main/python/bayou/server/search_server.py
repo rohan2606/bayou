@@ -26,9 +26,7 @@ import textwrap
 import socket
 
 import time
-import bayou.models.low_level_evidences.infer
-from bayou.models.low_level_evidences.utils import read_config
-from bayou.models.low_level_evidences.data_reader import Reader
+import bayou.models.low_level_evidences.predict
 
 File_Name = 'Search_Data_Basic'
 
@@ -47,56 +45,46 @@ def search_server(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
     clargs.continue_from = True
     print('Loading Model, please wait _/\_ ...')
-    model = bayou.models.low_level_evidences.infer.BayesianPredictor
-
-    # load the saved config
-    with open(os.path.join(clargs.save, 'config.json')) as f:
-        config = read_config(json.load(f), chars_vocab=True)
-
-    config.batch_size = 1
+    model = bayou.models.low_level_evidences.predict.BayesianPredictor
 
 
-    print ('Model Loaded, All Ready to Predict Evidences!!')
-    while True:
-        print("\n\n Waiting for a new connection!")
-        s.listen(1)
-        conn, addr = s.accept()
-        print ('Connection address:', addr)
+    with tf.Session() as sess:
+        predictor = model(clargs.save, sess) # goes to predict.BayesianPredictor
+
+        print ('Model Loaded, All Ready to Predict Evidences!!')
         while True:
-            data = conn.recv(BUFFER_SIZE)
-            if not data:  break
+            print("\n\n Waiting for a new connection!")
+            s.listen(1)
+            conn, addr = s.accept()
+            print ('Connection address:', addr)
+            while True:
+                data = conn.recv(BUFFER_SIZE)
+                if not data:  break
 
-            reader = Reader(clargs, config, infer=True)
-            dataset = tf.data.Dataset.from_tensor_slices((reader.prog_ids, reader.js_prog_ids, reader.nodes, reader.edges, reader.targets, *reader.inputs))
+                with open('/home/ubuntu/QueryProg.json', 'r') as f:
+                    js = json.load(f)
+                a1, b1 = predictor.get_a1b1(js['programs'][0])
+                # evSigmas = predictor.get_ev_sigma(js['programs'][0])
 
-            iterator =  dataset.make_one_shot_iterator() #batched_dataset.make_initializable_iterator()
-            programs = []
-            with tf.Session() as sess:
-                predictor = model(clargs.save, sess, config, iterator, bayou_mode = False) # goes to infer.BayesianPredictor
-
-                a1, b1 = predictor.get_a1b1()
-
+                # print(evSigmas)
                 # program = jsp[0]
                 # We do not need other paths in the program as all the evidences are the same for all the paths
                 # and for new test code we are only interested in the evidence encodings
                 # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
 
+                programs = []
                 program = {}
                 program['a1'] = a1[0].item() # .item() converts a numpy element to a python element, one that is JSON serializable
                 program['b1'] = [val.item() for val in b1[0]]
-                # program['a2'] = None
-                # program['b2'] = None
-                # program['ProbY'] = None
+
 
                 programs.append(program)
 
-            print('\nWriting to {}...'.format('/home/ubuntu/QueryProgWEncoding.json'), end='\n')
-            with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
-                json.dump({'programs': programs}, fp=f, indent=2)
-            tf.reset_default_graph()
-            print('done')
-            print ("Received data from client:", data)
-            conn.send(data)  # echo
+                print('\nWriting to {}...'.format('/home/ubuntu/QueryProgWEncoding.json'), end='\n')
+                with open('/home/ubuntu/QueryProgWEncoding.json', 'w') as f:
+                    json.dump({'programs': programs}, fp=f, indent=2)
+                print ("Received data from client:", data)
+                conn.send(data)  # echo
 
     return
 
@@ -106,8 +94,8 @@ def search_server(clargs):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=textwrap.dedent(HELP))
-    parser.add_argument('input_file', type=str, nargs=1,
-                        help='input data file')
+    # parser.add_argument('input_file', type=str, nargs=1,
+    #                     help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
     parser.add_argument('--save', type=str, default='savedSearchModel',
@@ -119,11 +107,11 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(
-	[
-     # '..\..\..\..\..\..\data\DATA-training-top.json'])
-     #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-     # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
-     '/home/ubuntu/QueryProg.json'])
+    clargs = parser.parse_args()
+	# [
+    #  # '..\..\..\..\..\..\data\DATA-training-top.json'])
+    #  #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
+    #  # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
+    #  '/home/ubuntu/QueryProg.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     search_server(clargs)
