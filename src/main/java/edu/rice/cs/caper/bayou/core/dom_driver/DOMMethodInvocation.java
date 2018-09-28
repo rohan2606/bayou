@@ -62,13 +62,13 @@ public class DOMMethodInvocation implements Handler {
 
         MethodDeclaration localMethod = Utils.checkAndGetLocalMethod(binding, visitor);
         if (localMethod != null) {
-            Stack<MethodDeclaration> callStack = visitor.callStack;
-            if (! callStack.contains(localMethod)) {
-                callStack.push(localMethod);
-                DSubTree Tmethod = new DOMMethodDeclaration(localMethod, visitor).handle();
-                callStack.pop();
-                tree.addNodes(Tmethod.getNodes());
-            }
+            // Stack<MethodDeclaration> callStack = visitor.callStack;
+            // if (! callStack.contains(localMethod)) {
+            //     callStack.push(localMethod);
+            //     DSubTree Tmethod = new DOMMethodDeclaration(localMethod, visitor).handle();
+            //     callStack.pop();
+            //     tree.addNodes(Tmethod.getNodes());
+            // }
         }
         else if (Utils.isRelevantCall(binding, visitor)) {
             try {
@@ -80,4 +80,3 @@ public class DOMMethodInvocation implements Handler {
         return tree;
     }
 }
-
