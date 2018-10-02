@@ -58,7 +58,7 @@ class Model():
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
-            initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
+            initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
             self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges)
 
 

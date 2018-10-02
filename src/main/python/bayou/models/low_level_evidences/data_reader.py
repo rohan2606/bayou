@@ -41,36 +41,36 @@ class Reader():
         self.infer = infer
         self.config = config
 
-        if clargs.continue_from is not None or dataIsThere:
-            with open('data/inputs.txt', 'rb') as f:
-                self.inputs = pickle.load(f)
-            with open('data/nodes.txt', 'rb') as f:
-                self.nodes = pickle.load(f)
-            with open('data/edges.txt', 'rb') as f:
-                self.edges = pickle.load(f)
-            with open('data/targets.txt', 'rb') as f:
-                self.targets = pickle.load(f)
-            with open('data/prog_ids', 'rb') as f:
-                self.prog_ids = pickle.load(f)
-            with open('data/js_prog_ids', 'rb') as f:
-                self.js_prog_ids = pickle.load(f)
-
-            jsconfig = dump_config(config)
-            with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
-                json.dump(jsconfig, fp=f, indent=2)
-
-            if infer:
-                self.js_programs = []
-                with open('data/js_programs.json', 'rb') as f:
-                    for program in ijson.items(f, 'programs.item'):
-                        self.js_programs.append(program)
-            config.num_batches = int(len(self.nodes) / config.batch_size)
-
-        else:
+        if True : #clargs.continue_from is not None or dataIsThere:
+        #     with open('data/inputs.txt', 'rb') as f:
+        #         self.inputs = pickle.load(f)
+        #     with open('data/nodes.txt', 'rb') as f:
+        #         self.nodes = pickle.load(f)
+        #     with open('data/edges.txt', 'rb') as f:
+        #         self.edges = pickle.load(f)
+        #     with open('data/targets.txt', 'rb') as f:
+        #         self.targets = pickle.load(f)
+        #     with open('data/prog_ids', 'rb') as f:
+        #         self.prog_ids = pickle.load(f)
+        #     with open('data/js_prog_ids', 'rb') as f:
+        #         self.js_prog_ids = pickle.load(f)
+        #
+        #     jsconfig = dump_config(config)
+        #     with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
+        #         json.dump(jsconfig, fp=f, indent=2)
+        #
+        #     if infer:
+        #         self.js_programs = []
+        #         with open('data/js_programs.json', 'rb') as f:
+        #             for program in ijson.items(f, 'programs.item'):
+        #                 self.js_programs.append(program)
+        #     config.num_batches = int(len(self.nodes) / config.batch_size)
+        #
+        # else:
             random.seed(12)
             # read the raw evidences and targets
             print('Reading data file...')
-            prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+            prog_ids, raw_evidences, raw_targets, raw_trees, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
             print('Done!')
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                              enumerate(config.evidence)]
@@ -81,47 +81,47 @@ class Reader():
             config.num_batches = int(len(raw_targets) / config.batch_size)
         ################################
 
-        assert config.num_batches > 0, 'Not enough data'
-        sz = config.num_batches * config.batch_size
-        for i in range(len(raw_evidences)):
-            raw_evidences[i] = raw_evidences[i][:sz]
+            assert config.num_batches > 0, 'Not enough data'
+            sz = config.num_batches * config.batch_size
+            for i in range(len(raw_evidences)):
+                raw_evidences[i] = raw_evidences[i][:sz]
 
-        raw_targets = raw_targets[:sz]
-        raw_trees = raw_trees[:sz]
-        prog_ids = prog_ids[:sz]
-        js_programs = js_programs[:sz]
+            raw_targets = raw_targets[:sz]
+            raw_trees = raw_trees[:sz]
+            prog_ids = prog_ids[:sz]
+            js_programs = js_programs[:sz]
 
 
-    # setup input and target chars/vocab
-        if clargs.continue_from is None:
-            config.decoder.vocab = self.CallMapDict
-            config.decoder.vocab_size = len(self.CallMapDict)
-            # adding the same variables for reverse Encoder
-            config.reverse_encoder.vocab = self.CallMapDict
-            config.reverse_encoder.vocab_size = len(self.CallMapDict)
+        # setup input and target chars/vocab
+            if clargs.continue_from is None:
+                config.decoder.vocab = self.CallMapDict
+                config.decoder.vocab_size = len(self.CallMapDict)
+                # adding the same variables for reverse Encoder
+                config.reverse_encoder.vocab = self.CallMapDict
+                config.reverse_encoder.vocab_size = len(self.CallMapDict)
 
-        # wrangle the evidences and targets into numpy arrays
-        self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
-        self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
-        self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
-        self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
-        self.tree_nodes = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.int32)
-        self.tree_edges = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.bool)
-        self.prog_ids = np.zeros(sz, dtype=np.int32)
-        self.js_prog_ids = np.zeros(sz, dtype=np.int32)
+            # wrangle the evidences and targets into numpy arrays
+            self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
+            self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+            self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
+            self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+            self.tree_nodes = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.int32)
+            self.tree_edges = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.bool)
+            self.prog_ids = np.zeros(sz, dtype=np.int32)
+            self.js_prog_ids = np.zeros(sz, dtype=np.int32)
 
-        for i, path in enumerate(raw_targets):
-            self.nodes[i, :len(path)] = [p[0] for p in path]
-            self.edges[i, :len(path)] = [p[1] for p in path]
+            for i, path in enumerate(raw_targets):
+                self.nodes[i, :len(path)] = [p[0] for p in path]
+                self.edges[i, :len(path)] = [p[1] for p in path]
 
-            for j, tree_path_j in enumerate(raw_trees[i]):
-                self.tree_nodes[i, j, :len(tree_path_j) ] = [p[0] for p in tree_path_j]
-                self.tree_edges[i, j, :len(tree_path_j) ] = [p[1] for p in tree_path_j]
+                for j, tree_path_j in enumerate(raw_trees[i]):
+                    self.tree_nodes[i, j, :len(tree_path_j) ] = [p[0] for p in tree_path_j]
+                    self.tree_edges[i, j, :len(tree_path_j) ] = [p[1] for p in tree_path_j]
 
-            self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
-            self.prog_ids[i] = prog_ids[i]
-            self.js_prog_ids[i] = i
-        self.js_programs = js_programs
+                self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
+                self.prog_ids[i] = prog_ids[i]
+                self.js_prog_ids[i] = i
+            self.js_programs = js_programs
 
 
     def get_ast_paths(self, js, idx=0):
@@ -311,14 +311,10 @@ class Reader():
 
                     embPaths.append(embPath)
 
-<<<<<<< HEAD
                 for embPath in embPaths:
                     data_points.append((done - ignored, evidences, embPath, embPaths, program))
                 #data_points.append((done - ignored, evidences, embPath, {}))
-=======
-                    data_points.append((done - ignored, evidences, temp_arr, program))
-                    #data_points.append((done - ignored, evidences, temp_arr, {}))
->>>>>>> master
+
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:

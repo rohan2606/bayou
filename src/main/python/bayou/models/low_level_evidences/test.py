@@ -147,8 +147,8 @@ def forward_pass(clargs):
         infer_vars = {}
 
 
-        allEvSigmas = predictor.get_ev_sigma()
-        print(allEvSigmas)
+        # allEvSigmas = predictor.get_ev_sigma()
+        # print(allEvSigmas)
 
         for j in range(config.num_batches):
             prob_Y, a1, b1, a2, b2, js_prog_ids, prog_ids = predictor.get_all_params_inago()
@@ -212,8 +212,8 @@ if __name__ == '__main__':
     clargs = parser.parse_args(['--save', 'save1',
     # '/home/ubuntu/bayou/data/DATA-training.json'])
     #'..\..\..\..\..\..\data\DATA-training.json'])
-    #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-	'/home/ubuntu/DATA-Sigmod-TOP.json'])
+    '/home/rm38/Research/Bayou_Code_Search/Corpus/NoBindingData/DATA-noBinding-wEv-TOP.json'])
+	# '/home/ubuntu/DATA-Sigmod-TOP.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)
