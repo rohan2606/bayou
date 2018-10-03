@@ -87,7 +87,7 @@ class Model():
             if bayou_mode:
                 self.loss = self.gen_loss #+ 0.001* self.KL_loss
             else:
-                self.loss = self.gen_loss + 0.001 * self.KL_loss
+                self.loss =  self.gen_loss + 0.001 * self.KL_loss
 
             if infer:
                 # self.gen_loss is  P(Y|Z) where Z~P(Z|X)
@@ -107,7 +107,7 @@ class Model():
                 if bayou_mode:
                     train_ops = get_var_list()['bayou_vars']
                 else:
-                    train_ops = get_var_list()['rev_encoder_vars']
+                    train_ops = get_var_list()['all_vars']
 
         if not infer:
             opt = tf.train.AdamOptimizer(config.learning_rate)

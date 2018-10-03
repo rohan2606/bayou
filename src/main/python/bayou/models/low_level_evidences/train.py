@@ -45,7 +45,7 @@ def train(clargs):
 
     with open(config_file) as f:
         config = read_config(json.load(f), chars_vocab=(clargs.continue_from or dataIsThere))
-
+            
 
     reader = Reader(clargs, config, dataIsThere=dataIsThere)
 
@@ -160,8 +160,8 @@ if __name__ == '__main__':
       #['--continue_from', 'save1',
      ['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
-     '/home/rm38/Research/Bayou_Code_Search/Corpus/NoBindingData/DATA-noBinding-wEv-TOP.json'])
-      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
+     #'/home/rm38/Research/Bayou_Code_Search/Corpus/NoBindingData/DATA-noBinding-wEv-TOP.json'])
+      '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-newer-TOP.json'])
     # '/home/ubuntu/DATA-Sigmod.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:

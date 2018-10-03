@@ -1,11 +1,11 @@
 {
     "model": "lle",
     "latent_size": 64,
-    "batch_size": 500,
+    "batch_size": 50,
     "num_epochs": 100,
     "learning_rate": 0.0006,
-    "print_step": 50,
-    "checkpoint_step": 5,
+    "print_step": 1,
+    "checkpoint_step": 10,
     "evidence": [
         {
             "name": "apicalls",
@@ -69,12 +69,12 @@
         }
     ],
     "decoder": {
-        "units": 256,
+        "units": 512,
         "num_layers": 1,
         "max_ast_depth": 32
     },
     "reverse_encoder": {
-        "units": 256,
+        "units": 512,
         "num_layers": 1,
         "max_ast_depth": 32
     }
