@@ -203,8 +203,6 @@ def get_c_minus_cstar(a1, b1, a2, b2, prob_Y, latent_size):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=textwrap.dedent(HELP))
-    parser.add_argument('input_file', type=str, nargs=1,
-                        help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
     parser.add_argument('--save', type=str, required=True,
@@ -216,11 +214,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save1',
-    # '/home/ubuntu/bayou/data/DATA-training.json'])
-    #'..\..\..\..\..\..\data\DATA-training.json'])
-    #'/home/rm38/Research/Bayou_Code_Search/Corpus/DATA-training-expanded-biased-TOP.json'])
-	'/home/ubuntu/DATA-Sigmod-TOP.json'])
+    clargs = parser.parse_args(['--save', 'save1'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)
