@@ -43,7 +43,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
-
+import java.util.ArrayList;
 /**
  * A synthesis strategy that relies on a remote server that uses TensorFlow to create ASTs from extracted evidence.
  */
@@ -257,7 +257,7 @@ public class ApiSynthesizerRemoteTensorFlowAsts implements ApiSynthesizer
          */
         List<String> synthesizedPrograms;
         {
-            synthesizedPrograms = new Synthesizer(_synthMode).execute(parser, astsJson.toString());
+            synthesizedPrograms = call_PDB_server(astsJson); //new Synthesizer(_synthMode).execute(parser, astsJson.toString());
 
             if (synthesizedPrograms.size() > maxProgramCount.AsInt) // only return top maxProgramCount
                 synthesizedPrograms = synthesizedPrograms.subList(0, maxProgramCount.AsInt);
@@ -266,6 +266,19 @@ public class ApiSynthesizerRemoteTensorFlowAsts implements ApiSynthesizer
         _logger.trace("synthesizedPrograms: " + synthesizedPrograms);
         _logger.debug("exiting");
         return synthesizedPrograms;
+    }
+
+
+    List<String> call_PDB_server(JSONObject encodedAsts)
+    {
+        ArrayList<String> temp = new ArrayList<String>();
+        JSONArray arr = encodedAsts.getJSONArray("b1");
+        for (int i = 0; i < arr.length(); i++)
+        {
+            Double val = arr.getDouble(i);
+        }
+
+        return temp;
     }
 
     private JSONObject sendGenerateAstRequest(String evidence)
