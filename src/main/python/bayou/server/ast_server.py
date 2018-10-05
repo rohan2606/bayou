@@ -22,7 +22,7 @@ from flask import request, Response, Flask
 import tensorflow as tf
 import bayou.models.low_level_evidences.evidence
 import bayou.models.core.infer
-import bayou.models.low_level_evidences.infer
+import bayou.models.low_level_evidences.predict
 from bayou.models.low_level_evidences.evidence import Keywords
 from bayou.models.low_level_evidences.utils import gather_calls
 
@@ -78,7 +78,7 @@ def _generate_asts(evidence_json: str, predictor, okay_check=True):
     #
     # Generate ASTs from evidence.
     #
-    asts = predictor.get_a1b1(js)
+    [a1, b1] = predictor.get_a1b1(js)
 
     #
     # If okay_check is set, retain only those asts that pass the _okay(...) filter. Otherwise retain all asts.
@@ -93,7 +93,7 @@ def _generate_asts(evidence_json: str, predictor, okay_check=True):
     #     okay_asts = asts
 
     logging.debug("exiting")
-    return json.dumps({'evidences': js, 'asts': okay_asts}, indent=2)
+    return json.dumps({'evidences': js, 'a1': a1.tolist()[0], 'b1': b1.tolist()[0]}, indent=2)
 
 
 # Include in here any conditions that dictate whether an AST should be returned or not
@@ -162,12 +162,9 @@ if __name__ == '__main__':
 
         with open(os.path.join(args.save_dir, 'config.json')) as f:
             model_type = json.load(f)['model']
-        if model_type == 'core':
-            model = bayou.models.core.predict.BayesianPredictor
-        elif model_type == 'lle':
-            model = bayou.models.low_level_evidences.predict.BayesianPredictor
-        else:
-            raise ValueError('Invalid model type in config: ' + model_type)
+
+        model = bayou.models.low_level_evidences.predict.BayesianPredictor
+
         bp = model(args.save_dir, sess)  # create a predictor that can generates ASTs from evidence
 
         # route POST requests to / to _handle_http_post_request_index(...)

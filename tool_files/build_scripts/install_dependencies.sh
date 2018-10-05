@@ -29,6 +29,13 @@ then
             apt-get install openjdk-8-jdk
         fi
         apt-get install maven python3
+				apt-get install python3-flask
+				apt-get install python3-pip
+				pip3 install -U nltk
+				pip3 install -U scikit-learn
+				pip3 install --upgrade tensorflow
+				pip3 install -U matplotlib
+
 
 elif [ $OS == "Darwin" ] # Darwin for Mac OS X
 then

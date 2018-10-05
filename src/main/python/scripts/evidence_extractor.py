@@ -15,7 +15,7 @@
 from __future__ import print_function
 import argparse
 import sys
-import json
+import ijson.backends.yajl2_cffi as ijson
 import math
 import random
 import numpy as np
@@ -33,8 +33,8 @@ You can also filter programs based on number and length of sequences, and contro
 
 def extract_evidence(clargs):
     print('Loading data file...')
-    with open(clargs.input_file[0]) as f:
-        js = json.load(f)
+    
+    f = open(clargs.input_file[0] , 'rb')
     print('Done')
     done = 0
     programs = []
@@ -99,9 +99,10 @@ def extract_evidence(clargs):
     # with open(clargs.input_file[0]) as f:
     #     js = json.load(f)
     # print('Done')
-
+    
     done = 0
-    for pid, program in enumerate(js['programs']):
+    for program in ijson.items(f, 'programs.item'):
+    #for pid, program in enumerate(js['programs']):
 
         # if valid[pid] == False:
         #     continue
@@ -120,9 +121,9 @@ def extract_evidence(clargs):
         # classTypes = classTypes[:num+1]
         ####
 
-        # if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
-        #         any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
-        #     continue
+        if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
+                 any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
+             continue
 
         calls = gather_calls(program['ast'])
 
@@ -144,10 +145,12 @@ def extract_evidence(clargs):
         sample['types'] = types
         sample['keywords'] = keywords
 
-        del sample['classTypes']
-        del sample['sorrreturntype']
-        del sample['sorrformalparam']
-        del sample['sorrsequences']
+
+
+        #del sample['classTypes']
+        #del sample['sorrreturntype']
+        #del sample['sorrformalparam']
+        #del sample['sorrsequences']
 
         # sample['sorrreturntype'] = []
         # sample['sorrformalparam'] = []
@@ -211,5 +214,7 @@ if __name__ == '__main__':
 
 
     clargs = parser.parse_args()
+    clargs.max_seqs=10
+    clargs.max_seq_length=32
     sys.setrecursionlimit(clargs.python_recursion_limit)
     extract_evidence(clargs)

@@ -272,11 +272,21 @@ public class ApiSynthesizerRemoteTensorFlowAsts implements ApiSynthesizer
     List<String> call_PDB_server(JSONObject encodedAsts)
     {
         ArrayList<String> temp = new ArrayList<String>();
+
+
         JSONArray arr = encodedAsts.getJSONArray("b1");
         for (int i = 0; i < arr.length(); i++)
         {
             Double val = arr.getDouble(i);
         }
+
+        Double arr1 = encodedAsts.getDouble("a1");
+
+
+        String a = "AAA"; temp.add(a);
+        String b = "BBB"; temp.add(b);
+
+
 
         return temp;
     }
