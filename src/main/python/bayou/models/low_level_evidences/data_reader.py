@@ -78,7 +78,7 @@ class Reader():
 
             # align with number of batches and have it as a multiple of #GPUs
             devices = get_available_gpus()
-            config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
+            config.num_batches = int(len(raw_targets) / config.batch_size)
             if len(devices) > 0:
                 config.num_batches = config.num_batches - (config.num_batches % len(devices))
 
