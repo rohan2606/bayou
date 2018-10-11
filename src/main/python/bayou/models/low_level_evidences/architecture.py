@@ -36,15 +36,15 @@ class BayesianEncoder(object):
         with tf.variable_scope('mean'):
             # 1. compute encoding
 
-            self.encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence, inputs)]
+            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence, inputs)]
             encodings = [encoding / tf.square(ev.sigma) for ev, encoding in
-                         zip(config.evidence, self.encodings)]
+                         zip(config.evidence, encodings)]
 
             # 2. pick only encodings from valid inputs that exist, otherwise pick zero encoding
-            encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
+            self.encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
 
             # 3. tile the encodings according to each evidence type
-            encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, encodings)]
+            encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, self.encodings)]
             encodings = tf.stack(list(chain.from_iterable(encodings)))
 
             # 4. compute the mean of non-zero encodings
@@ -101,6 +101,45 @@ class BayesianDecoder(object):
                                   for j in range(config.decoder.num_layers)]
                     self.outputs.append(output)
 
+
+class SimpleDecoder(object):
+    def __init__(self, config, emb, initial_state, nodes, ev_config):
+
+        cells1 = []
+        for _ in range(config.decoder.num_layers):
+            cells1.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(ev_config.units))
+
+        self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
+
+        # placeholders
+        self.initial_state = [initial_state] * ev_config.num_layers
+        self.nodes = [nodes[i] for i in range(ev_config.max_depth)]
+
+        # projection matrices for output
+        with tf.variable_scope("projections_FS"):
+            self.projection_w_FS = tf.get_variable('projection_w_FS', [self.cell1.output_size,
+                                                                 ev_config.vocab_size])
+            self.projection_b_FS = tf.get_variable('projection_b_FS', [ev_config.vocab_size])
+            # tf.summary.histogram("projection_w", self.projection_w)
+            # tf.summary.histogram("projection_b", self.projection_b)
+
+        # setup embedding
+        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+
+        with tf.variable_scope('decoder_network_FS'):
+            # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
+            with tf.variable_scope('rnn_FS'):
+
+                self.state = self.initial_state
+                self.outputs = []
+                for i, inp in enumerate(emb_inp):
+                    if i > 0:
+                        tf.get_variable_scope().reuse_variables()
+                    with tf.variable_scope('cell1_FS'):  # handles CHILD_EDGE
+                        output1, state1 = self.cell1(inp, self.state)
+                    output =  output1
+                    self.state = [  state1[j] for j in range(ev_config.num_layers)]
+                    self.outputs.append(output)
 
 
 class BayesianReverseEncoder(object):

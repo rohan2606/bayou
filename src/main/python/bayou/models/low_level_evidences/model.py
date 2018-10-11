@@ -16,7 +16,7 @@ import tensorflow as tf
 from tensorflow.contrib import legacy_seq2seq as seq2seq
 import numpy as np
 
-from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder
+from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder, SimpleDecoder
 from bayou.models.low_level_evidences.utils import get_var_list
 
 
@@ -38,7 +38,7 @@ class Model():
 
         with tf.variable_scope("Encoder"):
 
-            self.encoder = BayesianEncoder(config, ev_data, infer)
+            self.encoder = BayesianEncoder(config, ev_data, infer or not bayou_mode)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
@@ -60,6 +60,60 @@ class Model():
                 initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
             self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges)
 
+        with tf.variable_scope("RE_Decoder"):
+            ## RE
+            emb_RE = config.evidence[4].emb #tf.get_variable('emb_RE', [config.evidence[4].vocab_size, config.evidence[4].units])
+
+            lift_w_RE = tf.get_variable('lift_w_RE', [config.latent_size, config.evidence[4].units])
+            lift_b_RE = tf.get_variable('lift_b_RE', [config.evidence[4].units])
+            initial_state_RE = tf.nn.xw_plus_b(self.psi_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
+
+            input_RE = tf.transpose(tf.reverse_v2(ev_data[4], axis=[1]))
+            output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
+
+            projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
+            projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
+            logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
+
+            labels_RE = tf.one_hot(ev_data[4] , config.evidence[4].vocab_size , dtype=tf.int32)
+            loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
+
+            cond = tf.not_equal(tf.reduce_sum(self.encoder.encodings[4], axis=1), 0)
+            # cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
+            self.loss_RE = tf.where(cond , loss_RE, tf.zeros(cond.shape))
+
+
+        with tf.variable_scope("FS_Decoder"):
+            #FS
+            emb_FS = config.evidence[5].emb #tf.get_variable('emb_FS', [config.evidence[5].vocab_size, config.evidence[5].units]) 
+            lift_w_FS = tf.get_variable('lift_w_FS', [config.latent_size, config.evidence[5].units])
+            lift_b_FS = tf.get_variable('lift_b_FS', [config.evidence[5].units])
+            initial_state_FS = tf.nn.xw_plus_b(self.psi_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS")
+
+            input_FS = tf.transpose(tf.reverse_v2(ev_data[5], axis=[1]))
+            self.decoder_FS = SimpleDecoder(config, emb_FS, initial_state_FS, input_FS, config.evidence[5])
+
+            # output = tf.stack(
+            # [  tf.matmul(output, self.decoder_FS.projection_w_FS) + self.decoder_FS.projection_b_FS for output in self.decoder_FS.outputs ]
+            # , axis=1)
+
+            output = tf.reshape(tf.concat(self.decoder_FS.outputs, 1), [-1, self.decoder_FS.cell1.output_size])
+            logits_FS = tf.matmul(output, self.decoder_FS.projection_w_FS) + self.decoder_FS.projection_b_FS
+
+
+            # logits_FS = output
+            targets_FS = tf.reverse_v2(tf.concat( [ ev_data[5][:,-1:] , ev_data[5][:, :-1]], axis=1) , axis=[1]) 
+
+
+            # self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
+            #                                       tf.ones_like(target_FS, dtype=tf.float32))
+            cond = tf.not_equal(tf.reduce_sum(self.encoder.encodings[5], axis=1), 0)
+            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
+            cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
+
+
+            self.gen_loss_FS = seq2seq.sequence_loss([logits_FS], [tf.reshape(targets_FS, [-1])],
+                                                  [cond])
 
         # get the decoder outputs
         with tf.name_scope("Loss"):
@@ -74,6 +128,8 @@ class Model():
             cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
             cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
+
+
             self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(targets, [-1])],
                                                   [cond])
 
@@ -84,7 +140,7 @@ class Model():
               , axis=1))
 
             if bayou_mode:
-                self.loss = self.gen_loss #+ 0.001* self.KL_loss
+                self.loss = self.loss_RE +self.gen_loss + self.gen_loss_FS #+ 0.01 * self.gen_loss_FS
             else:
                 self.loss = self.KL_loss
 
