@@ -45,7 +45,7 @@ class Model():
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, emb, nodes, edges)
+            self.reverse_encoder = BayesianReverseEncoder(config, emb, nodes, edges, ev_data[4], config.evidence[4].emb, ev_data[5], config.evidence[5].emb)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
@@ -85,7 +85,7 @@ class Model():
 
         with tf.variable_scope("FS_Decoder"):
             #FS
-            emb_FS = config.evidence[5].emb #tf.get_variable('emb_FS', [config.evidence[5].vocab_size, config.evidence[5].units]) 
+            emb_FS = config.evidence[5].emb #tf.get_variable('emb_FS', [config.evidence[5].vocab_size, config.evidence[5].units])
             lift_w_FS = tf.get_variable('lift_w_FS', [config.latent_size, config.evidence[5].units])
             lift_b_FS = tf.get_variable('lift_b_FS', [config.evidence[5].units])
             initial_state_FS = tf.nn.xw_plus_b(self.psi_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS")
@@ -102,7 +102,7 @@ class Model():
 
 
             # logits_FS = output
-            targets_FS = tf.reverse_v2(tf.concat( [ ev_data[5][:,-1:] , ev_data[5][:, :-1]], axis=1) , axis=[1]) 
+            targets_FS = tf.reverse_v2(tf.concat( [ ev_data[5][:,-1:] , ev_data[5][:, :-1]], axis=1) , axis=[1])
 
 
             # self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
@@ -126,7 +126,7 @@ class Model():
             # 1. generation loss: log P(Y | Z)
             cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
             cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
-            cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
+            cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
 
 
@@ -134,10 +134,15 @@ class Model():
                                                   [cond])
 
               # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
-            self.KL_loss = tf.reduce_mean( 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
+            KL_loss = 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
               - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
               + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
-              , axis=1))
+              , axis=1)
+
+
+
+            KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
+            self.KL_loss = tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
 
             if bayou_mode:
                 self.loss = self.loss_RE +self.gen_loss + self.gen_loss_FS #+ 0.01 * self.gen_loss_FS

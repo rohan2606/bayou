@@ -45,7 +45,7 @@
             "max_depth": 8,
             "max_nums": 1,
             "ev_drop_prob":0.4,
-            "ev_call_drop_prob":0.25
+            "ev_call_drop_prob":0.5
         },
         {
             "name": "returntype",

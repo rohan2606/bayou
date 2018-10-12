@@ -73,7 +73,7 @@ Config options should be given as a JSON file (see config.json for example):
 
 def train(clargs):
 
-    dataIsThere = True
+    dataIsThere = False
 
     if clargs.continue_from is not None:
         config_file = os.path.join(clargs.continue_from, 'config.json')
@@ -85,10 +85,7 @@ def train(clargs):
     with open(config_file) as f:
         config = read_config(json.load(f), chars_vocab=(clargs.continue_from or dataIsThere))
 
-
     reader = Reader(clargs, config, dataIsThere=dataIsThere)
-
-
 
     # merged_summary = tf.summary.merge_all()
 
@@ -191,7 +188,7 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     #['--continue_from', 'save',
+     # ['--continue_from', 'save',
      ['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
