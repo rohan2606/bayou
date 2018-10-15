@@ -190,7 +190,7 @@ public class Visitor extends ASTVisitor {
           ret = m.getReturnType2().toString();
       }
       else{
-          ret = "None";
+          ret = "void";
       }
       return ret;
     }

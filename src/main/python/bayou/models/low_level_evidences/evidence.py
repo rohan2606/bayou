@@ -369,7 +369,10 @@ class ReturnType(Sets):
 
 
     def read_data_point(self, program, infer):
-        returnType = [program['returnType'] if 'returnType' in program else 'NONE']
+        returnType = [program['returnType'] if 'returnType' in program else 'void']
+        if returnType[0] == 'None':
+            returnType[0] = 'void'
+
         return self.word2num(list(set(returnType)), infer)
 
 class ClassTypes(Sets):
