@@ -75,6 +75,8 @@ def test_get_vals(clargs):
         #Ys += [infer_vars[prog_id]['Y']]
 
         program = infer_vars[prog_id]['JS']
+        #if program['returnType']=='None':
+        #   program['returnType'] = 'void'
         # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
         program['a1'] = infer_vars[prog_id]['a1'].item()
         program['b1'] = [val.item() for val in infer_vars[prog_id]['b1']]

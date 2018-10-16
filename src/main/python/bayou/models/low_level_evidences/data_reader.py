@@ -274,7 +274,7 @@ class Reader():
         :return: None
         :raise: TooLongPathError or InvalidSketchError if sketch or its paths is invalid
         """
-        self._check_DAPICall_repeats(program['ast']['_nodes'])
+        #self._check_DAPICall_repeats(program['ast']['_nodes'])
         for path in ast_paths:
             if len(path) >= self.config.decoder.max_ast_depth:
                 raise TooLongPathError
