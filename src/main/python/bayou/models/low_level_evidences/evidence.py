@@ -369,11 +369,9 @@ class ReturnType(Sets):
 
 
     def read_data_point(self, program, infer):
-        returnType = [program['returnType'] if 'returnType' in program else 'void']
-        if returnType[0] == 'None':
-            returnType[0] = 'void'
+        returnType = [program['returnType'] if 'returnType' in program else 'Constructor']
 
-        return self.word2num(list(set(returnType)), infer)
+        return self.word2num(returnType , infer)
 
 class ClassTypes(Sets):
 
@@ -399,19 +397,10 @@ class CallSequences(Sequences):
         list_seqs = [[]]
 
         for json_seq in json_sequences:
-            tmp_list = [self.shorten(call) for call in json_seq['calls']]
-            list_seqs.append(self.word2num(tmp_list, infer))
+            list_seqs.append(self.word2num(json_seq, infer))
         if len(list_seqs) > 1:
             list_seqs.remove([])
-        #return list_seqs
         return list_seqs
-
-
-    def shorten(self, call):
-        call = re.sub('^\$.*\$', '', call)  # get rid of predicates
-        name = call.split('(')[0].split('.')[-1]
-        name = name.split('<')[0]  # remove generics from call name
-        return name
 
 
     @staticmethod
@@ -447,18 +436,13 @@ class sorrCallSequences(Sequences):
         self.vocab_size = 1
 
     def read_data_point(self, program, infer):
-        json_sequences = program['sorrsequences'] if 'sorrsequences' in program else []
+        json_sequences = program['sorrsequences'] if 'sorrsequences' in program else [[]]
         list_seqs = [[]]
-        for i, list_json_seq in enumerate(json_sequences):
-            if i> self.max_nums:
-                continue
-            for json_seq in list_json_seq:
-                tmp_list = json_seq['calls']
-                if len(tmp_list) > 1:
-                    list_seqs.append(self.word2num(tmp_list, infer))
+        for json_seq in json_sequences:
+            list_seqs.append(self.word2num(json_seq, infer))
         if len(list_seqs) > 1:
             list_seqs.remove([])
-        #return list_seqs
+
         return list_seqs
 
 
@@ -474,9 +458,7 @@ class sorrFormalParam(Sequences):
         json_sequence = program['sorrformalparam'] if 'sorrformalparam' in program else [[]]
         list_seqs = [[]]
         for i, seqs in enumerate(json_sequence):
-            if i > self.max_nums:
-                continue
-            if len(seqs) == 0:
+            if i > self.max_nums or len(seqs) == 0 :
                 continue
             list_seqs.append(self.word2num(seqs, infer))
         if len(list_seqs) > 1:
@@ -493,4 +475,4 @@ class sorrReturnType(Sets):
 
     def read_data_point(self, program, infer):
         sorrreturnType = program['sorrreturntype'] if 'sorrreturntype' in program else []
-        return self.word2num(list(set(sorrreturnType)), infer)
+        return self.word2num(sorrreturnType, infer)

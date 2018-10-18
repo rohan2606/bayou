@@ -66,6 +66,46 @@
             "max_nums": 1,
             "ev_drop_prob":0.5,
             "ev_call_drop_prob":1.0
+        },
+        {
+            "name": "classtype",
+            "units": 256,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": -1,
+            "max_nums": 10,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.3
+        },
+        {
+            "name": "sorrreturntype",
+            "units": 256,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 1,
+            "max_nums": 10,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":1.0
+        },
+        {
+            "name": "sorrformalparam",
+            "units": 256,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 8,
+            "max_nums": 10,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.8
+        },
+        {
+            "name": "sorrcallsequences",
+            "units": 128,
+            "num_layers": 1,
+            "tile": 1,
+            "max_depth": 8,
+            "max_nums": 10,
+            "ev_drop_prob":0.25,
+            "ev_call_drop_prob":0.5
         }
     ],
     "decoder": {

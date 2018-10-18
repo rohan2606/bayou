@@ -16,11 +16,12 @@ from __future__ import print_function
 import argparse
 import sys
 import json
+import ijson.backends.yajl2_cffi as ijson
 import math
 import random
 import numpy as np
 from itertools import chain
-
+import re
 
 import bayou.models.low_level_evidences.evidence
 from bayou.models.low_level_evidences.utils import gather_calls
@@ -30,11 +31,16 @@ HELP = """Use this script to extract evidences from a raw data file with sequenc
 You can also filter programs based on number and length of sequences, and control the samples from each program."""
 
 
+def shorten(call):
+    call = re.sub('^\$.*\$', '', call)  # get rid of predicates
+    name = call.split('(')[0].split('.')[-1]
+    name = name.split('<')[0]  # remove generics from call name
+    return name
 
 def extract_evidence(clargs):
     print('Loading data file...')
-    with open(clargs.input_file[0]) as f:
-        js = json.load(f)
+
+    f = open(clargs.input_file[0] , 'rb')
     print('Done')
     done = 0
     programs = []
@@ -49,136 +55,137 @@ def extract_evidence(clargs):
     #This part appends sorrounding evidences
     done = 0
     ignored = 0
-    # for program in js['programs']:
-    #     try:
-    #         ast_node_graph, ast_paths = ast_extractor.get_ast_paths(program['ast']['_nodes'])
-    #         ast_extractor.validate_sketch_paths(program, ast_paths, clargs.max_ast_depth)
-    #
-    #         file_name = program['file']
-    #         method_name = program['method']
-    #
-    #         sequences = program['sequences']
-    #         returnType = program['returnType'] if 'returnType' in program else "void"
-    #         formalParam = program['formalParam'] if 'formalParam' in program else []
-    #
-    #         if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
-    #             any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
-    #                 raise ast_extractor.TooLongPathError
-    #
-    #
-    #         if file_name not in programs_dict:
-    #             programs_dict[file_name] = dict()
-    #
-    #         if method_name not in programs_dict[file_name]:
-    #             programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
-    #         else:
-    #             # Choose the MethodDeclaration with lowest number of nodes in sequences, the reason being you want to
-    #             # ignore the calls from constructor, as it is present in every sorrounding sequence, and also this target_link_libraries
-    #             # care of the problem of having multiple constructors while extracting from DOM Driver, where you basically  extract multiple
-    #             # copies of same method. However they appear in the data as we again iterate over js[programs]
-    #             if numNodesInSequences(sequences) < numNodesInSequences(programs_dict[file_name][method_name][2]):
-    #                 programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
-    #
-    #         valid.append(True)
-    #
-    #     except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
-    #         ignored += 1
-    #         valid.append(False)
-    #
-    #     done += 1
-    #     print('Extracted evidences of sorrounding features for {} programs'.format(done), end='\r')
-    #
-    # print('')
-    #
-    # print('{:8d} programs/asts in training data'.format(done))
-    # print('{:8d} programs/asts ignored by given config'.format(ignored))
-    # print('{:8d} programs/asts to search over'.format(done - ignored))
+    for program in ijson.items(f, 'programs.item'):
+        if 'ast' not in program:
+            continue
+        try:
+            ast_node_graph, ast_paths = ast_extractor.get_ast_paths(program['ast']['_nodes'])
+            ast_extractor.validate_sketch_paths(program, ast_paths, clargs.max_ast_depth)
+
+            file_name = program['file']
+            method_name = program['method']
+
+            sequences = program['sequences']
+            sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
+            sequences.sort(key=len, reverse=True)
+
+            if 'returnType' not in program:
+                continue
+
+            if program['returnType'] == 'None':
+                program['returnType'] = 'Constructor'
+            returnType = program['returnType']
+
+            formalParam = program['formalParam'] if 'formalParam' in program else []
+
+            # if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
+            #     any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
+            #         raise ast_extractor.TooLongPathError
 
 
-    # print('Loading data file...')
-    # with open(clargs.input_file[0]) as f:
-    #     js = json.load(f)
-    # print('Done')
+            if file_name not in programs_dict:
+                programs_dict[file_name] = dict()
 
-    done = 0
-    for pid, program in enumerate(js['programs']):
+            if method_name in programs_dict[file_name]:
+                print('Hit Found')
 
-        # if valid[pid] == False:
-        #     continue
-
-        file_name = program['file']
-        method_name = program['method']
-
-        sequences = program['sequences']
-        returnType = program['returnType'] if 'returnType' in program else "void"
-        formalParam = program['formalParam'] if 'formalParam' in program else []
-
-        # # Take in classTypes and sample a few
-        # classTypes = program['classTypes'] if 'classTypes' in program else []
-        # random.shuffle(classTypes)
-        # num = np.random.choice(range(len(clargs.distribution)), p=clargs.distribution)
-        # classTypes = classTypes[:num+1]
-        ####
-
-        # if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
-        #         any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
-        #     continue
-
-        calls = gather_calls(program['ast'])
-
-        apicalls = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.APICalls.from_call(call)
-                                                 for call in calls])))
-        types = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Types.from_call(call)
-                                              for call in calls])))
-        keywords = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Keywords.from_call(call)
-                                                for call in calls])))
+            programs_dict[file_name][method_name] = [returnType, formalParam, sequences[0]]
 
 
-        # num_samples = clargs.num_samples if clargs.num_samples > 0 else math.ceil(len(evidences)/-clargs.num_samples)
-        random.shuffle(apicalls)
-        random.shuffle(types)
-        random.shuffle(keywords)
-
-        sample = dict(program)
-        sample['apicalls'] = apicalls
-        sample['types'] = types
-        sample['keywords'] = keywords
-
-        del sample['classTypes']
-        del sample['sorrreturntype']
-        del sample['sorrformalparam']
-        del sample['sorrsequences']
-
-        # sample['sorrreturntype'] = []
-        # sample['sorrformalparam'] = []
-        # sample['sorrsequences'] = []
-
-        # sample['classTypes'] = classTypes
-
-
-        #    (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
-        # otherMethods = list(programs_dict[file_name].keys())
-        # random.shuffle(otherMethods)
-        # num = np.random.choice(range(len(clargs.distribution)), p=clargs.distribution) + 1
-        #
-        # countSorrMethods = 0
-        # for method in otherMethods: # Each iterator is a method Name with @linenumber
-        #
-        #     # Ignore the current method from list of sorrounding methods
-        #     if method == method_name:
-        #         continue
-        #     # Keep a count on number of sorrounding methods, if it exceeds the random choice, break
-        #     countSorrMethods += 1
-        #     if countSorrMethods > num:
-        #         break
-        #
-        #     for choice, evidence in zip(programs_dict[file_name][method],['sorrreturntype', 'sorrformalparam', 'sorrsequences']):
-        #         sample[evidence].append(choice)
-
-        programs.append(sample)
+        except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
+            ignored += 1
 
         done += 1
-        print('Extracted evidence [API/Type/Keywords/Sorrounding Evidences] for {} programs'.format(done), end='\r')
+        if done % 100000 == 0:
+            print('Extracted evidences of sorrounding features for {} programs'.format(done), end='\n')
+
+    print('')
+
+    print('{:8d} programs/asts in training data'.format(done))
+    print('{:8d} programs/asts ignored by given config'.format(ignored))
+    print('{:8d} programs/asts to search over'.format(done - ignored))
+
+
+    f.close()
+    f = open(clargs.input_file[0] , 'rb')
+    done = 0
+    for program in ijson.items(f, 'programs.item'):
+        if 'ast' not in program:
+            continue
+        try:
+            ast_node_graph, ast_paths = ast_extractor.get_ast_paths(program['ast']['_nodes'])
+            ast_extractor.validate_sketch_paths(program, ast_paths, clargs.max_ast_depth)
+
+            file_name = program['file']
+            method_name = program['method']
+
+            sequences = program['sequences']
+            sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
+            sequences.sort(key=len, reverse=True)
+            program['sequences'] = sequences
+
+            if 'returnType' not in program:
+                continue
+            if program['returnType'] == 'None':
+                program['returnType'] = 'Constructor'
+
+            program['returnType'] = bayou.models.low_level_evidences.evidence.APICalls.get_types_re(program['returnType'])
+
+            formalParam = program['formalParam'] if 'formalParam' in program else []
+
+            # # Take in classTypes
+            ####
+
+            # if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
+            #         any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
+            #     continue
+
+            sample = dict(program)
+            calls = gather_calls(program['ast'])
+            apicalls = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.APICalls.from_call(call)
+                                                     for call in calls])))
+            types = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Types.from_call(call)
+                                                  for call in calls])))
+            keywords = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Keywords.from_call(call)
+                                                    for call in calls])))
+            random.shuffle(apicalls)
+            random.shuffle(types)
+            random.shuffle(keywords)
+            sample['apicalls'] = apicalls
+            sample['types'] = types
+            sample['keywords'] = keywords
+
+            random.shuffle(classTypes)
+            classTypes = list(set(program['classTypes'])) if 'classTypes' in program else []
+            sample['classTypes'] = classTypes
+
+            sample['sorrreturntype'] = []
+            sample['sorrformalparam'] = []
+            sample['sorrsequences'] = []
+
+
+
+            #(Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
+
+            otherMethods = list(programs_dict[file_name].keys())
+            random.shuffle(otherMethods)
+
+            for method in otherMethods: # Each iterator is a method Name with @linenumber
+                # Ignore the current method from list of sorrounding methods
+                if method == method_name:
+                    continue
+
+                for choice, evidence in zip(programs_dict[file_name][method],['sorrreturntype', 'sorrformalparam', 'sorrsequences']):
+                    sample[evidence].append(choice)
+
+            programs.append(sample)
+
+        except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
+            ignored += 1
+
+        done += 1
+        if done % 100000 == 0:
+            print('Extracted evidence [API/Type/Keywords/Sorrounding Evidences] for {} programs'.format(done), end='\n')
 
     random.shuffle(programs)
 
@@ -187,14 +194,6 @@ def extract_evidence(clargs):
     with open(clargs.output_file[0], 'w') as f:
         json.dump({'programs': programs}, fp=f, indent=2)
     print('done')
-
-
-# def numNodesInSequences(sequences):
-#     totLen = 0
-#     for elem in sequences:
-#         totLen += len(elem['calls'])
-#     return totLen
-#
 
 
 
@@ -207,7 +206,8 @@ if __name__ == '__main__':
                         help='output data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-
+    parser.add_argument('--max_ast_depth', type=int, default=32,
+                        help='max ast depth for out program ')
 
 
     clargs = parser.parse_args()
