@@ -1,6 +1,6 @@
 {
     "model": "lle",
-    "latent_size": 64,
+    "latent_size": 128,
     "batch_size": 500,
     "num_epochs": 100,
     "learning_rate": 0.0006,
@@ -14,8 +14,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.4,
-            "ev_call_drop_prob":0.25
+            "ev_drop_prob":0.8,
+            "ev_call_drop_prob":0.7
         },
         {
             "name": "types",
@@ -24,8 +24,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.4,
-            "ev_call_drop_prob":0.25
+            "ev_drop_prob":0.8,
+            "ev_call_drop_prob":0.7
         },
         {
             "name": "keywords",
@@ -34,8 +34,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.25,
-            "ev_call_drop_prob":0.25
+            "ev_drop_prob":0.5,
+            "ev_call_drop_prob":0.4
         },
         {
             "name": "callsequences",
@@ -44,7 +44,7 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":0.4,
+            "ev_drop_prob":0.6,
             "ev_call_drop_prob":0.5
         },
         {
@@ -54,7 +54,7 @@
             "tile": 1,
             "max_depth": 1,
             "max_nums": 1,
-            "ev_drop_prob":0.5,
+            "ev_drop_prob":1.0,
             "ev_call_drop_prob":1.00
         },
         {
@@ -64,7 +64,7 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":0.5,
+            "ev_drop_prob":1.0,
             "ev_call_drop_prob":1.0
         },
         {

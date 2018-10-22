@@ -141,6 +141,7 @@ def train(clargs):
             for b in range(NUM_BATCHES):
                 # run the optimizer
                 loss, KL_loss, gen_loss , RE_loss, FS_loss, _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.loss_RE, model.gen_loss_FS, model.train_op])
+                allEvSigmas = sess.run(model.allEvSigmas)
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
 
@@ -159,6 +160,7 @@ def train(clargs):
                           (step, config.num_epochs * config.num_batches, i + 1 ,
                            (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_RE_loss)/(b+1), (avg_FS_loss)/(b+1), (avg_KL_loss)/(b+1)
                            ))
+                    print (allEvSigmas)
 
             #epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
             if (i+1) % config.checkpoint_step == 0:

@@ -369,7 +369,7 @@ class ReturnType(Sets):
 
 
     def read_data_point(self, program, infer):
-        returnType = [program['returnType'] if 'returnType' in program else 'Constructor']
+        returnType = [program['returnType'] if 'returnType' in program else '__Constructor__']
 
         return self.word2num(returnType , infer)
 
@@ -424,7 +424,6 @@ class FormalParam(Sequences):
     def read_data_point(self, program, infer):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
         json_sequence.insert(0, 'None')
-        json_sequence = json_sequence[:-1]
         return [self.word2num(json_sequence, infer)]
 
 
