@@ -73,7 +73,7 @@ def extract_evidence(clargs):
                 continue
 
             if program['returnType'] == 'None':
-                program['returnType'] = 'Constructor'
+                program['returnType'] = '__Constructor__'
             returnType = program['returnType']
 
             formalParam = program['formalParam'] if 'formalParam' in program else []
@@ -127,9 +127,7 @@ def extract_evidence(clargs):
             if 'returnType' not in program:
                 continue
             if program['returnType'] == 'None':
-                program['returnType'] = 'Constructor'
-
-            program['returnType'] = bayou.models.low_level_evidences.evidence.APICalls.get_types_re(program['returnType'])
+                program['returnType'] = '__Constructor__'
 
             formalParam = program['formalParam'] if 'formalParam' in program else []
 

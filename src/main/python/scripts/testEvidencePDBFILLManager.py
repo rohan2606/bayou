@@ -64,28 +64,22 @@ def extract_evidence(clargs):
             file_name = program['file']
             method_name = program['method']
 
-            sequences = program['sequences']
             returnType = program['returnType'] if 'returnType' in program else "void"
+            if program['returnType'] == 'None':
+                program['returnType'] = '__Constructor__'
+
             formalParam = program['formalParam'] if 'formalParam' in program else []
 
-            if '__PDB_FILL__' not in program['body']:
-                if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
-                    any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
-                        raise ast_extractor.TooLongPathError
+            # if '__PDB_FILL__' not in program['body']:
+            #     if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
+            #         any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
+            #             raise ast_extractor.TooLongPathError
 
 
             if file_name not in programs_dict:
                 programs_dict[file_name] = dict()
 
-            if method_name not in programs_dict[file_name]:
-                programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
-            else:
-                # Choose the MethodDeclaration with lowest number of nodes in sequences, the reason being you want to
-                # ignore the calls from constructor, as it is present in every sorrounding sequence, and also this target_link_libraries
-                # care of the problem of having multiple constructors while extracting from DOM Driver, where you basically  extract multiple
-                # copies of same method. However they appear in the data as we again iterate over js[programs]
-                if numNodesInSequences(sequences) < numNodesInSequences(programs_dict[file_name][method_name][2]):
-                    programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
+            programs_dict[file_name][method_name] = [returnType, formalParam, sequences[0]]
 
 
         except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
@@ -137,16 +131,17 @@ def extract_evidence(clargs):
                     sequence.append(call)
                 sequences.append(sequence)
 
-        print(sequences)
-        sample['sequences'] = []
-        for sequence in sequences:
-            temp = {'calls': sequence}
-            sample['sequences'].append(temp)
+        sample['sequences'] = sequences
+        
         file_name = program['file']
         method_name = program['method']
 
         sequences = program['sequences']
         returnType = program['returnType'] if 'returnType' in program else "void"
+        if program['returnType'] == 'None':
+            program['returnType'] = '__Constructor__'
+
+
         formalParam = program['formalParam'] if 'formalParam' in program else []
 
         # Take in classTypes and sample a few
