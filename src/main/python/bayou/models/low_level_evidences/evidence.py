@@ -423,7 +423,8 @@ class FormalParam(Sequences):
 
     def read_data_point(self, program, infer):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
-        json_sequence.insert(0, 'None')
+        if 'None' not in json_sequence:
+            json_sequence.insert(0, 'Start')
         return [self.word2num(json_sequence, infer)]
 
 

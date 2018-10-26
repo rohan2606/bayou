@@ -62,18 +62,16 @@ class Model():
 
         with tf.variable_scope("RE_Decoder"):
             ## RE
-            emb_RE = config.evidence[4].emb #tf.get_variable('emb_RE', [config.evidence[4].vocab_size, config.evidence[4].units])
 
             lift_w_RE = tf.get_variable('lift_w_RE', [config.latent_size, config.evidence[4].units])
             lift_b_RE = tf.get_variable('lift_b_RE', [config.evidence[4].units])
             initial_state_RE = tf.nn.xw_plus_b(self.psi_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
 
-            input_RE = tf.transpose(tf.reverse_v2(ev_data[4], axis=[1]))
-            output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
+            output = tf.nn.tanh(tf.nn.xw_plus_b(initial_state_RE , lift_w_RE,  lift_b_RE))
 
             projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
             projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
-            logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
+            logits_RE = tf.nn.xw_plus_b(output , projection_w_RE, projection_b_RE)
 
             labels_RE = tf.one_hot(ev_data[4] , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
@@ -93,16 +91,12 @@ class Model():
             input_FS = tf.transpose(tf.reverse_v2(ev_data[5], axis=[1]))
             self.decoder_FS = SimpleDecoder(config, emb_FS, initial_state_FS, input_FS, config.evidence[5])
 
-            # output = tf.stack(
-            # [  tf.matmul(output, self.decoder_FS.projection_w_FS) + self.decoder_FS.projection_b_FS for output in self.decoder_FS.outputs ]
-            # , axis=1)
-
             output = tf.reshape(tf.concat(self.decoder_FS.outputs, 1), [-1, self.decoder_FS.cell1.output_size])
             logits_FS = tf.matmul(output, self.decoder_FS.projection_w_FS) + self.decoder_FS.projection_b_FS
 
 
             # logits_FS = output
-            targets_FS = tf.reverse_v2(tf.concat( [ ev_data[5][:,-1:] , ev_data[5][:, :-1]], axis=1) , axis=[1])
+            targets_FS = tf.reverse_v2(tf.concat( [ tf.zeros_like(ev_data[5][:,-1:]) , ev_data[5][:, :-1]], axis=1) , axis=[1])
 
 
             # self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
@@ -145,9 +139,9 @@ class Model():
             self.KL_loss = tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
 
             if bayou_mode:
-                self.loss = self.gen_loss + self.loss_RE  + self.gen_loss_FS 
+                self.loss = self.gen_loss + self.loss_RE  + self.gen_loss_FS
             else:
-                self.loss = self.KL_loss
+                self.loss = self.KL_loss +  self.gen_loss + self.loss_RE  + self.gen_loss_FS
 
             if infer:
                 # self.gen_loss is  P(Y|Z) where Z~P(Z|X)

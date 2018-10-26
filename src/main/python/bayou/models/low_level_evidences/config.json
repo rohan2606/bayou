@@ -44,8 +44,8 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":0.6,
-            "ev_call_drop_prob":0.5
+            "ev_drop_prob":0.7,
+            "ev_call_drop_prob":0.7
         },
         {
             "name": "returntype",
@@ -54,7 +54,7 @@
             "tile": 1,
             "max_depth": 1,
             "max_nums": 1,
-            "ev_drop_prob":1.0,
+            "ev_drop_prob":0.9,
             "ev_call_drop_prob":1.00
         },
         {
@@ -64,7 +64,7 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":1.0,
+            "ev_drop_prob":0.7,
             "ev_call_drop_prob":1.0
         },
         {

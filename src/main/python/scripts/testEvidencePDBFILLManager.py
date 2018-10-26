@@ -34,7 +34,11 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((TCP_IP, TCP_PORT))
 
 
-
+def shorten(call):
+    call = re.sub('^\$.*\$', '', call)  # get rid of predicates
+    name = call.split('(')[0].split('.')[-1]
+    name = name.split('<')[0]  # remove generics from call name
+    return name
 
 
 def extract_evidence(clargs):
@@ -64,9 +68,7 @@ def extract_evidence(clargs):
             file_name = program['file']
             method_name = program['method']
 
-            returnType = program['returnType'] if 'returnType' in program else "void"
-            if program['returnType'] == 'None':
-                program['returnType'] = '__Constructor__'
+            returnType = program['returnType'] if 'returnType' in program else "__Constructor__"
 
             formalParam = program['formalParam'] if 'formalParam' in program else []
 
@@ -75,6 +77,9 @@ def extract_evidence(clargs):
             #         any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
             #             raise ast_extractor.TooLongPathError
 
+            sequences = program['sequences']
+            sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
+            sequences.sort(key=len, reverse=True)
 
             if file_name not in programs_dict:
                 programs_dict[file_name] = dict()
@@ -132,14 +137,12 @@ def extract_evidence(clargs):
                 sequences.append(sequence)
 
         sample['sequences'] = sequences
-        
+
         file_name = program['file']
         method_name = program['method']
 
         sequences = program['sequences']
-        returnType = program['returnType'] if 'returnType' in program else "void"
-        if program['returnType'] == 'None':
-            program['returnType'] = '__Constructor__'
+        returnType = program['returnType'] if 'returnType' in program else "__Constructor__"
 
 
         formalParam = program['formalParam'] if 'formalParam' in program else []
@@ -192,11 +195,6 @@ def extract_evidence(clargs):
 
 
 
-def numNodesInSequences(sequences):
-    totLen = 0
-    for elem in sequences:
-        totLen += len(elem['calls'])
-    return totLen
 
 def APICallsFromCall(callnode):
 	call = callnode['_call']

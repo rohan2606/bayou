@@ -153,8 +153,8 @@ def extract_evidence(clargs):
             sample['types'] = types
             sample['keywords'] = keywords
 
-            random.shuffle(classTypes)
             classTypes = list(set(program['classTypes'])) if 'classTypes' in program else []
+            random.shuffle(classTypes)
             sample['classTypes'] = classTypes
 
             sample['sorrreturntype'] = []
