@@ -63,23 +63,25 @@ class Model():
         with tf.variable_scope("RE_Decoder"):
             ## RE
 
+            emb_RE = config.evidence[4].emb * 0.0 #tf.get_variable('emb_RE', [config.evidence[4].vocab_size, config.evidence[4].units])
+
             lift_w_RE = tf.get_variable('lift_w_RE', [config.latent_size, config.evidence[4].units])
             lift_b_RE = tf.get_variable('lift_b_RE', [config.evidence[4].units])
             initial_state_RE = tf.nn.xw_plus_b(self.psi_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
 
-            output = tf.nn.tanh(tf.nn.xw_plus_b(initial_state_RE , lift_w_RE,  lift_b_RE))
+            input_RE = tf.transpose(tf.reverse_v2(ev_data[4], axis=[1]))
+            output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
 
             projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
             projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
-            logits_RE = tf.nn.xw_plus_b(output , projection_w_RE, projection_b_RE)
+            logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
 
-            labels_RE = tf.one_hot(ev_data[4] , config.evidence[4].vocab_size , dtype=tf.int32)
+            labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
 
             cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
             # cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
-            self.loss_RE = tf.where(cond , loss_RE, tf.zeros(cond.shape))
-
+            self.loss_RE = tf.reduce_mean(tf.where(cond , loss_RE, tf.zeros(cond.shape)))
 
         with tf.variable_scope("FS_Decoder"):
             #FS
@@ -139,7 +141,7 @@ class Model():
             self.KL_loss = tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
 
             if bayou_mode:
-                self.loss = self.gen_loss + self.loss_RE  + self.gen_loss_FS
+                self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
             else:
                 self.loss = self.KL_loss +  self.gen_loss + self.loss_RE  + self.gen_loss_FS
 
