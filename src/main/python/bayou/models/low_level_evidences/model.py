@@ -143,7 +143,7 @@ class Model():
             if bayou_mode:
                 self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
             else:
-                self.loss = self.KL_loss +  self.gen_loss + self.loss_RE  + self.gen_loss_FS
+                self.loss = self.KL_loss +  32 / 128 * (self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS)
 
             if infer:
                 # self.gen_loss is  P(Y|Z) where Z~P(Z|X)
