@@ -141,7 +141,7 @@ class Model():
             self.KL_loss = tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
 
             if bayou_mode:
-                self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
+                self.loss = self.gen_loss + 2/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
             else:
                 self.loss = self.KL_loss +  32 / 128 * (self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS)
 

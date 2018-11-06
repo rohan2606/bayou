@@ -425,6 +425,7 @@ class FormalParam(Sequences):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
         if 'None' not in json_sequence:
             json_sequence.insert(0, 'Start')
+            json_sequence.insert(0, 'None')
         return [self.word2num(json_sequence, infer)]
 
 
