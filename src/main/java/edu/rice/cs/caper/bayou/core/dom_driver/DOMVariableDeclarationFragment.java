@@ -17,19 +17,19 @@ package edu.rice.cs.caper.bayou.core.dom_driver;
 
 import edu.rice.cs.caper.bayou.core.dsl.DSubTree;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
+import org.eclipse.jdt.core.dom.ASTNode;
 
 public class DOMVariableDeclarationFragment implements Handler {
 
     final VariableDeclarationFragment fragment;
-    final Visitor visitor;
 
-    public DOMVariableDeclarationFragment(VariableDeclarationFragment fragment, Visitor visitor) {
+    public DOMVariableDeclarationFragment(VariableDeclarationFragment fragment) {
+        ASTNode parent= fragment.getParent();
         this.fragment = fragment;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
-        return new DOMExpression(fragment.getInitializer(), visitor).handle();
+        return new DOMExpression(fragment.getInitializer()).handle();
     }
 }

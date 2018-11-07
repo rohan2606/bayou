@@ -107,6 +107,16 @@ public class Visitor extends ASTVisitor {
         // synchronized lists
         for (TypeDeclaration cls : classes) {
 
+            // System.out.println(cls);
+            allTypes = new ArrayList<>();
+            allTypes.addAll(Arrays.asList(cls.getFields()));
+
+            List<String> classTypes = new ArrayList<>();
+            for (FieldDeclaration type : allTypes){
+              classTypes.add(type.getType().toString());
+            }
+            // System.out.println(cls);
+
             List<DSubTree> asts = new ArrayList<>();
             List<String> javaDocs = new ArrayList<>();
             List<String> methodNames = new ArrayList<>();
@@ -116,21 +126,21 @@ public class Visitor extends ASTVisitor {
 
 //            List<MethodDeclaration> allMethods = new ArrayList<>();
             allMethods = new ArrayList<>();
-            allTypes = new ArrayList<>();
             allMethods.addAll(Arrays.asList(cls.getMethods()));
-            allTypes.addAll(Arrays.asList(cls.getFields()));
+
+
+
             List<MethodDeclaration> constructors = allMethods.stream().filter(m -> m.isConstructor()).collect(Collectors.toList());
             List<MethodDeclaration> publicMethods = allMethods.stream().filter(m -> !m.isConstructor() && Modifier.isPublic(m.getModifiers())).collect(Collectors.toList());
 
-            List<String> classTypes = new ArrayList<>();
-            for (FieldDeclaration type : allTypes){
-              classTypes.add(type.getType().toString());
-            }
+
 
             for (MethodDeclaration m : allMethods){
+                  // System.out.println(m.resolveBinding());
+
                   String javadoc = Utils.getJavadoc(m, options.JAVADOC_TYPE);
                   callStack.push(m);
-                  DSubTree ast = new DOMMethodDeclaration(m, this).handle();
+                  DSubTree ast = new DOMMethodDeclaration(m).handle();
                   callStack.pop();
                   if (ast.isValid()) {
                       asts.add(ast);

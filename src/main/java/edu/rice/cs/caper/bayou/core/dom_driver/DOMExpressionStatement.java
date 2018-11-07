@@ -21,15 +21,13 @@ import org.eclipse.jdt.core.dom.ExpressionStatement;
 public class DOMExpressionStatement implements Handler {
 
     final ExpressionStatement statement;
-    final Visitor visitor;
 
-    public DOMExpressionStatement(ExpressionStatement statement, Visitor visitor) {
+    public DOMExpressionStatement(ExpressionStatement statement) {
         this.statement = statement;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
-        return new DOMExpression(statement.getExpression(), visitor).handle();
+        return new DOMExpression(statement.getExpression()).handle();
     }
 }

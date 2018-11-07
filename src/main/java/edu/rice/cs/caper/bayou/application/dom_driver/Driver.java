@@ -17,6 +17,7 @@ limitations under the License.
 package edu.rice.cs.caper.bayou.application.dom_driver;
 
 import edu.rice.cs.caper.bayou.core.dom_driver.Options;
+import edu.rice.cs.caper.bayou.core.dom_driver.Utils;
 import edu.rice.cs.caper.bayou.core.dom_driver.Visitor;
 import org.apache.commons.cli.*;
 import org.apache.commons.io.FileUtils;
@@ -34,6 +35,7 @@ public class Driver {
 
     public Driver(String args[]) throws ParseException, IOException {
         this.options = new Options(args);
+        Utils.options = this.options;
     }
 
     private CompilationUnit createCompilationUnit(String classpath) throws IOException {
