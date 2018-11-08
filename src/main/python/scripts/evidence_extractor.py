@@ -51,6 +51,9 @@ def extract_evidence(clargs):
     programs_dict = dict()
 
 
+    returnDict = dict()
+    FP_Dict = dict()
+
     valid = []
     #This part appends sorrounding evidences
     done = 0
@@ -74,9 +77,21 @@ def extract_evidence(clargs):
 
             if program['returnType'] == 'None':
                 program['returnType'] = '__Constructor__'
+
             returnType = program['returnType']
 
+            if returnType not in returnDict:
+                returnDict[returnType] = 1
+            else:
+                returnDict[returnType] += 1
+
             formalParam = program['formalParam'] if 'formalParam' in program else []
+
+            for type in formalParam:
+                if type not in FP_Dict:
+                    FP_Dict[type] = 1
+                else:
+                    FP_Dict[type] += 1
 
             # if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
             #     any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
@@ -106,6 +121,14 @@ def extract_evidence(clargs):
     print('{:8d} programs/asts to search over'.format(done - ignored))
 
 
+    topRetKeys = dict()
+    for w in sorted(returnDict, key=returnDict.get, reverse=True)[:1000]:
+        topRetKeys[w] = returnDict[w]
+
+    topFPKeys = dict()
+    for w in sorted(FP_Dict, key=FP_Dict.get, reverse=True)[:1000]:
+        topFPKeys[w] = FP_Dict[w]
+
     f.close()
     f = open(clargs.input_file[0] , 'rb')
     done = 0
@@ -129,10 +152,20 @@ def extract_evidence(clargs):
             if program['returnType'] == 'None':
                 program['returnType'] = '__Constructor__'
 
-            formalParam = program['formalParam'] if 'formalParam' in program else []
+            if program['returnType'] not in topRetKeys:
+                program['returnType'] = '__UDT__'
 
-            # # Take in classTypes
-            ####
+            returnType = program['returnType']
+
+            formalParam = program['formalParam'] if 'formalParam' in program else []
+            newFP = []
+            for type in formalParam:
+                if type not in topFPKeys:
+                    type = '__UDT__'
+                newFP.append(type)
+
+
+
 
             # if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
             #         any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
@@ -152,6 +185,8 @@ def extract_evidence(clargs):
             sample['apicalls'] = apicalls
             sample['types'] = types
             sample['keywords'] = keywords
+            sample['returnType'] = returnType
+            sample['formalParam'] = newFP
 
             classTypes = list(set(program['classTypes'])) if 'classTypes' in program else []
             random.shuffle(classTypes)
