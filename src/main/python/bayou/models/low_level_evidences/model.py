@@ -69,7 +69,7 @@ class Model():
             lift_b_RE = tf.get_variable('lift_b_RE', [config.evidence[4].units])
             initial_state_RE = tf.nn.xw_plus_b(self.psi_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
 
-            input_RE = tf.transpose(tf.reverse_v2(ev_data[4], axis=[1]))
+            input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(ev_data[4]), axis=[1]))
             output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
 
             projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
@@ -79,7 +79,7 @@ class Model():
             labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
 
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
+            cond = tf.not_equal(tf.reduce_sum(self.encoder.encodings[4], axis=1), 0)
             # cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
             self.loss_RE = tf.reduce_mean(tf.where(cond , loss_RE, tf.zeros(cond.shape)))
 
@@ -103,7 +103,7 @@ class Model():
 
             # self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
             #                                       tf.ones_like(target_FS, dtype=tf.float32))
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
+            cond = tf.not_equal(tf.reduce_sum(self.encoder.encodings[5], axis=1), 0)
             cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
             cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 

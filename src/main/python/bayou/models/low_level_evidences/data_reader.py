@@ -321,7 +321,11 @@ class Reader():
                         else:
                             temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
 
-                    data_points.append((done - ignored, evidences, temp_arr, program))
+                    sample = dict()
+                    sample['file'] = program['file']
+                    sample['method'] = program['method']
+                    sample['body'] = program['body']
+                    data_points.append((done - ignored, evidences, temp_arr, sample))
                     #data_points.append((done - ignored, evidences, temp_arr, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
