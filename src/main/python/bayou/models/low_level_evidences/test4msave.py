@@ -67,9 +67,9 @@ def test_get_vals(clargs):
     programs = []
     a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
     for prog_id in sorted(list(infer_vars.keys())):
-        a1s += [infer_vars[prog_id]['a1']]
+        #a1s += [infer_vars[prog_id]['a1']]
         a2s += [infer_vars[prog_id]['a2']]
-        b1s += [list(infer_vars[prog_id]['b1'])]
+        #b1s += [list(infer_vars[prog_id]['b1'])]
         b2s += [list(infer_vars[prog_id]['b2'])]
         prob_Ys += [infer_vars[prog_id]['ProbY']]
         #Ys += [infer_vars[prog_id]['Y']]
@@ -78,11 +78,11 @@ def test_get_vals(clargs):
         #if program['returnType']=='None':
         #   program['returnType'] = 'void'
         # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
-        program['a1'] = infer_vars[prog_id]['a1'].item()
-        program['b1'] = [val.item() for val in infer_vars[prog_id]['b1']]
-        program['a2'] = infer_vars[prog_id]['a2'].item()
-        program['b2'] = [val.item() for val in infer_vars[prog_id]['b2']]
-        program['ProbY'] = infer_vars[prog_id]['ProbY'].item()
+        #program['a1'] = infer_vars[prog_id]['a1'].item()
+        #program['b1'] = [val.item() for val in infer_vars[prog_id]['b1']]
+        program['a2'] = "%.3f" % infer_vars[prog_id]['a2'].item()
+        program['b2'] = ["%.3f" % val.item() for val in infer_vars[prog_id]['b2']]
+        program['ProbY'] = "%.3f" % infer_vars[prog_id]['ProbY'].item()
 
         programs.append(program)
 

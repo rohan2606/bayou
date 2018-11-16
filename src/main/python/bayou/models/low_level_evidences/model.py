@@ -79,7 +79,7 @@ class Model():
             labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
 
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.encodings[4], axis=1), 0)
+            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
             # cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
             self.loss_RE = tf.reduce_mean(tf.where(cond , loss_RE, tf.zeros(cond.shape)))
 
@@ -103,7 +103,7 @@ class Model():
 
             # self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
             #                                       tf.ones_like(target_FS, dtype=tf.float32))
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.encodings[5], axis=1), 0)
+            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
             cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
             cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
@@ -141,7 +141,7 @@ class Model():
             self.KL_loss = tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
 
             if bayou_mode:
-                self.loss = self.gen_loss + 2/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
+                self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
             else:
                 self.loss = self.KL_loss +  32 / 128 * (self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS)
 
