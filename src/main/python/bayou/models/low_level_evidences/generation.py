@@ -57,7 +57,7 @@ def get_a1b1(clargs, f):
         raise ValueError('Invalid model type in config: ' + model_type)
 
 
-    file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
+    # file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
 
     reader = Reader(clargs, config)
     reader.reset_batches()
@@ -70,10 +70,10 @@ def get_a1b1(clargs, f):
         config.batch_size = 1
         predictor = model(clargs.save, sess, config, bayou_mode = False) # goes to infer.BayesianPredictor
         for b in range(batch_num):
-            prog_ids, ev_data, _, _, y = reader.next_batch()
+            prog_ids, ev_data, _, _, y, _ = reader.next_batch()
 
         prog_id = prog_ids[batch_id]
-        #f.write('\nOriginal File ptr :: ' + str(parse_filePtr(file_ptr_dict[prog_id])) + '\n\n\n')
+        # f.write('\nOriginal File ptr :: ' + str(parse_filePtr(file_ptr_dict[prog_id])) + '\n\n\n')
         ev_data = [ev[batch_id:batch_id+1] for ev in ev_data]
         y = y[batch_id]
 
@@ -86,15 +86,17 @@ def get_a1b1(clargs, f):
     for i, ev in enumerate(config.evidence):
         print(ev.name)
         ev.f_write(ev_data[i], f)
+        f.write('\n')
+
 
     return a1,b1, prog_id, config,
 
 
 def test(clargs, f):
-    file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
+    # file_ptr_dict = np.load(os.path.join(clargs.save, 'file_ptr.pkl'))
 
     [a1, b1, prog_id, config] = get_a1b1(clargs, f)
-    [a2s, b2s, prob_Ys, Ys] = test_get_vals(clargs)
+    [a2s, b2s, prob_Ys, Ys, bodys] = test_get_vals(clargs)
 
     latent_size, num_progs, batch_size = len(b2s[0]), len(a2s), 1000
 
@@ -107,16 +109,16 @@ def test(clargs, f):
 
     prob_Y_Xs = normalize_log_probs(prob_Y_Xs)
 
-    # rank_ids, sorted_probs = find_top_rank_ids( prob_Y_Xs, cutoff = 10)
-    # pred_rank = find_my_rank(prob_Y_Xs,  prog_id )
-    # f.write('\nPredicted Rank is {}'.format(pred_rank + 1))
+    rank_ids, sorted_probs = find_top_rank_ids( prob_Y_Xs, cutoff = 10)
+    pred_rank = find_my_rank(prob_Y_Xs,  prog_id )
+    f.write('\nPredicted Rank is {}'.format(pred_rank + 1))
 
     inv_map = {v: k for k, v in config.decoder.vocab.items()}
 
 
     for rank, jid in enumerate(rank_ids):
         f.write('\n\n\nRank :: {} , LogProb :: {}\n\n'.format(rank + 1, sorted_probs[rank]))
-        found_file = parse_filePtr(file_ptr_dict[jid])
+        # found_file = parse_filePtr(file_ptr_dict[jid])
         f.write('File Ptr ::' + found_file)
         f.write('\n\nPaths in the AST::\n')
         call_array = []
@@ -128,12 +130,13 @@ def test(clargs, f):
                     f.write(string + ' , ')
             f.write('\n')
         f.write('\nSource Code :: \n\n\n')
+        f.write(bodys[jid])
         # TURN THIS ON FOR FULL CODE`
         #f.write(open(found_file).read())
 
-    plot_probs(sorted_probs, fig_name ="rankedProbAll"+ file_timestamp +".pdf")
-    plot_probs(sorted_probs[:100], fig_name ="rankedProbtop100" + file_timestamp +".pdf")
-    plot_probs(sorted_probs[:10], fig_name ="rankedProbtop10" + file_timestamp +".pdf")
+    # plot_probs(sorted_probs, fig_name ="rankedProbAll"+ file_timestamp +".pdf")
+    # plot_probs(sorted_probs[:100], fig_name ="rankedProbtop100" + file_timestamp +".pdf")
+    # plot_probs(sorted_probs[:10], fig_name ="rankedProbtop10" + file_timestamp +".pdf")
 
     return
 
@@ -145,7 +148,8 @@ def test_get_vals(clargs):
     b2s = np.load(File_Name  + '/b2s.npy')
     prob_Ys = np.load(File_Name  + '/prob_Ys.npy')
     Ys = np.load(File_Name  + '/Ys.npy')
-    return a2s, b2s, prob_Ys, Ys
+    bodys = np.loadtxt(File_Name  + '/bodys.npy.gz')
+    return a2s, b2s, prob_Ys, Ys, bodys
 
 def find_top_rank_ids(arrin, cutoff = 10):
     rank_ids =  (-np.array(arrin)).argsort()
@@ -184,7 +188,7 @@ if __name__ == '__main__':
     if parseJSON:
         clargs = parser.parse_args(['--save', 'save1', 'generation/query.json'])
     else:
-        clargs = parser.parse_args(['--save', 'save1', '/home/ubuntu/DATA-retry.json'])
+        clargs = parser.parse_args(['--save', 'save1', '/home/ubuntu/DATA.json'])
 #'/home/ubuntu/Corpus/DATA-training-expanded-biased-TOP.json'])
 
 

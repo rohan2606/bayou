@@ -37,16 +37,11 @@ class InvalidSketchError(Exception):
 
 class BayesianPredictor(object):
 
-    def __init__(self, save, sess, config, bayou_mode=False):
+    def __init__(self, save, sess, config, iterator, bayou_mode=False):
         self.sess = sess
-
-
-        self.model = Model(config, infer=True, bayou_mode=bayou_mode)
-
-        # load the callmap
-        with open(os.path.join(save, 'callmap.pkl'), 'rb') as f:
-            self.callmap = pickle.load(f)
-
+        self.model = Model(config, iterator, infer=True, bayou_mode=bayou_mode)
+        self.config = config
+        #
         # restore the saved model
         tf.global_variables_initializer().run()
         if bayou_mode == True:
@@ -58,58 +53,15 @@ class BayesianPredictor(object):
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
 
-    def get_all_params_inago(self, evidences, nodes, edges, targets, left, right, word ):
+    def get_all_params_inago(self):
         # setup initial states and feed
-        inputs = evidences
-        feed = {self.model.targets: targets}
-        for j,ev in enumerate(self.model.config.evidence):
-            feed[self.model.encoder.inputs[j].name] = inputs[j]
-        for j in range(self.model.config.decoder.max_ast_depth):
-            feed[self.model.decoder.nodes[j].name] = nodes[j]
-            feed[self.model.decoder.edges[j].name] = edges[j]
+        [probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
+                                                        self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
 
+        return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
 
-        feed[self.model.reverse_encoder.left_children_placeholder.name] = left
-        feed[self.model.reverse_encoder.right_children_placeholder.name] = right
-        feed[self.model.reverse_encoder.node_word_indices_placeholder.name] = word
+    def get_ev_sigma(self):
+        allEvSigmas = self.sess.run( [ ev.sigma for ev in self.config.evidence ] )
+        allEvSigmas = [ (ev.name, allEvSigmas[i]) for i, ev in enumerate(self.config.evidence)]
 
-        # num_samples = 100
-        # probYs = np.zeros([self.model.config.batch_size])
-        # for i in range(num_samples):
-        #     probY = self.sess.run(self.model.probY, feed)
-        #     probYs += probY
-        #
-        # probY = probYs / num_samples
-
-        [probY, EncA, EncB, RevEncA, RevEncB] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
-                                                        self.model.RevEncA, self.model.RevEncB], feed)
-
-        return probY, EncA, EncB, RevEncA, RevEncB
-
-    def similarity(self, _a1, _b1, _a2, _b2, prob_Y):
-            # a1 = tf.placeholder(tf.float32,[self.model.config.latent_size])
-            a1_in = tf.placeholder(tf.float32,[])
-            a1 = tf.tile(tf.reshape(a1_in,[1]),[self.model.config.latent_size])
-
-            b1_in = tf.placeholder(tf.float32,[self.model.config.latent_size])
-            b1 = b1_in
-            # a2 = tf.placeholder(tf.float32,[self.model.config.batch_size,self.model.config.latent_size])
-            a2_in = tf.placeholder(tf.float32,[self.model.config.batch_size])
-            a2 = tf.tile(tf.expand_dims(a2_in,axis=1),[1,self.model.config.latent_size])
-
-            b2_in = tf.placeholder(tf.float32,[self.model.config.batch_size,self.model.config.latent_size])
-            b2 = b2_in
-            t1 = tf.reduce_sum(tf.square(b1)/(4*a1), axis=0) + 0.5 * tf.reduce_sum(tf.log(-a1/np.pi), axis=0)
-            t2 = tf.reduce_sum(tf.square(b2)/(4*a2), axis=1) + 0.5 * tf.reduce_sum(tf.log(-a2/np.pi), axis=1)
-            t3 = 0.5 * self.model.config.latent_size * tf.log(2*np.pi)
-            c = t1 + t2 - t3
-
-            b_star = b1 + b2
-            a_star = a1 + a2 + 0.5
-            c_star = tf.reduce_sum(tf.square(b_star)/(4*a_star), axis=1) + 0.5 * tf.reduce_sum(tf.log(-a_star/np.pi), axis=1)
-            prob = (c - c_star)
-
-            _prob = self.sess.run(prob, feed_dict={a1_in:_a1, b1_in:_b1, a2_in:_a2, b2_in:_b2})
-
-            _prob += np.array(prob_Y)
-            return _prob
+        return allEvSigmas

@@ -26,7 +26,7 @@ from collections import OrderedDict, defaultdict
 
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.model import Model
-from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot
+from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list, static_plot, get_available_gpus
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
@@ -72,25 +72,59 @@ Config options should be given as a JSON file (see config.json for example):
 #%%
 
 def train(clargs):
-    config_file = clargs.config if clargs.continue_from is None \
-                                else os.path.join(clargs.continue_from, 'config.json')
+
+    dataIsThere = False
+
+    if clargs.continue_from is not None:
+        config_file = os.path.join(clargs.continue_from, 'config.json')
+    elif dataIsThere:
+        config_file = os.path.join('data', 'config.json')
+    else:
+        config_file = clargs.config
 
     with open(config_file) as f:
-        config = read_config(json.load(f), chars_vocab=clargs.continue_from)
-    reader = Reader(clargs, config)
+        config = read_config(json.load(f), chars_vocab=(clargs.continue_from or dataIsThere))
 
-    jsconfig = dump_config(config)
-    # print(clargs)
-    # print(json.dumps(jsconfig, indent=2))
+    reader = Reader(clargs, config, dataIsThere=dataIsThere)
 
-    with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
-        json.dump(jsconfig, fp=f, indent=2)
+    # merged_summary = tf.summary.merge_all()
 
-    model = Model(config, infer=False, bayou_mode = True, full_model_train = False )
-    merged_summary = tf.summary.merge_all()
+    # Placeholders for tf data
+    prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
+    js_prog_ids_placeholder = tf.placeholder(reader.js_prog_ids.dtype, reader.js_prog_ids.shape)
+    nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
+    edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
+    targets_placeholder = tf.placeholder(reader.node_word_indices_placeholder.dtype, reader.node_word_indices_placeholder.shape)
+
+    node_word_indices_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
+    left_children_placeholder = tf.placeholder(reader.left_children_placeholder.dtype, reader.left_children_placeholder.shape)
+    right_children_placeholder = tf.placeholder(reader.right_children_placeholder.dtype, reader.right_children_placeholder.shape)
+
+    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+    # reset batches
 
 
-    with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as sess:
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
+    feed_dict.update({prog_ids_placeholder: reader.prog_ids})
+    feed_dict.update({js_prog_ids_placeholder: reader.js_prog_ids})
+    feed_dict.update({nodes_placeholder: reader.nodes})
+    feed_dict.update({edges_placeholder: reader.edges})
+    feed_dict.update({targets_placeholder: reader.targets})
+
+    feed_dict.update({node_word_indices_placeholder: reader.node_word_indices_placeholder})
+    feed_dict.update({left_children_placeholder: reader.left_children_placeholder})
+    feed_dict.update({right_children_placeholder: reader.right_children_placeholder})
+
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder,
+                                                node_word_indices_placeholder, left_children_placeholder, right_children_placeholder, *evidence_placeholder))
+
+
+    batched_dataset = dataset.batch(config.batch_size)
+    iterator = batched_dataset.make_initializable_iterator()
+
+    model = Model(config , iterator, bayou_mode=True)
+
+    with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
         writer.add_graph(sess.graph)
         tf.global_variables_initializer().run()
@@ -106,60 +140,50 @@ def train(clargs):
             ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
             old_saver.restore(sess, ckpt.model_checkpoint_path)
 
+        devices = get_available_gpus()
+        if len(devices) > 0:
+            NUM_BATCHES = config.num_batches // len(devices)
+        else:
+            NUM_BATCHES = config.num_batches
         # training
-        epocLoss , epocGenL , epocKlLoss = [], [], []
+        #epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
-            reader.reset_batches()
-            avg_loss, avg_gen_loss, avg_KL_loss = 0.,0.,0.
-            for b in range(config.num_batches):
-                start = time.time()
-                # setup the feed dict
-                prog_ids, ev_data, n, e, y, left, right, word = reader.next_batch()
-
-                feed = {model.targets: y}
-                for j, ev in enumerate(config.evidence):
-                    feed[model.encoder.inputs[j].name] = ev_data[j]
-                for j in range(config.decoder.max_ast_depth):
-                    feed[model.decoder.nodes[j].name] = n[j]
-                    feed[model.decoder.edges[j].name] = e[j]
-
-                feed[model.reverse_encoder.left_children_placeholder.name] = left
-                feed[model.reverse_encoder.right_children_placeholder.name] = right
-                feed[model.reverse_encoder.node_word_indices_placeholder.name] = word
-
+            sess.run(iterator.initializer, feed_dict=feed_dict)
+            start = time.time()
+            avg_loss, avg_gen_loss, avg_RE_loss , avg_FS_loss , avg_KL_loss = 0.,0.,0.,0.,0.
+            for b in range(NUM_BATCHES):
                 # run the optimizer
-                loss, gen_loss, KL_loss, E_mean, RE_mean, E_covar, RE_covar, _ \
-                    = sess.run([model.loss, model.gen_loss, model.KL_loss,
-                                model.encoder.psi_mean, model.reverse_encoder.psi_mean,
-                                model.encoder.psi_covariance, model.reverse_encoder.psi_covariance,
-                                model.train_op], feed)
-
-                s = sess.run(merged_summary, feed)
-                writer.add_summary(s,i)
+                loss, KL_loss, gen_loss , RE_loss, FS_loss, _, allEvSigmas = sess.run([model.loss, model.KL_loss, model.gen_loss, model.loss_RE, model.gen_loss_FS, model.train_op, model.allEvSigmas])
+                # s = sess.run(merged_summary, feed)
+                # writer.add_summary(s,i)
 
                 end = time.time()
                 avg_loss += np.mean(loss)
                 avg_gen_loss += np.mean(gen_loss)
+                avg_RE_loss += np.mean(RE_loss)
+                avg_FS_loss += np.mean(FS_loss)
                 avg_KL_loss += np.mean(KL_loss)
 
 
                 step = (i+1) * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, \n\t\t E_mean: {:.3f}, RE_mean: {:.3f}, E_covar: {:.3f}, RE_covar: {:.3f}'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, Ret_loss {:.3f}, FS_loss {:.3f}, KL_loss: {:.3f}, \n\t'.format
                           (step, config.num_epochs * config.num_batches, i + 1 ,
-                           (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_KL_loss)/(b+1),
-                           np.mean(E_mean), np.mean(RE_mean), np.mean(E_covar),
-                           np.mean(RE_covar)))
+                           (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_RE_loss)/(b+1), (avg_FS_loss)/(b+1), (avg_KL_loss)/(b+1)
+                           ))
+                    print (allEvSigmas)
 
-            epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
+            #epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
             if (i+1) % config.checkpoint_step == 0:
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
+
+                mul = 1 if len(devices) == 0 else len(devices)
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
-                      (checkpoint_dir, avg_loss / config.num_batches))
-        static_plot(epocLoss , epocGenL , epocKlLoss)
+                      (checkpoint_dir, avg_loss / config.num_batches * mul))
+        #static_plot(epocLoss , epocGenL , epocKlLoss)
 
 
 #%%
@@ -180,10 +204,17 @@ if __name__ == '__main__':
     clargs = parser.parse_args(
      #['--continue_from', 'save',
      ['--config','config.json',
+<<<<<<< HEAD
      # '..\..\..\..\..\..\data\DATA-training-top.json'])
      #'/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/DATA-top.json'])
      # '/home/ubuntu/Corpus/DATA-training-expanded-biased.json'])
      '/home/ubuntu/DATA-retry-TOP.json'])
+=======
+     # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
+     # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
+      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
+    '/home/ubuntu/DATA-noBinding-noField-sorr-UDT.json'])
+>>>>>>> master
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

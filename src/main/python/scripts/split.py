@@ -19,30 +19,46 @@ from __future__ import print_function
 # etc.) and split it into N files
 
 import sys
-import json
+import simplejson
+import ijson.backends.yajl2_cffi as ijson
 import math
 import argparse
 
 
 def split(args):
-    with open(args.input_file[0]) as f:
-        js = json.load(f)
-    programs = js['programs']
-    n = int(math.ceil(float(len(programs)) / args.splits))
-    split_programs = [programs[i*n:i*n+n] for i in range(args.splits)]
-    for i, programs in enumerate(split_programs):
-        with open('{}-{:02d}.json'.format(args.input_file[0][:-5], i), 'w') as f:
-            json.dump({'programs': programs}, f, indent=2)
+    f = open(args.input_file[0], 'rb')
+    assert(args.part>0 and args.part<100)
+    start , end = (args.part-1)*args.step , args.part*args.step
+    i = 0
+    split_programs = []
+    for program in ijson.items(f, 'programs.item'):
+        print('Split part {} of size {} #Finished {} programs'.format(args.part, args.step, i), end='\r')
+        if i == end:
+            break
+        if i < start:
+            i += 1
+            continue
+        else:
+            split_programs.append(program)
+            i += 1
+
+    print('')
+    print("Writing to File")
+    with open('{}-{:02d}.json'.format(args.input_file[0][:-5], args.part), 'w') as f:
+        simplejson.dump({'programs': split_programs}, f, indent=2)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('input_file', type=str, nargs=1,
                         help='input JSON file')
+    parser.add_argument('--step', type=int, required=True,
+                        help='step size to split JSON')
+    parser.add_argument('--part', type=int, required=True,
+                        help='current part')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--splits', type=int, required=True,
-                        help='number of splits')
+
     args = parser.parse_args()
     sys.setrecursionlimit(args.python_recursion_limit)
     split(args)

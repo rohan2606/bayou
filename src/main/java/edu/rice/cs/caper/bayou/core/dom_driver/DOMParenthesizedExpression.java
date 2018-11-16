@@ -21,15 +21,13 @@ import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 public class DOMParenthesizedExpression implements Handler {
 
     final ParenthesizedExpression expression;
-    final Visitor visitor;
 
-    public DOMParenthesizedExpression(ParenthesizedExpression expression, Visitor visitor) {
+    public DOMParenthesizedExpression(ParenthesizedExpression expression) {
         this.expression = expression;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
-        return new DOMExpression(expression.getExpression(), visitor).handle();
+        return new DOMExpression(expression.getExpression()).handle();
     }
 }

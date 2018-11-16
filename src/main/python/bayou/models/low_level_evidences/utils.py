@@ -16,6 +16,7 @@ from __future__ import print_function
 import argparse
 import re
 import tensorflow as tf
+from tensorflow.python.client import device_lib
 from itertools import chain
 import numpy as np
 import os
@@ -23,16 +24,49 @@ import matplotlib.pyplot as plt
 
 CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',
                   'learning_rate', 'print_step', 'checkpoint_step']
-CONFIG_ENCODER = ['name', 'units', 'num_layers', 'tile', 'max_depth', 'max_nums']
+CONFIG_ENCODER = ['name', 'units', 'num_layers', 'tile', 'max_depth', 'max_nums', 'ev_drop_prob', 'ev_call_drop_prob']
 CONFIG_DECODER = ['units', 'num_layers', 'max_ast_depth']
 CONFIG_REVERSE_ENCODER = ['units', 'num_layers', 'max_ast_depth']
-CONFIG_INFER = ['chars', 'vocab', 'vocab_size']
+CONFIG_INFER = ['vocab', 'vocab_size']
 
 C0 = 'CLASS0'
 UNK = '_UNK_'
 CHILD_EDGE = 'V'
 SIBLING_EDGE = 'H'
 
+def get_available_gpus():
+    local_device_protos = device_lib.list_local_devices()
+    return [x.name for x in local_device_protos if x.device_type == 'GPU']
+
+
+def get_var_list():
+    all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Decoder')
+    decoder_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='RE_Decoder')
+    decoder_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='FS_Decoder')
+
+    encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder')
+    emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Embedding')
+    rev_encoder_vars= tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
+
+    bayou_vars = decoder_vars + encoder_vars + emb_vars
+    fix_encoder_vars = decoder_vars + rev_encoder_vars + emb_vars
+
+    var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
+                'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
+                'bayou_vars':bayou_vars,
+                'rev_encoder_vars':rev_encoder_vars,
+                'fix_encoder_vars':fix_encoder_vars
+                }
+    return var_dict
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    lol = []
+    for i in range(0, len(l), n):
+        lol.append(l[i:i + n])
+    return lol
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
@@ -125,23 +159,7 @@ def rank_statistic(_rank, total, prev_hits, cutoff):
     prctg = hits / total
     return hits, prctg
 
-def get_var_list():
-    all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-    decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Decoder')
-    encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder')
-    emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Embedding')
-    rev_encoder_vars= tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
 
-    bayou_vars = decoder_vars + encoder_vars + emb_vars
-    fix_encoder_vars = decoder_vars + rev_encoder_vars + emb_vars
-
-    var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
-                'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
-                'bayou_vars':bayou_vars,
-                'rev_encoder_vars':rev_encoder_vars,
-                'fix_encoder_vars':fix_encoder_vars
-                }
-    return var_dict
 
 # Do not move these imports to the top, it will introduce a cyclic dependency
 import bayou.models.low_level_evidences.evidence

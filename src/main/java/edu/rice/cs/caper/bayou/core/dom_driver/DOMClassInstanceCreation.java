@@ -23,23 +23,21 @@ import org.eclipse.jdt.core.dom.*;
 public class DOMClassInstanceCreation implements Handler {
 
     final ClassInstanceCreation creation;
-    final Visitor visitor;
 
-    public DOMClassInstanceCreation(ClassInstanceCreation creation, Visitor visitor) {
+    public DOMClassInstanceCreation(ClassInstanceCreation creation) {
         this.creation = creation;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
         DSubTree tree = new DSubTree();
         // add the expression's subtree (e.g: foo(..).bar() should handle foo(..) first)
-        DSubTree Texp = new DOMExpression(creation.getExpression(), visitor).handle();
+        DSubTree Texp = new DOMExpression(creation.getExpression()).handle();
         tree.addNodes(Texp.getNodes());
 
         // evaluate arguments first
         for (Object o : creation.arguments()) {
-            DSubTree Targ = new DOMExpression((Expression) o, visitor).handle();
+            DSubTree Targ = new DOMExpression((Expression) o).handle();
             tree.addNodes(Targ.getNodes());
         }
 
@@ -59,14 +57,9 @@ public class DOMClassInstanceCreation implements Handler {
                     binding = binding.getMethodDeclaration();
         }
 
-        MethodDeclaration localMethod = Utils.checkAndGetLocalMethod(binding, visitor);
-        if (localMethod != null) {
-            DSubTree Tmethod = new DOMMethodDeclaration(localMethod, visitor).handle();
-            tree.addNodes(Tmethod.getNodes());
-        }
-        else if (Utils.isRelevantCall(binding, visitor)) {
+        if (Utils.isRelevantCall(binding)) {
             try {
-                tree.addNode(new DAPICall(binding, visitor.getLineNumber(creation)));
+                tree.addNode(new DAPICall(binding));
             } catch (DAPICall.InvalidAPICallException e) {
                 // continue without adding the node
             }

@@ -89,4 +89,7 @@ class TreeEncoder(object):
         tensor_array, _ = tf.while_loop(loop_cond, loop_body, [tensor_array, 1], parallel_iterations=1)
         root_logits=[tf.matmul(tensor_array[j].read(tensor_array[j].size() - 1), U) + bs for j in range(config.batch_size)]
 
+
+
+
         self.output = tf.concat(root_logits, axis=0)

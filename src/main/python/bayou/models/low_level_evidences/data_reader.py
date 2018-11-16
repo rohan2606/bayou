@@ -14,15 +14,25 @@
 
 from __future__ import print_function
 import json
+import ijson.backends.yajl2_cffi as ijson
 import numpy as np
 import random
 import os
 import pickle
 from collections import Counter
+import gc
 
+<<<<<<< HEAD
 from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls, chunks
 from bayou.models.low_level_evidences.node import Node
 from collections import OrderedDict, defaultdict
+=======
+from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus, dump_config
+from bayou.models.low_level_evidences.node import Node
+CHILD_EDGE = True
+SIBLING_EDGE = False
+
+>>>>>>> master
 
 class TooLongPathError(Exception):
     pass
@@ -33,92 +43,130 @@ class InvalidSketchError(Exception):
 
 
 class Reader():
-    def __init__(self, clargs, config):
+    def __init__(self, clargs, config, infer=False, dataIsThere=False):
+        self.infer = infer
         self.config = config
 
-        random.seed(12)
-        # read the raw evidences and targets
-        print('Reading data file...')
-        prog_ids, raw_evidences, raw_targets, raw_asts = self.read_data(clargs.input_file[0],save=clargs.save)
-        print('Done!')
-        raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
-                         enumerate(config.evidence)]
+        if clargs.continue_from is not None or dataIsThere:
+            with open('data/inputs.txt', 'rb') as f:
+                self.inputs = pickle.load(f)
+            with open('data/nodes.txt', 'rb') as f:
+                self.nodes = pickle.load(f)
+            with open('data/edges.txt', 'rb') as f:
+                self.edges = pickle.load(f)
+            with open('data/targets.txt', 'rb') as f:
+                self.targets = pickle.load(f)
+            with open('data/prog_ids', 'rb') as f:
+                self.prog_ids = pickle.load(f)
+            with open('data/js_prog_ids', 'rb') as f:
+                self.js_prog_ids = pickle.load(f)
+
+            jsconfig = dump_config(config)
+            with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
+                json.dump(jsconfig, fp=f, indent=2)
+
+            if infer:
+                self.js_programs = []
+                with open('data/js_programs.json', 'rb') as f:
+                    for program in ijson.items(f, 'programs.item'):
+                        self.js_programs.append(program)
+            config.num_batches = int(len(self.nodes) / config.batch_size)
+
+        else:
+            random.seed(12)
+            # read the raw evidences and targets
+            print('Reading data file...')
+            prog_ids, raw_evidences, raw_targets, js_programs, raw_asts = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+            print('Done!')
+            raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
+                             enumerate(config.evidence)]
 
 
-        # align with number of batches
-        config.num_batches = 100 #int(len(raw_targets) / config.batch_size)
-        assert config.num_batches > 0, 'Not enough data'
-        sz = config.num_batches * config.batch_size
-        for i in range(len(raw_evidences)):
-            raw_evidences[i] = raw_evidences[i][:sz]
+            # align with number of batches and have it as a multiple of #GPUs
+            devices = get_available_gpus()
+            config.num_batches = int(len(raw_targets) / config.batch_size)
+            if len(devices) > 0:
+                config.num_batches = config.num_batches - (config.num_batches % len(devices))
 
-        raw_targets = raw_targets[:sz]
-        prog_ids = prog_ids[:sz]
-        raw_asts = raw_asts[:sz]
+            ################################
+
+            assert config.num_batches > 0, 'Not enough data'
+            sz = config.num_batches * config.batch_size
+            for i in range(len(raw_evidences)):
+                raw_evidences[i] = raw_evidences[i][:sz]
+            raw_targets = raw_targets[:sz]
+            prog_ids = prog_ids[:sz]
+            js_programs = js_programs[:sz]
+            raw_asts = raw_asts[:sz]
 
         # setup input and target chars/vocab
-        if clargs.continue_from is None:
-            for ev, data in zip(config.evidence, raw_evidences):
-                ev.set_chars_vocab(data)
-            counts = Counter([n for path in raw_targets for (n, _) in path])
-            counts[C0] = 1
-            config.decoder.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
-            config.decoder.vocab = dict(zip(config.decoder.chars, range(len(config.decoder.chars))))
-            config.decoder.vocab_size = len(config.decoder.vocab)
-            # adding the same variables for reverse Encoder
-            counts = Counter([node.val for path in raw_asts for node in path])
-            counts[C0] = 1
-            config.reverse_encoder.chars = sorted(counts.keys(), key=lambda w: counts[w], reverse=True)
-            config.reverse_encoder.vocab = dict(zip(config.reverse_encoder.chars, range(len(config.reverse_encoder.chars))))
-            config.reverse_encoder.vocab_size =len(config.reverse_encoder.vocab)
+            if clargs.continue_from is None:
+                config.decoder.vocab = self.CallMapDict
+                config.decoder.vocab_size = len(self.CallMapDict)
+                # adding the same variables for reverse Encoder
+                config.reverse_encoder.vocab = self.CallMapDict
+                config.reverse_encoder.vocab_size = len(self.CallMapDict)
 
-        # wrangle the evidences and targets into numpy arrays
-        self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
-        self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
-        self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
-        self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+            # wrangle the evidences and targets into numpy arrays
+            self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
+            self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+            self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
+            self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+            self.prog_ids = np.zeros(sz, dtype=np.int32)
+            self.js_prog_ids = np.zeros(sz, dtype=np.int32)
 
-        self.prog_ids = np.zeros(sz, dtype=np.int32)
-
-        self.left_child_id = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
-        self.right_child_id = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
-        self.node_word = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
-
-        for i, path in enumerate(raw_targets):
-            self.nodes[i, :len(path)] = list(map(config.decoder.vocab.get, [p[0] for p in path]))
-            self.edges[i, :len(path)] = [p[1] == CHILD_EDGE for p in path]
-            self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
-            self.prog_ids[i] = prog_ids[i]
+            self.left_child_id = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
+            self.right_child_id = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
+            self.node_word = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
 
 
-        for i, raw_ast_path in enumerate(raw_asts):
-            node_to_index = OrderedDict()
-            for k in range(config.reverse_encoder.max_ast_depth):
-                node = raw_ast_path[k]
-                node_to_index[node] = k
-                self.left_child_id[i,k] = node_to_index[node.child] if node.ifLeftExist else 0
-                self.right_child_id[i,k] = node_to_index[node.sibling] if node.ifRightExist else 0
-                self.node_word[i,k] = config.reverse_encoder.vocab[node.val] if node.val is not None else 0
+            for i, path in enumerate(raw_targets):
+                self.nodes[i, :len(path)] = [p[0] for p in path]
+                self.edges[i, :len(path)] = [p[1] for p in path]
+                self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
+                self.prog_ids[i] = prog_ids[i]
+                self.js_prog_ids[i] = i
 
 
+            for i, raw_ast_path in enumerate(raw_asts):
+                node_to_index = OrderedDict()
+                for k in range(config.reverse_encoder.max_ast_depth):
+                    node = raw_ast_path[k]
+                    node_to_index[node] = k + 1
+                    self.left_child_id[i,k] = node_to_index[node.child] if node.ifLeftExist else 0
+                    self.right_child_id[i,k] = node_to_index[node.sibling] if node.ifRightExist else 0
+                    self.node_word[i,k] = config.reverse_encoder.vocab[node.val] if node.val is not None else 0
+
+            self.js_programs = js_programs
 
 
-        # split into batches
-        self.inputs = [np.split(ev_data, config.num_batches, axis=0) for ev_data in self.inputs ]
-        self.nodes = np.split(self.nodes, config.num_batches, axis=0)
-        self.edges = np.split(self.edges, config.num_batches, axis=0)
-        self.targets = np.split(self.targets, config.num_batches, axis=0)
-        self.prog_ids = np.split(self.prog_ids, config.num_batches, axis=0)
+            with open('data/inputs.txt', 'wb') as f:
+                pickle.dump(self.inputs, f)
+            with open('data/nodes.txt', 'wb') as f:
+                pickle.dump(self.nodes, f)
+            with open('data/edges.txt', 'wb') as f:
+                pickle.dump(self.edges, f)
+            with open('data/targets.txt', 'wb') as f:
+                pickle.dump(self.targets, f)
 
-        self.left_child_id = np.split(self.left_child_id, config.num_batches, axis=0)
-        self.right_child_id = np.split(self.right_child_id, config.num_batches, axis=0)
-        self.node_word = np.split(self.node_word, config.num_batches, axis=0)
+            with open('data/left_child_id.txt', 'wb') as f:
+                pickle.dump(self.left_child_id, f)
+            with open('data/right_child_id.txt', 'wb') as f:
+                pickle.dump(self.right_child_id, f)
+            with open('data/node_word.txt', 'wb') as f:
+                pickle.dump(self.node_word, f)
 
-
-        # reset batches
-        self.reset_batches()
-        print("Done with Data Processing")
-
+            with open('data/prog_ids', 'wb') as f:
+                pickle.dump(self.prog_ids, f)
+            with open('data/js_prog_ids', 'wb') as f:
+                pickle.dump(self.js_prog_ids, f)
+            with open('data/js_programs.json', 'w') as f:
+                json.dump({'programs': self.js_programs}, fp=f, indent=2)
+            jsconfig = dump_config(config)
+            with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
+                json.dump(jsconfig, fp=f, indent=2)
+            with open('data/config.json', 'w') as f:
+                json.dump(jsconfig, fp=f, indent=2)
 
 
     def get_ast_paths(self, js, idx=0):
@@ -258,7 +306,7 @@ class Reader():
         :return: None
         :raise: TooLongPathError or InvalidSketchError if sketch or its paths is invalid
         """
-        self._check_DAPICall_repeats(program['ast']['_nodes'])
+        #self._check_DAPICall_repeats(program['ast']['_nodes'])
         for path in ast_paths:
             if len(path) >= self.config.decoder.max_ast_depth:
                 raise TooLongPathError
@@ -266,19 +314,27 @@ class Reader():
             if nodes.count('DBranch') > 1 or nodes.count('DLoop') > 1 or nodes.count('DExcept') > 1:
                 raise TooLongPathError
 
-    def read_data(self, filename, save=None):
-        with open(filename) as f:
-            js = json.load(f)
+    def read_data(self, filename, infer, save=None):
+        # with open(filename) as f:
+        #     js = json.load(f)
+        f = open(filename , 'rb')
+
         data_points = []
         callmap = dict()
         file_ptr = dict()
         ignored, done = 0, 0
-
-        for program in js['programs']:
+        if not infer:
+            self.CallMapDict = dict()
+            self.CallMapDict['STOP'] = 0
+            count = 1
+        else:
+            self.CallMapDict = self.config.decoder.vocab
+            count = self.config.decoder.vocab_size
+        for program in ijson.items(f, 'programs.item'):
             if 'ast' not in program:
                 continue
             try:
-                evidences = [ev.read_data_point(program) for ev in self.config.evidence]
+                evidences = [ev.read_data_point(program, infer) for ev in self.config.evidence]
                 ast_node_head, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
                 nodes_list = []
                 ast_node_head.postOrderTraversal(ast_node_head, lambda node, args: args.append(node), nodes_list)
@@ -289,17 +345,38 @@ class Reader():
                 self.validate_sketch_paths(program, ast_paths)
                 for path in ast_paths:
                     path.insert(0, ('DSubTree', CHILD_EDGE))
-                    data_points.append((done - ignored, evidences, path, ast_node_graph))
+
+                    temp_arr = []
+                    for val in path:
+                        nodeVal = val[0]
+                        edgeVal = val[1]
+                        if nodeVal not in self.CallMapDict:
+                            if not infer:
+                                self.CallMapDict[nodeVal] = count
+                                temp_arr.append((count,edgeVal))
+                                count += 1
+                        else:
+                            temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
+
+                    sample = dict()
+                    sample['file'] = program['file']
+                    sample['method'] = program['method']
+                    sample['body'] = program['body']
+                    data_points.append((done - ignored, evidences, temp_arr, sample, ast_node_graph))
+                    #data_points.append((done - ignored, evidences, temp_arr, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
                         callmap[call['_call']] = call
-
+                #
                 file_name = program['file']
                 file_ptr[done - ignored] = file_name
             except (TooLongPathError, InvalidSketchError) as e:
                 ignored += 1
             done += 1
+            if done % 100000 == 0:
+                print('Extracted data for {} programs'.format(done), end='\n')
+
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts ignored by given config'.format(ignored))
         print('{:8d} programs/asts to search over'.format(done - ignored))
@@ -307,28 +384,15 @@ class Reader():
 
         # randomly shuffle to avoid bias towards initial data points during training
         random.shuffle(data_points)
-        _ids, evidences, targets, ast_node_graphs = zip(*data_points) #unzip
+        _ids, evidences, targets, js_programs, ast_node_graphs = zip(*data_points) #unzip
 
         # save callmap if save location is given
-        if save is not None:
-            with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
-                pickle.dump(callmap, f)
+        if not infer:
+            if save is not None:
+                with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
+                    pickle.dump(callmap, f)
 
-        with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
-            pickle.dump(file_ptr, f)
+            with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
+                pickle.dump(file_ptr, f)
 
-        return _ids, evidences, targets, ast_node_graphs
-
-    def next_batch(self):
-        batch = next(self.batches)
-        prog_ids, n, e, y, left,right,word = batch[:7]
-        ev_data = batch[7:]
-
-        # reshape the batch into required format
-        rn = np.transpose(n) # these are in depth first format
-        re = np.transpose(e) # these are in depth first format
-
-        return prog_ids, ev_data, rn, re, y, left, right, word
-
-    def reset_batches(self):
-        self.batches = iter(zip(self.prog_ids, self.nodes, self.edges, self.targets, self.left_child_id, self.right_child_id, self.node_word, *self.inputs))
+        return _ids, evidences, targets, js_programs, ast_node_graphs
