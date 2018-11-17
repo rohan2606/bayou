@@ -82,6 +82,10 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
         for ev in evList:
             if ev.name == "callsequences":
                 ev.name = "sequences"
+            if ev.name == "returntype":
+                ev.name = "returnType"
+            if ev.name == "formalparam":
+                ev.name = "formalParam"
             shortProgram[ev.name] = program[ev.name]
 
         if len(evList) == 1 and len(program[evList[0].name]) == 0:

@@ -76,7 +76,7 @@ class Reader():
             random.seed(12)
             # read the raw evidences and targets
             print('Reading data file...')
-            prog_ids, raw_evidences, raw_targets, raw_trees, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+            prog_ids, raw_evidences, raw_targets, js_programs, raw_trees = self.read_data(clargs.input_file[0], infer, save=clargs.save)
             print('Done!')
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                              enumerate(config.evidence)]
@@ -140,6 +140,13 @@ class Reader():
                     pickle.dump(self.edges, f)
                 with open('data/targets.txt', 'wb') as f:
                     pickle.dump(self.targets, f)
+
+                with open('data/tree_nodes.txt', 'wb') as f:
+                    pickle.dump(self.tree_nodes, f)
+                with open('data/tree_edges.txt', 'wb') as f:
+                    pickle.dump(self.tree_edges, f)
+
+
                 with open('data/prog_ids', 'wb') as f:
                     pickle.dump(self.prog_ids, f)
                 with open('data/js_prog_ids', 'wb') as f:
@@ -297,7 +304,7 @@ class Reader():
         :return: None
         :raise: TooLongPathError or InvalidSketchError if sketch or its paths is invalid
         """
-        self._check_DAPICall_repeats(program['ast']['_nodes'])
+        #self._check_DAPICall_repeats(program['ast']['_nodes'])
         for path in ast_paths:
             if len(path) >= self.config.decoder.max_ast_depth:
                 raise TooLongPathError
@@ -347,10 +354,13 @@ class Reader():
 
                     embPaths.append(embPath)
 
-                for embPath in embPaths:
-                    data_points.append((done - ignored, evidences, embPath, embPaths, program))
-                #data_points.append((done - ignored, evidences, embPath, {}))
-
+                for temp_arr in embPaths:
+                    sample = dict()
+                    sample['file'] = program['file']
+                    sample['method'] = program['method']
+                    sample['body'] = program['body']
+                    data_points.append((done - ignored, evidences, temp_arr, sample, embPaths))
+                    #data_points.append((done - ignored, evidences, temp_arr, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
@@ -371,7 +381,7 @@ class Reader():
 
         # randomly shuffle to avoid bias towards initial data points during training
         random.shuffle(data_points)
-        _ids, evidences, targets, tree_targets, js_programs = zip(*data_points) #unzip
+        _ids, evidences, targets, js_programs, tree_targets = zip(*data_points) #unzip
 
         # save callmap if save location is given
         if not infer:
@@ -382,4 +392,4 @@ class Reader():
             with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
                 pickle.dump(file_ptr, f)
 
-        return _ids, evidences, targets, tree_targets, js_programs
+        return _ids, evidences, targets, js_programs, tree_targets

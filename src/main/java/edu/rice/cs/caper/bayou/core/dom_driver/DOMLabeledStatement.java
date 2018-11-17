@@ -21,15 +21,13 @@ import org.eclipse.jdt.core.dom.LabeledStatement;
 public class DOMLabeledStatement implements Handler {
 
     final LabeledStatement statement;
-    final Visitor visitor;
 
-    public DOMLabeledStatement(LabeledStatement statement, Visitor visitor) {
+    public DOMLabeledStatement(LabeledStatement statement) {
         this.statement = statement;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
-        return new DOMStatement(statement.getBody(), visitor).handle();
+        return new DOMStatement(statement.getBody()).handle();
     }
 }

@@ -44,6 +44,9 @@ def get_available_gpus():
 def get_var_list():
     all_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
     decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Decoder')
+    decoder_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='RE_Decoder')
+    decoder_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='FS_Decoder')
+
     encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder')
     rev_encoder_vars= tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
 

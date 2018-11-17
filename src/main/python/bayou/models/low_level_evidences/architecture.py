@@ -15,6 +15,7 @@
 import tensorflow as tf
 from itertools import chain
 from bayou.models.low_level_evidences.gru_tree import TreeEncoder
+from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 
 class BayesianEncoder(object):
     def __init__(self, config, inputs, infer=False):
@@ -36,15 +37,15 @@ class BayesianEncoder(object):
         with tf.variable_scope('mean'):
             # 1. compute encoding
 
-            self.encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence, inputs)]
+            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence, inputs)]
             encodings = [encoding / tf.square(ev.sigma) for ev, encoding in
-                         zip(config.evidence, self.encodings)]
+                         zip(config.evidence, encodings)]
 
             # 2. pick only encodings from valid inputs that exist, otherwise pick zero encoding
-            encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
+            self.encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
 
             # 3. tile the encodings according to each evidence type
-            encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, encodings)]
+            encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, self.encodings)]
             encodings = tf.stack(list(chain.from_iterable(encodings)))
 
             # 4. compute the mean of non-zero encodings
@@ -102,21 +103,115 @@ class BayesianDecoder(object):
                     self.outputs.append(output)
 
 
+class SimpleDecoder(object):
+    def __init__(self, config, emb, initial_state, nodes, ev_config):
+
+        cells1 = []
+        for _ in range(config.decoder.num_layers):
+            cells1.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(ev_config.units))
+
+        self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
+
+        # placeholders
+        self.initial_state = [initial_state] * ev_config.num_layers
+        self.nodes = [nodes[i] for i in range(ev_config.max_depth)]
+
+        # projection matrices for output
+        with tf.variable_scope("projections_FS"):
+            self.projection_w_FS = tf.get_variable('projection_w_FS', [self.cell1.output_size,
+                                                                 ev_config.vocab_size])
+            self.projection_b_FS = tf.get_variable('projection_b_FS', [ev_config.vocab_size])
+            # tf.summary.histogram("projection_w", self.projection_w)
+            # tf.summary.histogram("projection_b", self.projection_b)
+
+        # setup embedding
+        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+
+        with tf.variable_scope('decoder_network_FS'):
+            # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
+            with tf.variable_scope('rnn_FS'):
+
+                self.state = self.initial_state
+                self.outputs = []
+                for i, inp in enumerate(emb_inp):
+                    if i > 0:
+                        tf.get_variable_scope().reuse_variables()
+                    with tf.variable_scope('cell1_FS'):  # handles CHILD_EDGE
+                        output1, state1 = self.cell1(inp, self.state)
+                    output =  output1
+                    self.state = [  state1[j] for j in range(ev_config.num_layers)]
+                    self.outputs.append(output)
+
+
 class BayesianReverseEncoder(object):
-    def __init__(self, config, emb, tree_nodes, tree_edges):
+    def __init__(self, config, emb, tree_nodes, tree_edges, returnType, embRE, formalParam, embFP):
+
         tree_nodes = [[ tree_nodes[j][ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)] for j in range(5)]
         tree_edges = [[ tree_edges[j][ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)] for j in range(5)]
 
         with tf.variable_scope("Covariance"):
-            Covariance_Tree = TreeEncoder(emb, config.batch_size, tree_nodes, tree_edges, config.reverse_encoder.num_layers, \
-                config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, 1)
-            d = tf.square(Covariance_Tree.last_output)
-            d = 1. +  d
-            denom = tf.tile(d, [1, config.latent_size])
+            with tf.variable_scope("APITree"):
+                API_Cov_Tree = TreeEncoder(emb, config.batch_size, tree_nodes, tree_edges, config.reverse_encoder.num_layers, \
+                                    config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, 1)
+                Tree_Cov = API_Cov_Tree.last_output
+
+            with tf.variable_scope('ReturnType'):
+                Ret_Seq = seqEncoder(config.reverse_encoder.num_layers, config.reverse_encoder.units, returnType, config.batch_size, embRE, 1)
+
+                w = tf.get_variable('w', [config.reverse_encoder.units, 1 ])
+                b = tf.get_variable('b', [1])
+
+                rt_Cov = tf.nn.xw_plus_b(Ret_Seq.output ,w, b)
+
+
+            with tf.variable_scope('FormalParam'):
+                fp_Seq = seqEncoder(config.reverse_encoder.num_layers, config.reverse_encoder.units, formalParam, config.batch_size, embFP, 1)
+
+                w = tf.get_variable('w', [config.reverse_encoder.units, 1 ])
+                b = tf.get_variable('b', [1])
+
+                fp_Cov = tf.nn.xw_plus_b(fp_Seq.output,w, b)
+
+            sigmas = [Tree_Cov , rt_Cov, fp_Cov]
+
+            #dimension is  3*batch * 1
+            finalSigma = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(sigmas, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , 1, activation=tf.nn.tanh)
+            finalSigma = tf.layers.dense(finalSigma, 1)
+
+            d = tf.tile(tf.square(finalSigma), [1,config.latent_size])
+            d = 1. + d
+            denom = d # tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
             I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
             self.psi_covariance = I / denom
 
+
+
         with tf.variable_scope("Mean"):
-            Mean_Tree = TreeEncoder(emb, config.batch_size, tree_nodes, tree_edges, config.reverse_encoder.num_layers, \
-                                config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, config.latent_size)
-            self.psi_mean = Mean_Tree.last_output
+            with tf.variable_scope('APITree'):
+                API_Mean_Tree = TreeEncoder(emb, config.batch_size, tree_nodes, tree_edges, config.reverse_encoder.num_layers, \
+                                    config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, config.latent_size)
+                Tree_mean = API_Mean_Tree.last_output
+
+            with tf.variable_scope('ReturnType'):
+                Ret_Seq = seqEncoder(config.reverse_encoder.num_layers, config.reverse_encoder.units, returnType, config.batch_size, embRE, config.latent_size)
+
+                w = tf.get_variable('w', [config.reverse_encoder.units, config.latent_size])
+                b = tf.get_variable('b', [config.latent_size])
+
+                rt_mean = tf.nn.xw_plus_b(Ret_Seq.output ,w, b)
+
+
+            with tf.variable_scope('FormalParam'):
+                fp_Seq = seqEncoder(config.reverse_encoder.num_layers, config.reverse_encoder.units, formalParam, config.batch_size, embFP, config.latent_size)
+
+                w = tf.get_variable('w', [config.reverse_encoder.units, config.latent_size])
+                b = tf.get_variable('b', [config.latent_size])
+
+                fp_mean = tf.nn.xw_plus_b(fp_Seq.output,w, b)
+
+
+            encodings = [Tree_mean, rt_mean, fp_mean]
+            finalMean = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(encodings, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size, activation=tf.nn.tanh)
+            finalMean = tf.layers.dense(finalMean, config.latent_size)
+            # 4. compute the mean of non-zero encodings
+            self.psi_mean = finalMean

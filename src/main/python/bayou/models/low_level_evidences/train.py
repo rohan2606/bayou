@@ -45,11 +45,8 @@ def train(clargs):
 
     with open(config_file) as f:
         config = read_config(json.load(f), chars_vocab=(clargs.continue_from or dataIsThere))
-            
 
     reader = Reader(clargs, config, dataIsThere=dataIsThere)
-
-
 
     # merged_summary = tf.summary.merge_all()
 
@@ -104,30 +101,34 @@ def train(clargs):
         else:
             NUM_BATCHES = config.num_batches
         # training
-        epocLoss , epocGenL , epocKlLoss = [], [], []
+        #epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
             sess.run(iterator.initializer, feed_dict=feed_dict)
             start = time.time()
-            avg_loss, avg_gen_loss, avg_KL_loss = 0.,0.,0.
+            avg_loss, avg_gen_loss, avg_RE_loss , avg_FS_loss , avg_KL_loss = 0.,0.,0.,0.,0.
             for b in range(NUM_BATCHES):
                 # run the optimizer
-                loss, KL_loss, gen_loss , _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.train_op])
+                loss, KL_loss, gen_loss , RE_loss, FS_loss, _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.loss_RE, model.gen_loss_FS, model.train_op])
+                allEvSigmas = sess.run(model.allEvSigmas)
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
 
                 end = time.time()
                 avg_loss += np.mean(loss)
                 avg_gen_loss += np.mean(gen_loss)
+                avg_RE_loss += np.mean(RE_loss)
+                avg_FS_loss += np.mean(FS_loss)
                 avg_KL_loss += np.mean(KL_loss)
 
 
                 step = (i+1) * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, gen_loss: {:.3f}, KL_loss: {:.3f}, \n\t'.format
+                          'loss: {:.3f}, gen_loss: {:.3f}, Ret_loss {:.3f}, FS_loss {:.3f}, KL_loss: {:.3f}, \n\t'.format
                           (step, config.num_epochs * config.num_batches, i + 1 ,
-                           (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_KL_loss)/(b+1)
+                           (avg_loss)/(b+1), (avg_gen_loss)/(b+1), (avg_RE_loss)/(b+1), (avg_FS_loss)/(b+1), (avg_KL_loss)/(b+1)
                            ))
+                    print (allEvSigmas)
 
             #epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
             if (i+1) % config.checkpoint_step == 0:
@@ -157,12 +158,12 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-      #['--continue_from', 'save1',
+     #['--continue_from', 'save',
      ['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
-     #'/home/rm38/Research/Bayou_Code_Search/Corpus/NoBindingData/DATA-noBinding-wEv-TOP.json'])
-      '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-newer-TOP.json'])
-    # '/home/ubuntu/DATA-Sigmod.json'])
+     # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
+      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
+    '/home/ubuntu/DATA-noBinding-noField-sorr-UDT.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

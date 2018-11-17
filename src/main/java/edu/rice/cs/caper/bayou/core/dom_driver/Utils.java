@@ -24,38 +24,36 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import edu.rice.cs.caper.bayou.core.dom_driver.Options;
+
 
 public final class Utils {
+
+    public static Options options;
+
     private Utils() {
         throw new AssertionError("Do not instantiate this class!");
     }
 
-    public static boolean isRelevantCall(IMethodBinding binding, Visitor visitor) {
+    public static boolean isRelevantCall(IMethodBinding binding) {
         ITypeBinding cls;
         if (binding == null || (cls = binding.getDeclaringClass()) == null)
             return false;
         IPackageBinding pack = cls.getPackage();
         String[] packs = pack.getNameComponents();
-        if (packs.length > 0 && visitor.options.API_MODULES.contains(packs[0]))
+        if (packs.length > 0 && options.API_MODULES.contains(packs[0]))
             return true;
-        if (visitor.options.API_PACKAGES.contains(pack.getName()))
+        if (options.API_PACKAGES.contains(pack.getName()))
             return true;
         String className = cls.getQualifiedName();
         if (className.contains("<")) /* be agnostic to generic versions */
             className = className.substring(0, className.indexOf("<"));
-        if (visitor.options.API_CLASSES.contains(className))
+        if (options.API_CLASSES.contains(className))
             return true;
 
         return false;
     }
 
-    public static MethodDeclaration checkAndGetLocalMethod(IMethodBinding binding, Visitor visitor) {
-        if (binding != null)
-            for (MethodDeclaration method : visitor.allMethods)
-                if (binding.isEqualTo(method.resolveBinding()))
-                    return method;
-        return null;
-    }
 
     public static String getJavadoc(MethodDeclaration method, String javadocType) {
         try {

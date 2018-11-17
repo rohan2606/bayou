@@ -23,19 +23,17 @@ import org.eclipse.jdt.core.dom.DoStatement;
 public class DOMDoStatement implements Handler {
 
     final DoStatement statement;
-    final Visitor visitor;
 
-    public DOMDoStatement(DoStatement statement, Visitor visitor) {
+    public DOMDoStatement(DoStatement statement) {
         this.statement = statement;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
         DSubTree tree = new DSubTree();
 
-        DSubTree cond = new DOMExpression(statement.getExpression(), visitor).handle();
-        DSubTree body = new DOMStatement(statement.getBody(), visitor).handle();
+        DSubTree cond = new DOMExpression(statement.getExpression()).handle();
+        DSubTree body = new DOMStatement(statement.getBody()).handle();
 
         boolean loop = cond.isValid() && body.isValid();
 

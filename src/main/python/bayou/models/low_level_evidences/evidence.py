@@ -214,10 +214,10 @@ class Sequences(Evidence):
                 rand = tf.random_uniform( (config.batch_size, self.max_depth) )
                 inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
 
-            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size, self.emb)
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size, self.emb, config.latent_size)
             encoding = LSTM_Encoder.output
 
-            w = tf.get_variable('w', [self.units, config.latent_size])
+            w = tf.get_variable('w', [self.units, config.latent_size ])
             b = tf.get_variable('b', [config.latent_size])
             latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
 
@@ -369,8 +369,9 @@ class ReturnType(Sets):
 
 
     def read_data_point(self, program, infer):
-        returnType = [program['returnType'] if 'returnType' in program else 'NONE']
-        return self.word2num(list(set(returnType)), infer)
+        returnType = [program['returnType'] if 'returnType' in program else '__Constructor__']
+
+        return self.word2num(returnType , infer)
 
 class ClassTypes(Sets):
 
@@ -396,19 +397,10 @@ class CallSequences(Sequences):
         list_seqs = [[]]
 
         for json_seq in json_sequences:
-            tmp_list = [self.shorten(call) for call in json_seq['calls']]
-            list_seqs.append(self.word2num(tmp_list, infer))
+            list_seqs.append(self.word2num(json_seq, infer))
         if len(list_seqs) > 1:
             list_seqs.remove([])
-        #return list_seqs
         return list_seqs
-
-
-    def shorten(self, call):
-        call = re.sub('^\$.*\$', '', call)  # get rid of predicates
-        name = call.split('(')[0].split('.')[-1]
-        name = name.split('<')[0]  # remove generics from call name
-        return name
 
 
     @staticmethod
@@ -431,6 +423,9 @@ class FormalParam(Sequences):
 
     def read_data_point(self, program, infer):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
+        if 'None' not in json_sequence:
+            json_sequence.insert(0, 'Start')
+            json_sequence.insert(0, 'None')
         return [self.word2num(json_sequence, infer)]
 
 
@@ -442,18 +437,13 @@ class sorrCallSequences(Sequences):
         self.vocab_size = 1
 
     def read_data_point(self, program, infer):
-        json_sequences = program['sorrsequences'] if 'sorrsequences' in program else []
+        json_sequences = program['sorrsequences'] if 'sorrsequences' in program else [[]]
         list_seqs = [[]]
-        for i, list_json_seq in enumerate(json_sequences):
-            if i> self.max_nums:
-                continue
-            for json_seq in list_json_seq:
-                tmp_list = json_seq['calls']
-                if len(tmp_list) > 1:
-                    list_seqs.append(self.word2num(tmp_list, infer))
+        for json_seq in json_sequences:
+            list_seqs.append(self.word2num(json_seq, infer))
         if len(list_seqs) > 1:
             list_seqs.remove([])
-        #return list_seqs
+
         return list_seqs
 
 
@@ -469,9 +459,7 @@ class sorrFormalParam(Sequences):
         json_sequence = program['sorrformalparam'] if 'sorrformalparam' in program else [[]]
         list_seqs = [[]]
         for i, seqs in enumerate(json_sequence):
-            if i > self.max_nums:
-                continue
-            if len(seqs) == 0:
+            if i > self.max_nums or len(seqs) == 0 :
                 continue
             list_seqs.append(self.word2num(seqs, infer))
         if len(list_seqs) > 1:
@@ -488,4 +476,4 @@ class sorrReturnType(Sets):
 
     def read_data_point(self, program, infer):
         sorrreturnType = program['sorrreturntype'] if 'sorrreturntype' in program else []
-        return self.word2num(list(set(sorrreturnType)), infer)
+        return self.word2num(sorrreturnType, infer)

@@ -21,19 +21,17 @@ import org.eclipse.jdt.core.dom.SynchronizedStatement;
 public class DOMSynchronizedStatement implements Handler {
 
     final SynchronizedStatement statement;
-    final Visitor visitor;
 
-    public DOMSynchronizedStatement(SynchronizedStatement statement, Visitor visitor) {
+    public DOMSynchronizedStatement(SynchronizedStatement statement) {
         this.statement = statement;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
         DSubTree tree = new DSubTree();
 
-        DSubTree Texpr = new DOMExpression(statement.getExpression(), visitor).handle();
-        DSubTree Tbody = new DOMBlock(statement.getBody(), visitor).handle();
+        DSubTree Texpr = new DOMExpression(statement.getExpression()).handle();
+        DSubTree Tbody = new DOMBlock(statement.getBody()).handle();
 
         tree.addNodes(Texpr.getNodes());
         tree.addNodes(Tbody.getNodes());

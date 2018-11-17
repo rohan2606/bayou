@@ -21,15 +21,13 @@ import org.eclipse.jdt.core.dom.ReturnStatement;
 public class DOMReturnStatement implements Handler {
 
     final ReturnStatement statement;
-    final Visitor visitor;
 
-    public DOMReturnStatement(ReturnStatement statement, Visitor visitor) {
+    public DOMReturnStatement(ReturnStatement statement) {
         this.statement = statement;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
-        return new DOMExpression(statement.getExpression(), visitor).handle();
+        return new DOMExpression(statement.getExpression()).handle();
     }
 }

@@ -22,11 +22,9 @@ import org.eclipse.jdt.core.dom.Statement;
 public class DOMBlock implements Handler {
 
     final Block block;
-    final Visitor visitor;
 
-    public DOMBlock(Block block, Visitor visitor) {
+    public DOMBlock(Block block) {
         this.block = block;
-        this.visitor = visitor;
     }
 
     @Override
@@ -34,7 +32,7 @@ public class DOMBlock implements Handler {
         DSubTree tree = new DSubTree();
         if (block != null)
             for (Object o : block.statements()) {
-                DOMStatement statement = new DOMStatement((Statement) o, visitor);
+                DOMStatement statement = new DOMStatement((Statement) o);
                 DSubTree t = statement.handle();
                 tree.addNodes(t.getNodes());
             }

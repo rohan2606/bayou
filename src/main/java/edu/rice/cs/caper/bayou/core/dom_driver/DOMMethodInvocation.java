@@ -18,61 +18,57 @@ package edu.rice.cs.caper.bayou.core.dom_driver;
 import edu.rice.cs.caper.bayou.core.dsl.DAPICall;
 import edu.rice.cs.caper.bayou.core.dsl.DSubTree;
 import org.eclipse.jdt.core.dom.*;
-
+import java.util.List;
 import java.util.Stack;
 
 public class DOMMethodInvocation implements Handler {
 
     final MethodInvocation invocation;
-    final Visitor visitor;
 
-    public DOMMethodInvocation(MethodInvocation invocation, Visitor visitor) {
+    public DOMMethodInvocation(MethodInvocation invocation) {
         this.invocation = invocation;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
         DSubTree tree = new DSubTree();
         // add the expression's subtree (e.g: foo(..).bar() should handle foo(..) first)
-        DSubTree Texp = new DOMExpression(invocation.getExpression(), visitor).handle();
+        DSubTree Texp = new DOMExpression(invocation.getExpression()).handle();
         tree.addNodes(Texp.getNodes());
 
         // evaluate arguments first
         for (Object o : invocation.arguments()) {
-            DSubTree Targ = new DOMExpression((Expression) o, visitor).handle();
+            DSubTree Targ = new DOMExpression((Expression) o).handle();
             tree.addNodes(Targ.getNodes());
         }
 
         IMethodBinding binding = invocation.resolveMethodBinding();
+        boolean isFieldType = false;
 
-        // check if the binding is of a generic type that involves user-defined types
+        try{
+             isFieldType = ((IVariableBinding)(((Name) invocation.getExpression()).resolveBinding())).isField();
+        } catch (Exception e){
+             // hoti parlo!!
+        }
+
         if (binding != null) {
             ITypeBinding cls = binding.getDeclaringClass();
             boolean userType = false;
             if (cls != null && cls.isParameterizedType())
-                for (int i = 0; i < cls.getTypeArguments().length; i++)
+                for (int i = 0; i < cls.getTypeArguments().length; i++){
                     userType |= !cls.getTypeArguments()[i].getQualifiedName().startsWith("java.")
                             && !cls.getTypeArguments()[i].getQualifiedName().startsWith("javax.");
+                }
+
 
             if (userType || cls == null) // get to the generic declaration
                 while (binding != null && binding.getMethodDeclaration() != binding)
                     binding = binding.getMethodDeclaration();
         }
 
-        MethodDeclaration localMethod = Utils.checkAndGetLocalMethod(binding, visitor);
-        if (localMethod != null) {
-            Stack<MethodDeclaration> callStack = visitor.callStack;
-            if (! callStack.contains(localMethod)) {
-                callStack.push(localMethod);
-                DSubTree Tmethod = new DOMMethodDeclaration(localMethod, visitor).handle();
-                callStack.pop();
-                tree.addNodes(Tmethod.getNodes());
-            }
-        }
-        else if (Utils.isRelevantCall(binding, visitor)) {
+        if (Utils.isRelevantCall(binding)   && (!isFieldType)  )   {
             try {
-                tree.addNode(new DAPICall(binding, visitor.getLineNumber(invocation)));
+                tree.addNode(new DAPICall(binding));
             } catch (DAPICall.InvalidAPICallException e) {
                 // continue without adding the node
             }
@@ -80,4 +76,3 @@ public class DOMMethodInvocation implements Handler {
         return tree;
     }
 }
-

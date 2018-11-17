@@ -21,15 +21,13 @@ import org.eclipse.jdt.core.dom.Assignment;
 public class DOMAssignment implements Handler {
 
     final Assignment assignment;
-    final Visitor visitor;
 
-    public DOMAssignment(Assignment assignment, Visitor visitor) {
+    public DOMAssignment(Assignment assignment) {
         this.assignment = assignment;
-        this.visitor = visitor;
     }
 
     @Override
     public DSubTree handle() {
-        return new DOMExpression(assignment.getRightHandSide(), visitor).handle();
+        return new DOMExpression(assignment.getRightHandSide()).handle();
     }
 }

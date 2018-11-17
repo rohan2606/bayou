@@ -15,7 +15,7 @@
 import tensorflow as tf
 
 class seqEncoder(object):
-    def __init__(self, num_layers, state_size, inputs, batch_size, emb):
+    def __init__(self, num_layers, state_size, inputs, batch_size, emb, output_units):
 
         with tf.variable_scope('GRU_Encoder'):
             cell_list = []
@@ -44,5 +44,9 @@ class seqEncoder(object):
                               for j in range(num_layers)]
                 curr_out = tf.where(tf.not_equal(inp, 0), output, curr_out)
 
+            #
+            # with tf.variable_scope("projections"):
+            #     projection_w = tf.get_variable('projection_w', [state_size, output_units])
+            #     projection_b = tf.get_variable('projection_b', [output_units])
 
-            self.output = curr_out
+            self.output = curr_out #tf.nn.xw_plus_b(curr_out, projection_w, projection_b)

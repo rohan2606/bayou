@@ -37,10 +37,9 @@ public class DAPICall extends DASTNode
     List<String> _throws;
     String _returns;
     transient String retVarName = "";
-    
+
     /* CAUTION: This field is only available during AST generation */
     transient IMethodBinding methodBinding;
-    transient int linenum;
     /* CAUTION: These fields are only available during synthesis (after synthesize(...) is called) */
     transient Method method;
     transient Constructor constructor;
@@ -52,7 +51,7 @@ public class DAPICall extends DASTNode
         this.node = "DAPICall";
     }
 
-    public DAPICall(IMethodBinding methodBinding, int linenum) throws InvalidAPICallException {
+    public DAPICall(IMethodBinding methodBinding) throws InvalidAPICallException {
         this.methodBinding = methodBinding;
         this._call = getClassName() + "." + getSignature();
         this._throws = new ArrayList<>();
@@ -60,7 +59,6 @@ public class DAPICall extends DASTNode
             _throws.add(getTypeName(exception, exception.getQualifiedName()));
         this._returns = getTypeName(methodBinding.getReturnType(),
                                             methodBinding.getReturnType().getQualifiedName());
-        this.linenum = linenum;
         this.node = "DAPICall";
     }
 
@@ -149,7 +147,7 @@ public class DAPICall extends DASTNode
     public String getRetVarName() {
         return this.retVarName;
     }
-    
+
     @Override
     public boolean equals(Object o) {
         if (o == null || ! (o instanceof DAPICall))
