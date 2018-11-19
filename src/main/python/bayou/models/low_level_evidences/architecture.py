@@ -198,15 +198,20 @@ class BayesianReverseEncoder(object):
 
 
             sigmas = [Tree_Cov , rt_Cov, fp_Cov]
-            d = [tf.tile(tf.square(tp_sigma), [1,config.latent_size]) for tp_sigma in sigmas]
-            d = 1. + tf.reduce_sum(tf.stack(d), axis=0)
+
+            #dimension is  3*batch * 1
+            finalSigma = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(sigmas, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , 1, activation=tf.nn.tanh)
+            finalSigma = tf.layers.dense(finalSigma, 1)
+
+            d = tf.tile(tf.square(finalSigma), [1,config.latent_size])
+            d = 1. + d
             denom = d # tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
             I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
             self.psi_covariance = I / denom
 
             encodings = [Tree_mean, rt_mean, fp_mean]
-            encodings = [encoding * tf.square(tp_sigma) for encoding, tp_sigma in zip(encodings, sigmas)]
-            encodings = tf.stack(encodings)
-
+            finalMean = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(encodings, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size, activation=tf.nn.tanh)
+            finalMean = tf.layers.dense(finalMean, config.latent_size)
             # 4. compute the mean of non-zero encodings
-            self.psi_mean = tf.reduce_sum(encodings, axis=0) / denom
+            self.psi_mean = finalMean
+
