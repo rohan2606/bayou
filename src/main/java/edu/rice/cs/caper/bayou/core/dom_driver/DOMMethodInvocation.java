@@ -42,34 +42,61 @@ public class DOMMethodInvocation implements Handler {
             tree.addNodes(Targ.getNodes());
         }
 
+
         IMethodBinding binding = invocation.resolveMethodBinding();
-        boolean isFieldType = false;
 
-        try{
-             isFieldType = ((IVariableBinding)(((Name) invocation.getExpression()).resolveBinding())).isField();
-        } catch (Exception e){
-             // hoti parlo!!
+        boolean outsideMethodAccess = false;
+        Expression e = invocation.getExpression();
+
+        if (e instanceof Name){
+            Name n = (Name) e;
+            if (n.resolveBinding() instanceof IVariableBinding){
+                IVariableBinding ivb = (IVariableBinding)(n.resolveBinding());
+                outsideMethodAccess = ivb.isField();
+            }
+        }
+        if (e instanceof FieldAccess){
+            outsideMethodAccess = true;
+        }
+        if (e instanceof ThisExpression){
+            outsideMethodAccess = true;
+        }
+        if (e instanceof SuperFieldAccess){
+            outsideMethodAccess = true;
+        }
+        if (e instanceof MethodInvocation){
+            outsideMethodAccess = true;
+        }
+        if (e instanceof SuperMethodReference){
+            outsideMethodAccess = true;
+        }
+        if (e instanceof SuperMethodInvocation){
+            outsideMethodAccess = true;
         }
 
-        if (binding != null) {
-            ITypeBinding cls = binding.getDeclaringClass();
-            boolean userType = false;
-            if (cls != null && cls.isParameterizedType())
-                for (int i = 0; i < cls.getTypeArguments().length; i++){
-                    userType |= !cls.getTypeArguments()[i].getQualifiedName().startsWith("java.")
-                            && !cls.getTypeArguments()[i].getQualifiedName().startsWith("javax.");
-                }
+        // boolean userType = false;
 
+        // // check if the binding is of a generic type that involves user-defined types
+        // if (binding != null) {
+        //     ITypeBinding cls = binding.getDeclaringClass();
+        //
+        //     if (cls != null && cls.isParameterizedType())
+        //         for (int i = 0; i < cls.getTypeArguments().length; i++){
+        //             userType |= !cls.getTypeArguments()[i].getQualifiedName().startsWith("java.")
+        //                     && !cls.getTypeArguments()[i].getQualifiedName().startsWith("javax.");
+        //         }
+        //
+        //
+        //     if (userType || cls == null) // get to the generic declaration
+        //         while (binding != null && binding.getMethodDeclaration() != binding)
+        //             binding = binding.getMethodDeclaration();
+        //
+        // }
 
-            if (userType || cls == null) // get to the generic declaration
-                while (binding != null && binding.getMethodDeclaration() != binding)
-                    binding = binding.getMethodDeclaration();
-        }
-
-        if (Utils.isRelevantCall(binding)   && (!isFieldType)  )   {
+        if (Utils.isRelevantCall(binding)   && (!outsideMethodAccess) )   {
             try {
                 tree.addNode(new DAPICall(binding));
-            } catch (DAPICall.InvalidAPICallException e) {
+            } catch (DAPICall.InvalidAPICallException exp) {
                 // continue without adding the node
             }
         }
