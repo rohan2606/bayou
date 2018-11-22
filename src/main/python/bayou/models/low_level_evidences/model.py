@@ -32,7 +32,7 @@ class Model():
 
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
-        
+
         #tree nodes are batch_size * 5 * max_ast_depth
         tree_nodes = tf.transpose(tree_nodes, perm=[1, 2, 0])
         tree_edges = tf.transpose(tree_edges, perm=[1, 2, 0])
@@ -87,7 +87,7 @@ class Model():
             projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
             logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
 
-            labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
+            labels_RE = tf.one_hot(tf.squeeze(tf.zeros_like(ev_data[4])) , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
 
             cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
@@ -178,7 +178,7 @@ class Model():
                 if bayou_mode:
                     train_ops = get_var_list()['bayou_vars']
                 else:
-                    train_ops = get_var_list()['all_vars']
+                    train_ops = get_var_list()['rev_encoder_vars']
 
         if not infer:
             opt = tf.train.AdamOptimizer(config.learning_rate)

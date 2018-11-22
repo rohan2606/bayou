@@ -108,8 +108,7 @@ def train(clargs):
             avg_loss, avg_gen_loss, avg_RE_loss , avg_FS_loss , avg_KL_loss = 0.,0.,0.,0.,0.
             for b in range(NUM_BATCHES):
                 # run the optimizer
-                loss, KL_loss, gen_loss , RE_loss, FS_loss, _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.loss_RE, model.gen_loss_FS, model.train_op])
-                allEvSigmas = sess.run(model.allEvSigmas)
+                loss, KL_loss, gen_loss , RE_loss, FS_loss, _, allEvSigmas = sess.run([model.loss, model.KL_loss, model.gen_loss, model.loss_RE, model.gen_loss_FS, model.train_op, model.allEvSigmas])
                 # s = sess.run(merged_summary, feed)
                 # writer.add_summary(s,i)
 
@@ -158,8 +157,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     #['--continue_from', 'save',
-     ['--config','config.json',
+     ['--continue_from', 'save',
+     #['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
