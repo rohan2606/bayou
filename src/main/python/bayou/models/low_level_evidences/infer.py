@@ -58,20 +58,10 @@ class BayesianPredictor(object):
         [probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
                                                         self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
 
-        '''
-        probYs = np.zeros([self.model.config.batch_size])
-        probYs += probY
-        for i in range(1, num_samples): # start from 1 since 1 case is already done
-             probY = self.sess.run(self.model.probY)
-             probYs += probY
-
-        probY = probYs / num_samples
-        '''
-        #probY *= 0.0
         return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
 
-    def get_a1b1(self):
-        # setup initial states and feed
-        [EncA, EncB] = self.sess.run([self.model.EncA, self.model.EncB])
+    def get_ev_sigma(self):
+        allEvSigmas = self.sess.run( [ ev.sigma for ev in self.config.evidence ] )
+        allEvSigmas = [ (ev.name, allEvSigmas[i]) for i, ev in enumerate(self.config.evidence)]
 
-        return EncA, EncB
+        return allEvSigmas
