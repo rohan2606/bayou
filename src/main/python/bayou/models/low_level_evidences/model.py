@@ -34,9 +34,8 @@ class Model():
         edges = tf.transpose(edges)
 
         #tree nodes are batch_size * 5 * max_ast_depth
-        tree_nodes = tf.transpose(tree_nodes, perm=[1, 2, 0])
-        tree_edges = tf.transpose(tree_edges, perm=[1, 2, 0])
-
+        tree_nodes = tf.transpose(tf.reshape(tree_nodes, [-1, config.decoder.max_ast_depth]))
+        tree_edges = tf.transpose(tf.reshape(tree_edges, [-1, config.decoder.max_ast_depth]))
 
         with tf.variable_scope("Embedding"):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])

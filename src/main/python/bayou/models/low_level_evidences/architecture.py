@@ -72,7 +72,6 @@ class BayesianDecoder(object):
         self.initial_state = [initial_state] * config.decoder.num_layers
         self.nodes = [nodes[i] for i in range(config.decoder.max_ast_depth)]
         self.edges = [edges[i] for i in range(config.decoder.max_ast_depth)]
-
         # projection matrices for output
         with tf.variable_scope("projections"):
             self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size,
@@ -146,8 +145,8 @@ class SimpleDecoder(object):
 class BayesianReverseEncoder(object):
     def __init__(self, config, emb, tree_nodes, tree_edges, returnType, embRE, formalParam, embFP):
 
-        tree_nodes = [[ tree_nodes[j][ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)] for j in range(5)]
-        tree_edges = [[ tree_edges[j][ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)] for j in range(5)]
+        tree_nodes = tf.reverse(tree_nodes, [0]) # 0 is time 
+        tree_edges = tf.reverse(tree_edges, [0]) 
 
         with tf.variable_scope("Covariance"):
             with tf.variable_scope("APITree"):
