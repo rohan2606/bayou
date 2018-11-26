@@ -152,14 +152,14 @@ class BayesianReverseEncoder(object):
         with tf.variable_scope("Covariance"):
             with tf.variable_scope("APITree"):
                 API_Cov_Tree = TreeEncoder(emb, config.batch_size, nodes, edges, config.reverse_encoder.num_layers, \
-                                    config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, 1)
+                                    config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, config.latent_size)
                 Tree_Cov = API_Cov_Tree.last_output
 
             with tf.variable_scope('ReturnType'):
                 Ret_Seq = seqEncoder(config.reverse_encoder.num_layers, config.reverse_encoder.units, returnType, config.batch_size, embRE, 1)
 
-                w = tf.get_variable('w', [config.reverse_encoder.units, 1 ])
-                b = tf.get_variable('b', [1])
+                w = tf.get_variable('w', [config.reverse_encoder.units, config.latent_size ])
+                b = tf.get_variable('b', [config.latent_size])
 
                 rt_Cov = tf.nn.xw_plus_b(Ret_Seq.output ,w, b)
 
@@ -167,8 +167,8 @@ class BayesianReverseEncoder(object):
             with tf.variable_scope('FormalParam'):
                 fp_Seq = seqEncoder(config.reverse_encoder.num_layers, config.reverse_encoder.units, formalParam, config.batch_size, embFP, 1)
 
-                w = tf.get_variable('w', [config.reverse_encoder.units, 1 ])
-                b = tf.get_variable('b', [1])
+                w = tf.get_variable('w', [config.reverse_encoder.units, config.latent_size ])
+                b = tf.get_variable('b', [config.latent_size])
 
                 fp_Cov = tf.nn.xw_plus_b(fp_Seq.output,w, b)
 
@@ -200,7 +200,9 @@ class BayesianReverseEncoder(object):
             sigmas = [Tree_Cov , rt_Cov, fp_Cov]
 
             #dimension is  3*batch * 1
-            finalSigma = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(sigmas, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , 1, activation=tf.nn.tanh)
+            finalSigma = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(sigmas, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size, activation=tf.nn.tanh)
+            finalSigma = tf.layers.dense(finalSigma, config.latent_size, activation=tf.nn.tanh)
+            
             finalSigma = tf.layers.dense(finalSigma, 1)
 
             d = tf.tile(tf.square(finalSigma), [1,config.latent_size])
@@ -211,6 +213,7 @@ class BayesianReverseEncoder(object):
 
             encodings = [Tree_mean, rt_mean, fp_mean]
             finalMean = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(encodings, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size, activation=tf.nn.tanh)
+            finalMean = tf.layers.dense(finalMean, config.latent_size, activation=tf.nn.tanh)
             finalMean = tf.layers.dense(finalMean, config.latent_size)
             # 4. compute the mean of non-zero encodings
             self.psi_mean = finalMean
