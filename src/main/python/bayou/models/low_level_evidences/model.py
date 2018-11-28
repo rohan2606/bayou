@@ -45,7 +45,10 @@ class Model():
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            self.reverse_encoder = BayesianReverseEncoder(config, emb, nodes, edges, ev_data[4], config.evidence[4].emb, ev_data[5], config.evidence[5].emb)
+            embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
+            embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
+            embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
+            self.reverse_encoder = BayesianReverseEncoder(config, embAPI, nodes, edges, ev_data[4], embRT, ev_data[5], embFS)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size],
                                        mean=0., stddev=1., dtype=tf.float32)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
@@ -137,13 +140,13 @@ class Model():
 
 
 
-            KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
-            self.KL_loss = tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
+            #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
+            self.KL_loss = KL_loss #tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
 
             if bayou_mode:
                 self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
             else:
-                self.loss = self.KL_loss +  32 / 128 * (self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS)
+                self.loss = self.KL_loss #+  32 / 128 * (self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS)
 
             if infer:
                 # self.gen_loss is  P(Y|Z) where Z~P(Z|X)

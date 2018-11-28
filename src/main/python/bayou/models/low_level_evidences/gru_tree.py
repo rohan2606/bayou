@@ -26,7 +26,8 @@ class TreeEncoder(object):
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
 
         # initial_state has get_shape (batch_size, latent_size), same as psi_mean in the prev code
-        self.initial_state = [tf.truncated_normal([batch_size, units] , stddev=0.001 ) ] * num_layers
+        curr_state = [tf.truncated_normal([batch_size, units] , stddev=0.001 ) ] * num_layers
+        curr_out = tf.zeros([batch_size , units])
 
         # projection matrices for output
         with tf.name_scope("projections"):
@@ -40,7 +41,7 @@ class TreeEncoder(object):
 
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
             with tf.variable_scope('rnn'):
-                self.state = self.initial_state
+                self.state = curr_state
                 for i, inp in enumerate(emb_inp):
                     if i > 0:
                         tf.get_variable_scope().reuse_variables()
@@ -50,7 +51,11 @@ class TreeEncoder(object):
                         output2, state2 = self.cell2(inp, self.state)
 
                     output = tf.where(edges[i], output1, output2)
+                    curr_out = tf.where(tf.not_equal(inp, 0), output, curr_out)
+
                     self.state = [tf.where(edges[i], state1[j], state2[j]) for j in range(num_layers)]
+                    curr_state = [tf.where(tf.not_equal(inp, 0), self.state[j], curr_state[j])
+                              for j in range(num_layers)]
 
         with tf.name_scope("Output"):
-            self.last_output = tf.nn.xw_plus_b(output, self.projection_w, self.projection_b)
+            self.last_output = tf.nn.xw_plus_b(curr_out, self.projection_w, self.projection_b)

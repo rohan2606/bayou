@@ -203,13 +203,13 @@ class BayesianReverseEncoder(object):
             finalSigma = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(sigmas, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size, activation=tf.nn.tanh)
             finalSigma = tf.layers.dense(finalSigma, config.latent_size, activation=tf.nn.tanh)
             
-            finalSigma = tf.layers.dense(finalSigma, 1)
+            finalSigma = tf.layers.dense(finalSigma, config.latent_size)
 
-            d = tf.tile(tf.square(finalSigma), [1,config.latent_size])
-            d = 1. + d
-            denom = d # tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
-            I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
-            self.psi_covariance = I / denom
+            d = tf.square(finalSigma)
+            #d = 1. + d
+            #denom = d # tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
+            #I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
+            self.psi_covariance = d #I / denom
 
             encodings = [Tree_mean, rt_mean, fp_mean]
             finalMean = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(encodings, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size, activation=tf.nn.tanh)
