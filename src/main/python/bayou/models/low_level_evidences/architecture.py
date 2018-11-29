@@ -206,7 +206,7 @@ class BayesianReverseEncoder(object):
             finalSigma = tf.layers.dense(finalSigma, config.latent_size)
 
             d = tf.square(finalSigma)
-            #d = 1. + d
+            d = .00000001 + d
             #denom = d # tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
             #I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
             self.psi_covariance = d #I / denom
