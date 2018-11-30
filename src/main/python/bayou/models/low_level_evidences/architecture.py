@@ -202,10 +202,10 @@ class BayesianReverseEncoder(object):
             #dimension is  3*batch * 1
             finalSigma = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(sigmas, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size, activation=tf.nn.tanh)
             finalSigma = tf.layers.dense(finalSigma, config.latent_size, activation=tf.nn.tanh)
-            
-            finalSigma = tf.layers.dense(finalSigma, config.latent_size)
 
-            d = tf.square(finalSigma)
+            finalSigma = tf.layers.dense(finalSigma, 1)
+
+            d = tf.tile(tf.square(finalSigma),[1, config.latent_size])
             d = .00000001 + d
             #denom = d # tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
             #I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
@@ -217,4 +217,3 @@ class BayesianReverseEncoder(object):
             finalMean = tf.layers.dense(finalMean, config.latent_size)
             # 4. compute the mean of non-zero encodings
             self.psi_mean = finalMean
-
