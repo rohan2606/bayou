@@ -58,10 +58,10 @@ class TreeEncoder(object):
 					self.output = tf.where(tree_edges[i], output1, output2)
 					self.state = [tf.where(tree_edges[i], state1[j], state2[j]) for j in range(num_layers)]
 
-			
+
 
 		# where keeps it (bs * 5)* units
-		zeros = tf.zeros([batch_size * 5,units])
+		zeros = tf.zeros([batch_size * 5, units])
 		self.output = tf.where(exists, self.output , zeros)
 
 		temp = tf.reshape(self.output , [batch_size, units * 5 ])

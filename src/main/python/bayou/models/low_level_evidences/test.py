@@ -121,7 +121,11 @@ def forward_pass(clargs):
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
+<<<<<<< HEAD
     config.batch_size = 500
+=======
+    config.batch_size = 500 
+>>>>>>> master
 
     reader = Reader(clargs, config, infer=True)
 

@@ -149,7 +149,7 @@ def forward_pass(clargs):
     iterator = batched_dataset.make_initializable_iterator()
     jsp = reader.js_programs
     with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config, iterator, bayou_mode = False) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save, sess, config, iterator, bayou_mode = True) # goes to infer.BayesianPredictor
         # testing
         sess.run(iterator.initializer, feed_dict=feed_dict)
         infer_vars = {}

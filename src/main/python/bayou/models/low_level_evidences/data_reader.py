@@ -130,7 +130,6 @@ class Reader():
                 self.js_programs = js_programs
 
 
-
                 ### TBD
                 with open('data/inputs.txt', 'wb') as f:
                     pickle.dump(self.inputs, f)
@@ -140,19 +139,13 @@ class Reader():
                     pickle.dump(self.edges, f)
                 with open('data/targets.txt', 'wb') as f:
                     pickle.dump(self.targets, f)
-
-                with open('data/tree_nodes.txt', 'wb') as f:
-                    pickle.dump(self.tree_nodes, f)
-                with open('data/tree_edges.txt', 'wb') as f:
-                    pickle.dump(self.tree_edges, f)
-
-
                 with open('data/prog_ids', 'wb') as f:
                     pickle.dump(self.prog_ids, f)
                 with open('data/js_prog_ids', 'wb') as f:
                     pickle.dump(self.js_prog_ids, f)
                 with open('data/js_programs.json', 'w') as f:
                     json.dump({'programs': self.js_programs}, fp=f, indent=2)
+
                 jsconfig = dump_config(config)
                 with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
                     json.dump(jsconfig, fp=f, indent=2)
@@ -161,9 +154,6 @@ class Reader():
                     pickle.dump(self.tree_nodes, f)
                 with open('data/tree_edges.txt', 'wb') as f:
                     pickle.dump(self.tree_edges, f)
-
-
-
 
 
 
