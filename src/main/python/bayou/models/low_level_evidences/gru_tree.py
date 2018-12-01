@@ -55,8 +55,8 @@ class TreeEncoder(object):
 				with tf.variable_scope('cell2'): # handles SIBLING EDGE
 					output2, state2 = self.cell2(inp, self.state)
 
-					self.output = tf.where(tree_edges[i], output1, output2)
-					self.state = [tf.where(tree_edges[i], state1[j], state2[j]) for j in range(num_layers)]
+				self.output = tf.where(tree_edges[i], output1, output2)
+				self.state = [tf.where(tree_edges[i], state1[j], state2[j]) for j in range(num_layers)]
 
 
 
@@ -64,8 +64,10 @@ class TreeEncoder(object):
 		zeros = tf.zeros([batch_size * 5, units])
 		self.output = tf.where(exists, self.output , zeros)
 
-		temp = tf.reshape(self.output , [batch_size, units * 5 ])
-		merged_last_op = tf.nn.tanh(tf.nn.xw_plus_b(temp ,  self.merger_w, self.merger_b))
+		temp = tf.reshape(self.output , [5, batch_size, units ])
+                temp = tf.reduce_mean(temp, axis=0)
+		#merged_last_op = tf.nn.tanh(tf.nn.xw_plus_b(temp ,  self.merger_w, self.merger_b))
+		#merged_last_op = tf.layers.dense(merged_last_op, units, activation=tf.nn.tanh) 
 		#merged_last_op is batch_size * units
 
 		self.last_output = tf.nn.xw_plus_b(merged_last_op, self.projection_w, self.projection_b)

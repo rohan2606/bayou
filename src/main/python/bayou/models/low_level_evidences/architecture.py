@@ -151,7 +151,7 @@ class BayesianReverseEncoder(object):
         with tf.variable_scope("Covariance"):
             with tf.variable_scope("APITree"):
                 API_Cov_Tree = TreeEncoder(emb, config.batch_size, tree_nodes, tree_edges, config.reverse_encoder.num_layers, \
-                                    config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, 1)
+                                    config.reverse_encoder.units, config.reverse_encoder.max_ast_depth, config.latent_size)
                 Tree_Cov = API_Cov_Tree.last_output
 
             with tf.variable_scope('ReturnType'):
