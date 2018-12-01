@@ -67,9 +67,9 @@ def test_get_vals(clargs):
     programs = []
     a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
     for prog_id in sorted(list(infer_vars.keys())):
-        #a1s += [infer_vars[prog_id]['a1']]
+        a1s += [infer_vars[prog_id]['a1']]
         a2s += [infer_vars[prog_id]['a2']]
-        #b1s += [list(infer_vars[prog_id]['b1'])]
+        b1s += [list(infer_vars[prog_id]['b1'])]
         b2s += [list(infer_vars[prog_id]['b2'])]
         prob_Ys += [infer_vars[prog_id]['ProbY']]
         #Ys += [infer_vars[prog_id]['Y']]
@@ -139,7 +139,7 @@ def forward_pass(clargs):
     iterator = batched_dataset.make_initializable_iterator()
     jsp = reader.js_programs
     with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config, iterator, bayou_mode = False) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save, sess, config, iterator, bayou_mode = True) # goes to infer.BayesianPredictor
         # testing
         sess.run(iterator.initializer, feed_dict=feed_dict)
         infer_vars = {}

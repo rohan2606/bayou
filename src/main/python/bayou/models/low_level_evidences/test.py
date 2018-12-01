@@ -64,6 +64,9 @@ def test(clargs):
 def test_get_vals(clargs):
 
     infer_vars, config = forward_pass(clargs)
+    import gc
+    gc.collect()
+
     programs = []
     a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
     for prog_id in sorted(list(infer_vars.keys())):
@@ -84,6 +87,8 @@ def test_get_vals(clargs):
         program['b2'] = [val.item() for val in infer_vars[prog_id]['b2']]
         program['ProbY'] = infer_vars[prog_id]['ProbY'].item()
 
+        del infer_vars[prog_id]
+
         programs.append(program)
 
     print('New arrays saving done')
@@ -94,7 +99,9 @@ def test_get_vals(clargs):
     print('\nWriting to {}...'.format('Program_output_json.json'), end='')
     with open('Program_output_json.json', 'w') as f:
         json.dump({'programs': programs}, fp=f, indent=2)
+
     print('Files Saved')
+    del programs
 
     return a1s, b1s, a2s, b2s, prob_Ys
 
@@ -113,7 +120,7 @@ def forward_pass(clargs):
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
-
+    config.batch_size = 500 
 
     reader = Reader(clargs, config, infer=True)
 
@@ -154,17 +161,17 @@ def forward_pass(clargs):
                 prog_id = prog_ids[i]
                 if prog_id not in infer_vars:
                     infer_vars[prog_id] = {}
-                    infer_vars[prog_id]['a1'] = a1[i]
-                    infer_vars[prog_id]['a2'] = a2[i]
-                    infer_vars[prog_id]['b1'] = b1[i]
-                    infer_vars[prog_id]['b2'] = b2[i]
-                    infer_vars[prog_id]['ProbY'] = prob_Y[i]
+                    infer_vars[prog_id]['a1'] = a1[i].round(decimals=2)
+                    infer_vars[prog_id]['a2'] = a2[i].round(decimals=2)
+                    infer_vars[prog_id]['b1'] = b1[i].round(decimals=2)
+                    infer_vars[prog_id]['b2'] = b2[i].round(decimals=2)
+                    infer_vars[prog_id]['ProbY'] = prob_Y[i].round(decimals=2)
                     infer_vars[prog_id]['count_prog_ids'] = 1
                     infer_vars[prog_id]['JS'] = jsp[js_prog_ids[i]]
                 else:
-                    infer_vars[prog_id]['b1'] += b1[i]
-                    infer_vars[prog_id]['b2'] += b2[i]
-                    infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i] )
+                    infer_vars[prog_id]['b1'] += b1[i].round(decimals=2)
+                    infer_vars[prog_id]['b2'] += b2[i].round(decimals=2)
+                    infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i].round(decimals=2) )
                     infer_vars[prog_id]['count_prog_ids'] += 1
 
 
@@ -177,11 +184,18 @@ def forward_pass(clargs):
 
     for prog_id in list(infer_vars.keys()):
         infer_vars[prog_id]['b1'] /= infer_vars[prog_id]['count_prog_ids']
-        infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
-        infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
+        infer_vars[prog_id]['b1'] = infer_vars[prog_id]['b1'].round(decimals=2)
 
+        infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
+        infer_vars[prog_id]['b2'] = infer_vars[prog_id]['b2'].round(decimals=2)
+
+        infer_vars[prog_id]['ProbY'] -= np.log(infer_vars[prog_id]['count_prog_ids']) # prob_Ys are added and it should not be averaged, well technically
+        infer_vars[prog_id]['ProbY'] = infer_vars[prog_id]['ProbY'].round(decimals=2)
 
     print('Program Average done')
+
+    del predictor, iterator, batched_dataset, dataset, jsp, feed_dict, reader, prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, evidence_placeholder
+
     return infer_vars, config
 
 
