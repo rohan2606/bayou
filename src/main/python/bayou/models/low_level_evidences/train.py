@@ -90,7 +90,7 @@ def train(clargs):
 
         # restore model
         if clargs.continue_from is not None:
-            bayou_vars = get_var_list()['all_vars']
+            bayou_vars = get_var_list()['bayou_vars']
             old_saver = tf.train.Saver(bayou_vars, max_to_keep=None)
             ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
             old_saver.restore(sess, ckpt.model_checkpoint_path)
@@ -162,7 +162,7 @@ if __name__ == '__main__':
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-noBinding-noField-sorr-UDT-TOP.json'])
+    '/home/ubuntu/DATA-noBinding-noField-sorr-UDT.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

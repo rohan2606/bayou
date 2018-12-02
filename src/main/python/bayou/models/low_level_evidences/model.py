@@ -151,7 +151,7 @@ class Model():
 
 
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
-            self.KL_loss = KL_loss #tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
+            self.KL_loss = tf.reduce_mean(KL_loss) # tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
 
             if bayou_mode or infer:
                 self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS

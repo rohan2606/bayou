@@ -145,8 +145,8 @@ class SimpleDecoder(object):
 class BayesianReverseEncoder(object):
     def __init__(self, config, emb, tree_nodes, tree_edges, returnType, embRE, formalParam, embFP):
 
-        tree_nodes = tf.reverse(tree_nodes, [0]) # 0 is time
-        tree_edges = tf.reverse(tree_edges, [0])
+        #tree_nodes = tf.reverse(tree_nodes, [0]) # 0 is time
+        #tree_edges = tf.reverse(tree_edges, [0])
 
         with tf.variable_scope("Covariance"):
             with tf.variable_scope("APITree"):
@@ -170,19 +170,6 @@ class BayesianReverseEncoder(object):
                 b = tf.get_variable('b', [config.latent_size])
 
                 fp_Cov = tf.nn.xw_plus_b(fp_Seq.output,w, b)
-
-            sigmas = [Tree_Cov , rt_Cov, fp_Cov]
-
-            #dimension is  3*batch * 1
-            finalSigma = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(sigmas, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , 1, activation=tf.nn.tanh)
-            finalSigma = tf.layers.dense(finalSigma, 1)
-
-            d = tf.tile(tf.square(finalSigma), [1,config.latent_size])
-            d = 1. + d
-            denom = d # tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
-            I = tf.ones([config.batch_size, config.latent_size], dtype=tf.float32)
-            self.psi_covariance = I / denom
-
 
 
         with tf.variable_scope("Mean"):
