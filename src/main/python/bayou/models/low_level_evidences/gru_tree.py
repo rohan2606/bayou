@@ -71,11 +71,12 @@ class TreeEncoder(object):
 		zeros = tf.zeros([batch_size * 5, units])
 		self.output = tf.where(exists, curr_out , zeros)
 
-		temp = tf.reshape(self.output , [batch_size, 5, units ])
-		temp = tf.reduce_mean(temp, axis=1)
-		#merged_last_op = tf.nn.tanh(tf.nn.xw_plus_b(temp ,  self.merger_w, self.merger_b))
-		#merged_last_op = tf.layers.dense(merged_last_op, units, activation=tf.nn.tanh) 
+		temp = tf.reshape(self.output , [batch_size, 5 * units ])
+		#temp = tf.reduce_mean(temp, axis=1)
+		merged_last_op = tf.nn.tanh(tf.nn.xw_plus_b(temp ,  self.merger_w, self.merger_b))
+		merged_last_op = tf.layers.dense(merged_last_op, units, activation=tf.nn.tanh) 
+		merged_last_op = tf.layers.dense(merged_last_op, units, activation=tf.nn.tanh) 
 		#merged_last_op is batch_size * units
 
-		self.last_output = tf.nn.xw_plus_b(temp, self.projection_w, self.projection_b)
+		self.last_output = tf.nn.xw_plus_b(merged_last_op, self.projection_w, self.projection_b)
 		return

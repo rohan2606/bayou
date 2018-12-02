@@ -19,7 +19,7 @@ import tensorflow as tf
 import argparse
 import os
 import sys
-import json
+import simplejson as json
 import textwrap
 
 import time
@@ -38,7 +38,7 @@ def test(clargs):
     a1s, b1s, a2s, b2s, prob_Ys  = test_get_vals(clargs)
 
 
-    latent_size, num_progs, batch_size = len(b2s[0]), len(a2s), 10000
+    latent_size, num_progs, batch_size = len(b1s[0]), len(a1s), 10000
     hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
     hit_counts = np.zeros(len(hit_points))
     for i in range(num_progs):
@@ -63,10 +63,10 @@ def test(clargs):
 
 def test_get_vals(clargs):
 
+    infer_vars, config = forward_pass(clargs)
     import gc
     gc.collect()
 
-    infer_vars, config = forward_pass(clargs)
     programs = []
     a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
     for prog_id in sorted(list(infer_vars.keys())):
@@ -75,7 +75,7 @@ def test_get_vals(clargs):
         b1s += [list(infer_vars[prog_id]['b1'])]
         b2s += [list(infer_vars[prog_id]['b2'])]
         prob_Ys += [infer_vars[prog_id]['ProbY']]
-        # Ys += [infer_vars[prog_id]['Y']]
+        #Ys += [infer_vars[prog_id]['Y']]
 
         program = infer_vars[prog_id]['JS']
         #if program['returnType']=='None':
@@ -86,17 +86,20 @@ def test_get_vals(clargs):
         program['a2'] = infer_vars[prog_id]['a2'].item()
         program['b2'] = [val.item() for val in infer_vars[prog_id]['b2']]
         program['ProbY'] = infer_vars[prog_id]['ProbY'].item()
-        programs.append(program)
 
         del infer_vars[prog_id]
+
+        programs.append(program)
 
     print('New arrays saving done')
     #prob_Ys = normalize_log_probs(prob_Ys)
     #print('Normalizing done')
 
+
     print('\nWriting to {}...'.format('Program_output_json.json'), end='')
     with open('Program_output_json.json', 'w') as f:
         json.dump({'programs': programs}, fp=f, indent=2)
+
     print('Files Saved')
     del programs
 
@@ -117,35 +120,33 @@ def forward_pass(clargs):
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
-    config.batch_size = 500
+    config.batch_size = 500 
 
     reader = Reader(clargs, config, infer=True)
 
-    # Placeholders for tf data
+	# Placeholders for tf data
     prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
     js_prog_ids_placeholder = tf.placeholder(reader.js_prog_ids.dtype, reader.js_prog_ids.shape)
+    nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
+    edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
+    targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
-
-    tree_nodes_placeholder = tf.placeholder(reader.tree_nodes.dtype, reader.tree_nodes.shape)
-    tree_edges_placeholder = tf.placeholder(reader.tree_edges.dtype, reader.tree_edges.shape)
-    tree_targets_placeholder = tf.placeholder(reader.tree_targets.dtype, reader.tree_edges.shape)
 
     # reset batches
 
     feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
     feed_dict.update({prog_ids_placeholder: reader.prog_ids})
     feed_dict.update({js_prog_ids_placeholder: reader.js_prog_ids})
-    feed_dict.update({tree_nodes_placeholder: reader.tree_nodes})
-    feed_dict.update({tree_edges_placeholder: reader.tree_edges})
-    feed_dict.update({tree_targets_placeholder: reader.tree_targets})
+    feed_dict.update({nodes_placeholder: reader.nodes})
+    feed_dict.update({edges_placeholder: reader.edges})
+    feed_dict.update({targets_placeholder: reader.targets})
 
-    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, tree_nodes_placeholder, tree_edges_placeholder,tree_targets_placeholder, *evidence_placeholder))
-
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
     jsp = reader.js_programs
     with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config, iterator, bayou_mode = True) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save, sess, config, iterator, bayou_mode = False) # goes to infer.BayesianPredictor
         # testing
         sess.run(iterator.initializer, feed_dict=feed_dict)
         infer_vars = {}
@@ -153,7 +154,7 @@ def forward_pass(clargs):
 
         allEvSigmas = predictor.get_ev_sigma()
         print(allEvSigmas)
-        
+
         for j in range(config.num_batches):
             prob_Y, a1, b1, a2, b2, js_prog_ids, prog_ids = predictor.get_all_params_inago()
             for i in range(config.batch_size):
@@ -161,17 +162,14 @@ def forward_pass(clargs):
                 if prog_id not in infer_vars:
                     infer_vars[prog_id] = {}
                     infer_vars[prog_id]['a1'] = a1[i].round(decimals=2)
-                    infer_vars[prog_id]['a2'] = a1[i].round(decimals=2)
+                    infer_vars[prog_id]['a2'] = a2[i].round(decimals=2)
                     infer_vars[prog_id]['b1'] = b1[i].round(decimals=2)
-                    infer_vars[prog_id]['b2'] = b1[i].round(decimals=2)
+                    infer_vars[prog_id]['b2'] = b2[i].round(decimals=2)
                     infer_vars[prog_id]['ProbY'] = prob_Y[i].round(decimals=2)
-                    infer_vars[prog_id]['count_prog_ids'] = 1
                     infer_vars[prog_id]['JS'] = jsp[js_prog_ids[i]]
                 else:
-                    infer_vars[prog_id]['b1'] += b1[i].round(decimals=2)
+                    infer_vars[prog_id]['a2'] += a2[i].round(decimals=2)
                     infer_vars[prog_id]['b2'] += b2[i].round(decimals=2)
-                    infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i].round(decimals=2) )
-                    infer_vars[prog_id]['count_prog_ids'] += 1
 
 
             if (j+1) % 1000 == 0:
@@ -181,8 +179,10 @@ def forward_pass(clargs):
 
     print('Batch Processing Completed')
 
-
     print('Program Average done')
+
+    del predictor, iterator, batched_dataset, dataset, jsp, feed_dict, reader, prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, evidence_placeholder
+
     return infer_vars, config
 
 
@@ -217,7 +217,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save'])
+    clargs = parser.parse_args(['--save', 'save1'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

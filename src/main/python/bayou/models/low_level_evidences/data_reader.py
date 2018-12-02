@@ -44,18 +44,14 @@ class Reader():
         if clargs.continue_from is not None or dataIsThere:
             with open('data/inputs.txt', 'rb') as f:
                 self.inputs = pickle.load(f)
-            with open('data/nodes.txt', 'rb') as f:
-                self.nodes = pickle.load(f)
-            with open('data/edges.txt', 'rb') as f:
-                self.edges = pickle.load(f)
 
             with open('data/tree_nodes.txt', 'rb') as f:
                 self.tree_nodes = pickle.load(f)
             with open('data/tree_edges.txt', 'rb') as f:
                 self.tree_edges = pickle.load(f)
 
-            with open('data/targets.txt', 'rb') as f:
-                self.targets = pickle.load(f)
+            with open('data/tree_targets.txt', 'rb') as f:
+                self.tree_targets = pickle.load(f)
             with open('data/prog_ids', 'rb') as f:
                 self.prog_ids = pickle.load(f)
             with open('data/js_prog_ids', 'rb') as f:
@@ -70,13 +66,13 @@ class Reader():
                 with open('data/js_programs.json', 'rb') as f:
                     for program in ijson.items(f, 'programs.item'):
                         self.js_programs.append(program)
-            config.num_batches = int(len(self.nodes) / config.batch_size)
+            config.num_batches = int(len(self.tree_nodes) / config.batch_size)
 
         else:
             random.seed(12)
             # read the raw evidences and targets
             print('Reading data file...')
-            prog_ids, raw_evidences, raw_targets, js_programs, raw_trees = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+            prog_ids, raw_evidences, js_programs, raw_trees = self.read_data(clargs.input_file[0], infer, save=clargs.save)
             print('Done!')
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                              enumerate(config.evidence)]
@@ -84,7 +80,7 @@ class Reader():
 
             # align with number of batches and have it as a multiple of #GPUs
             devices = get_available_gpus()
-            config.num_batches = int(len(raw_targets) / config.batch_size)
+            config.num_batches = int(len(raw_trees) / config.batch_size)
         ################################
 
             assert config.num_batches > 0, 'Not enough data'
@@ -92,7 +88,6 @@ class Reader():
             for i in range(len(raw_evidences)):
                 raw_evidences[i] = raw_evidences[i][:sz]
 
-            raw_targets = raw_targets[:sz]
             raw_trees = raw_trees[:sz]
             prog_ids = prog_ids[:sz]
             js_programs = js_programs[:sz]
@@ -108,23 +103,19 @@ class Reader():
 
                 # wrangle the evidences and targets into numpy arrays
                 self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
-                self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
-                self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
-                self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
                 self.tree_nodes = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.int32)
                 self.tree_edges = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.bool)
+                self.tree_targets = np.zeros((sz, 5, config.decoder.max_ast_depth), dtype=np.int32)
                 self.prog_ids = np.zeros(sz, dtype=np.int32)
                 self.js_prog_ids = np.zeros(sz, dtype=np.int32)
 
-                for i, path in enumerate(raw_targets):
-                    self.nodes[i, :len(path)] = [p[0] for p in path]
-                    self.edges[i, :len(path)] = [p[1] for p in path]
+                for i, path in enumerate(raw_trees):
 
                     for j, tree_path_j in enumerate(raw_trees[i]):
                         self.tree_nodes[i, j, :len(tree_path_j) ] = [p[0] for p in tree_path_j]
                         self.tree_edges[i, j, :len(tree_path_j) ] = [p[1] for p in tree_path_j]
+                        self.tree_targets[i, j, :len(tree_path_j)-1] = self.tree_nodes[i, j, 1:len(tree_path_j)]  # shifted left by one
 
-                    self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
                     self.prog_ids[i] = prog_ids[i]
                     self.js_prog_ids[i] = i
                 self.js_programs = js_programs
@@ -133,12 +124,6 @@ class Reader():
                 ### TBD
                 with open('data/inputs.txt', 'wb') as f:
                     pickle.dump(self.inputs, f)
-                with open('data/nodes.txt', 'wb') as f:
-                    pickle.dump(self.nodes, f)
-                with open('data/edges.txt', 'wb') as f:
-                    pickle.dump(self.edges, f)
-                with open('data/targets.txt', 'wb') as f:
-                    pickle.dump(self.targets, f)
                 with open('data/prog_ids', 'wb') as f:
                     pickle.dump(self.prog_ids, f)
                 with open('data/js_prog_ids', 'wb') as f:
@@ -154,6 +139,8 @@ class Reader():
                     pickle.dump(self.tree_nodes, f)
                 with open('data/tree_edges.txt', 'wb') as f:
                     pickle.dump(self.tree_edges, f)
+                with open('data/tree_targets.txt', 'wb') as f:
+                    pickle.dump(self.tree_targets, f)
 
 
 
@@ -294,7 +281,7 @@ class Reader():
         :return: None
         :raise: TooLongPathError or InvalidSketchError if sketch or its paths is invalid
         """
-        #self._check_DAPICall_repeats(program['ast']['_nodes'])
+        self._check_DAPICall_repeats(program['ast']['_nodes'])
         for path in ast_paths:
             if len(path) >= self.config.decoder.max_ast_depth:
                 raise TooLongPathError
@@ -344,13 +331,12 @@ class Reader():
 
                     embPaths.append(embPath)
 
-                for temp_arr in embPaths:
-                    sample = dict()
-                    sample['file'] = program['file']
-                    sample['method'] = program['method']
-                    sample['body'] = program['body']
-                    data_points.append((done - ignored, evidences, temp_arr, sample, embPaths))
-                    #data_points.append((done - ignored, evidences, temp_arr, {}))
+                sample = dict()
+                sample['file'] = program['file']
+                sample['method'] = program['method']
+                sample['body'] = program['body']
+                data_points.append((done - ignored, evidences, sample, embPaths))
+                #data_points.append((done - ignored, evidences, temp_arr, {}))
                 calls = gather_calls(program['ast'])
                 for call in calls:
                     if call['_call'] not in callmap:
@@ -371,7 +357,7 @@ class Reader():
 
         # randomly shuffle to avoid bias towards initial data points during training
         random.shuffle(data_points)
-        _ids, evidences, targets, js_programs, tree_targets = zip(*data_points) #unzip
+        _ids, evidences, js_programs, tree_targets = zip(*data_points) #unzip
 
         # save callmap if save location is given
         if not infer:
@@ -382,4 +368,4 @@ class Reader():
             with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
                 pickle.dump(file_ptr, f)
 
-        return _ids, evidences, targets, js_programs, tree_targets
+        return _ids, evidences, js_programs, tree_targets

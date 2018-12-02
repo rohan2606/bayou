@@ -54,7 +54,7 @@
             "tile": 1,
             "max_depth": 1,
             "max_nums": 1,
-            "ev_drop_prob":0.6,
+            "ev_drop_prob":0.9,
             "ev_call_drop_prob":1.00
         },
         {
@@ -64,8 +64,8 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":0.6,
-            "ev_call_drop_prob":0.9
+            "ev_drop_prob":0.9,
+            "ev_call_drop_prob":1.00
         },
         {
             "name": "classtype",

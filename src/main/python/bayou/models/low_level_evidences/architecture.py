@@ -58,7 +58,10 @@ class BayesianEncoder(object):
 
 
 class BayesianDecoder(object):
-    def __init__(self, config, emb, initial_state, nodes, edges):
+    def __init__(self, config, emb, initial_state, tree_nodes, tree_edges):
+
+        tree_nodes = tf.transpose(tf.reshape(tree_nodes, [-1, config.decoder.max_ast_depth]))
+        tree_edges = tf.transpose(tf.reshape(tree_edges, [-1, config.decoder.max_ast_depth]))
 
         cells1, cells2 = [], []
         for _ in range(config.decoder.num_layers):
@@ -69,9 +72,10 @@ class BayesianDecoder(object):
         self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
 
         # placeholders
+        initial_state = tf.reshape(tf.tile(tf.expand_dims(initial_state, axis=1),[1,5,1]), [-1, config.latent_size])
         self.initial_state = [initial_state] * config.decoder.num_layers
-        self.nodes = [nodes[i] for i in range(config.decoder.max_ast_depth)]
-        self.edges = [edges[i] for i in range(config.decoder.max_ast_depth)]
+        self.tree_nodes = [tree_nodes[i] for i in range(config.decoder.max_ast_depth)]
+        self.tree_edges = [tree_edges[i] for i in range(config.decoder.max_ast_depth)]
         # projection matrices for output
         with tf.variable_scope("projections"):
             self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size,
@@ -81,7 +85,7 @@ class BayesianDecoder(object):
             # tf.summary.histogram("projection_b", self.projection_b)
 
         # setup embedding
-        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
+        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.tree_nodes)
 
         with tf.variable_scope('decoder_network'):
             # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
@@ -96,8 +100,8 @@ class BayesianDecoder(object):
                         output1, state1 = self.cell1(inp, self.state)
                     with tf.variable_scope('cell2'):  # handles SIBLING_EDGE
                         output2, state2 = self.cell2(inp, self.state)
-                    output = tf.where(self.edges[i], output1, output2)
-                    self.state = [tf.where(self.edges[i], state1[j], state2[j])
+                    output = tf.where(self.tree_edges[i], output1, output2)
+                    self.state = [tf.where(self.tree_edges[i], state1[j], state2[j])
                                   for j in range(config.decoder.num_layers)]
                     self.outputs.append(output)
 
@@ -145,8 +149,11 @@ class SimpleDecoder(object):
 class BayesianReverseEncoder(object):
     def __init__(self, config, emb, tree_nodes, tree_edges, returnType, embRE, formalParam, embFP):
 
-        #tree_nodes = tf.reverse(tree_nodes, [0]) # 0 is time
-        #tree_edges = tf.reverse(tree_edges, [0])
+        tree_nodes = tf.reverse(tree_nodes, [0]) # 0 is time
+        tree_edges = tf.reverse(tree_edges, [0])
+
+        tree_nodes = tf.transpose(tf.reshape(tree_nodes, [-1, config.decoder.max_ast_depth]))
+        tree_edges = tf.transpose(tf.reshape(tree_edges, [-1, config.decoder.max_ast_depth]))
 
         with tf.variable_scope("Covariance"):
             with tf.variable_scope("APITree"):

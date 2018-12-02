@@ -129,26 +129,22 @@ def forward_pass(clargs):
     # Placeholders for tf data
     prog_ids_placeholder = tf.placeholder(reader.prog_ids.dtype, reader.prog_ids.shape)
     js_prog_ids_placeholder = tf.placeholder(reader.js_prog_ids.dtype, reader.js_prog_ids.shape)
-    nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
-    edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
-    targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
 
     tree_nodes_placeholder = tf.placeholder(reader.tree_nodes.dtype, reader.tree_nodes.shape)
     tree_edges_placeholder = tf.placeholder(reader.tree_edges.dtype, reader.tree_edges.shape)
+    tree_targets_placeholder = tf.placeholder(reader.tree_targets.dtype, reader.tree_edges.shape)
 
     # reset batches
 
     feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
     feed_dict.update({prog_ids_placeholder: reader.prog_ids})
     feed_dict.update({js_prog_ids_placeholder: reader.js_prog_ids})
-    feed_dict.update({nodes_placeholder: reader.nodes})
-    feed_dict.update({edges_placeholder: reader.edges})
-    feed_dict.update({targets_placeholder: reader.targets})
     feed_dict.update({tree_nodes_placeholder: reader.tree_nodes})
     feed_dict.update({tree_edges_placeholder: reader.tree_edges})
+    feed_dict.update({tree_targets_placeholder: reader.tree_edges})
 
-    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, tree_nodes_placeholder, tree_edges_placeholder, *evidence_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, tree_nodes_placeholder, tree_edges_placeholder, tree_targets_placeholder, *evidence_placeholder))
 
 
     batched_dataset = dataset.batch(config.batch_size)
@@ -188,7 +184,7 @@ def forward_pass(clargs):
 
     print('Program Average Ignored')
 
-    del predictor, iterator, batched_dataset, dataset, jsp, feed_dict, reader, prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, evidence_placeholder
+    del predictor, iterator, batched_dataset, dataset, jsp, feed_dict, reader, prog_ids_placeholder, js_prog_ids_placeholder, evidence_placeholder, tree_nodes_placeholder, tree_edges_placeholder, tree_targets_placeholder 
 
     return infer_vars, config
 

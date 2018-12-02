@@ -27,15 +27,14 @@ class Model():
 
 
         newBatch = iterator.get_next()
-        self.prog_ids, self.js_prog_ids, nodes, edges, targets, tree_nodes, tree_edges = newBatch[:7]
-        ev_data = newBatch[7:]
+        self.prog_ids, self.js_prog_ids, tree_nodes, tree_edges, tree_targets = newBatch[:5]
+        ev_data = newBatch[5:]
 
-        nodes = tf.transpose(nodes)
-        edges = tf.transpose(edges)
 
         #tree nodes are batch_size * 5 * max_ast_depth
-        tree_nodes = tf.transpose(tf.reshape(tree_nodes, [-1, config.decoder.max_ast_depth]))
-        tree_edges = tf.transpose(tf.reshape(tree_edges, [-1, config.decoder.max_ast_depth]))
+        #tree_nodes = tf.transpose(tf.reshape(tree_nodes, [-1, config.decoder.max_ast_depth]))
+        #tree_edges = tf.transpose(tf.reshape(tree_edges, [-1, config.decoder.max_ast_depth]))
+        #tree_targets = tf.transpose(tf.reshape(tree_targets, [-1, config.decoder.max_ast_depth]))
 
         with tf.variable_scope("Embedding"):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
@@ -65,12 +64,12 @@ class Model():
             else:
                 initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
 
-            self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges)
+            self.decoder = BayesianDecoder(config, emb, initial_state, tree_nodes, tree_edges)
 
         with tf.variable_scope("RE_Decoder"):
             ## RE
 
-            emb_RE = config.evidence[4].emb * 0.0 #tf.get_variable('emb_RE', [config.evidence[4].vocab_size, config.evidence[4].units])
+            emb_RE = tf.get_variable('emb_RE', [config.evidence[4].vocab_size, config.evidence[4].units])
 
             lift_w_RE = tf.get_variable('lift_w_RE', [config.latent_size, config.evidence[4].units])
             lift_b_RE = tf.get_variable('lift_b_RE', [config.evidence[4].units])
@@ -87,7 +86,7 @@ class Model():
             projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
             logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
 
-            labels_RE = tf.one_hot(tf.squeeze(tf.zeros_like(ev_data[4])) , config.evidence[4].vocab_size , dtype=tf.int32)
+            labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
 
             cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
@@ -96,7 +95,7 @@ class Model():
 
         with tf.variable_scope("FS_Decoder"):
             #FS
-            emb_FS = config.evidence[5].emb #tf.get_variable('emb_FS', [config.evidence[5].vocab_size, config.evidence[5].units])
+            emb_FS = tf.get_variable('emb_FS', [config.evidence[5].vocab_size, config.evidence[5].units])
             lift_w_FS = tf.get_variable('lift_w_FS', [config.latent_size, config.evidence[5].units])
             lift_b_FS = tf.get_variable('lift_b_FS', [config.evidence[5].units])
 
@@ -128,6 +127,8 @@ class Model():
 
         # get the decoder outputs
         with tf.name_scope("Loss"):
+            tree_targets = tf.transpose(tf.reshape(tree_targets, [-1, config.decoder.max_ast_depth]))
+            
             output = tf.reshape(tf.concat(self.decoder.outputs, 1),
                                 [-1, self.decoder.cell1.output_size])
             logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
@@ -136,11 +137,11 @@ class Model():
 
             # 1. generation loss: log P(Y | Z)
             cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
-            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
+            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,5*config.decoder.max_ast_depth]) , [-1] )
             cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
 
-            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(targets, [-1])], [cond])
+            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(tree_targets, [-1])], [cond])
 
               # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
             KL_loss = 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
