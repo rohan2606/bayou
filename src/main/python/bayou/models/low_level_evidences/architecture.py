@@ -146,8 +146,11 @@ class SimpleDecoder(object):
 class BayesianReverseEncoder(object):
     def __init__(self, config, emb, node_word_indices_placeholder, left_children_placeholder, right_children_placeholder, returnType, embRE, formalParam, embFP):
 
-        nodes = [ nodes[ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)]
-        edges = [ edges[ config.reverse_encoder.max_ast_depth -1 -i ] for i in range(config.reverse_encoder.max_ast_depth)]
+
+
+        # node_word_indices_placeholder = tf.reverse(node_word_indices_placeholder, [1])
+        # left_child_id = tf.reverse(left_children_placeholder, [1])
+        # right_child_id = tf.reverse(right_children_placeholder, [1])
 
         with tf.variable_scope("Covariance"):
             with tf.variable_scope("APITree"):

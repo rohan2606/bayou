@@ -22,9 +22,6 @@ class Node():
         self.sibling = sibling #sibling
         self.parent = parent
 
-        #Consider child as left and sibling as right
-        self.ifLeftExist = True if self.child is not None else False
-        self.ifRightExist = True if self.sibling is not None else False
 
 
     def dfs(self, head, inp = 'H'):

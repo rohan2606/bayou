@@ -19,8 +19,7 @@ class TreeEncoder(object):
 
 
         with tf.variable_scope('Composition'):
-            W1 = tf.get_variable('W1',
-                                   [3 * config.reverse_encoder.units, config.reverse_encoder.units])
+            W1 = tf.get_variable('W1', [3 * config.reverse_encoder.units, config.reverse_encoder.units])
             b1 = tf.get_variable('b1', [1, config.reverse_encoder.units])
 
         with tf.variable_scope('Projection'):
@@ -28,8 +27,8 @@ class TreeEncoder(object):
              bs = tf.get_variable('bs', [output_size])
 
         tensor_array_size = tf.constant(config.reverse_encoder.max_ast_depth+1, dtype=tf.int32)
-        tensor_array = [tf.TensorArray(tf.float32, size=tensor_array_size, dynamic_size=False, clear_after_read=False, infer_shape=True) for i in range(config.batch_size)]
-
+        # tensor_array = [tf.TensorArray(tf.float32, size=tensor_array_size, dynamic_size=False, clear_after_read=False, infer_shape=True) for i in range(config.batch_size)]
+        tensor_array = [tf.TensorArray(tf.float32, size=tensor_array_size, dynamic_size=True, clear_after_read=False) for i in range(config.batch_size)]
         for i in range(config.batch_size):
             tensor_array[i] = tensor_array[i].write(0, tf.zeros([1,config.reverse_encoder.units])) # Can make this trainable
 
@@ -62,9 +61,9 @@ class TreeEncoder(object):
         def loop_body(tensor_array, i):
 
               for j in range(config.batch_size):
-                  node_word_index = node_word_indices_placeholder[j,i] #tf.gather(node_word_indices_placeholder, i)
-                  left_child = left_children_placeholder[j,i] #tf.gather(left_children_placeholder, i)
-                  right_child = right_children_placeholder[j,i] #tf.gather(right_children_placeholder, i)
+                  node_word_index = node_word_indices_placeholder[j,i-1] #tf.gather(node_word_indices_placeholder, i)
+                  left_child = left_children_placeholder[j,i-1] #tf.gather(left_children_placeholder, i)
+                  right_child = right_children_placeholder[j,i-1] #tf.gather(right_children_placeholder, i)
 
                   f1 = lambda: combineWBothChildren(tensor_array[j].read(left_child), tensor_array[j].read(right_child),node_word_index)
                   f2 = lambda: combineLeftChild(tensor_array[j].read(left_child), node_word_index)
@@ -88,8 +87,6 @@ class TreeEncoder(object):
 
         tensor_array, _ = tf.while_loop(loop_cond, loop_body, [tensor_array, 1], parallel_iterations=1)
         root_logits=[tf.matmul(tensor_array[j].read(tensor_array[j].size() - 1), U) + bs for j in range(config.batch_size)]
-
-
 
 
         self.output = tf.concat(root_logits, axis=0)

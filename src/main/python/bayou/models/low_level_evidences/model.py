@@ -49,8 +49,7 @@ class Model():
             embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
             embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
             embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
-            self.reverse_encoder =
-             BayesianReverseEncoder(config, embRE,  node_word_indices_placeholder, left_children_placeholder, right_children_placeholder, ev_data[4], embRT, ev_data[5], embFS)
+            self.reverse_encoder =  BayesianReverseEncoder(config, embRE,  node_word_indices_placeholder, left_children_placeholder, right_children_placeholder, ev_data[4], embRT, ev_data[5], embFS)
             #BayesianReverseEncoder(config, embAPI, nodes, edges, ev_data[4], embRT, ev_data[5], embFS)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
 

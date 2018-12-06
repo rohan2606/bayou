@@ -94,11 +94,11 @@ def train(clargs):
     js_prog_ids_placeholder = tf.placeholder(reader.js_prog_ids.dtype, reader.js_prog_ids.shape)
     nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
-    targets_placeholder = tf.placeholder(reader.node_word_indices_placeholder.dtype, reader.node_word_indices_placeholder.shape)
+    targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
 
-    node_word_indices_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
-    left_children_placeholder = tf.placeholder(reader.left_children_placeholder.dtype, reader.left_children_placeholder.shape)
-    right_children_placeholder = tf.placeholder(reader.right_children_placeholder.dtype, reader.right_children_placeholder.shape)
+    node_word_indices_placeholder = tf.placeholder(reader.node_word.dtype, reader.node_word.shape)
+    left_children_placeholder = tf.placeholder(reader.left_child_id.dtype, reader.left_child_id.shape)
+    right_children_placeholder = tf.placeholder(reader.right_child_id.dtype, reader.right_child_id.shape)
 
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
     # reset batches
@@ -111,9 +111,9 @@ def train(clargs):
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
 
-    feed_dict.update({node_word_indices_placeholder: reader.node_word_indices_placeholder})
-    feed_dict.update({left_children_placeholder: reader.left_children_placeholder})
-    feed_dict.update({right_children_placeholder: reader.right_children_placeholder})
+    feed_dict.update({node_word_indices_placeholder: reader.node_word})
+    feed_dict.update({left_children_placeholder: reader.left_child_id})
+    feed_dict.update({right_children_placeholder: reader.right_child_id})
 
     dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder,
                                                 node_word_indices_placeholder, left_children_placeholder, right_children_placeholder, *evidence_placeholder))

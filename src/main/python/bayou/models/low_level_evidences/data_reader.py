@@ -19,20 +19,15 @@ import numpy as np
 import random
 import os
 import pickle
-from collections import Counter
+from collections import Counter, defaultdict, OrderedDict
 import gc
 
-<<<<<<< HEAD
-from bayou.models.low_level_evidences.utils import C0, CHILD_EDGE, SIBLING_EDGE, gather_calls, chunks
-from bayou.models.low_level_evidences.node import Node
-from collections import OrderedDict, defaultdict
-=======
+
 from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus, dump_config
 from bayou.models.low_level_evidences.node import Node
 CHILD_EDGE = True
 SIBLING_EDGE = False
 
->>>>>>> master
 
 class TooLongPathError(Exception):
     pass
@@ -133,8 +128,8 @@ class Reader():
                 for k in range(config.reverse_encoder.max_ast_depth):
                     node = raw_ast_path[k]
                     node_to_index[node] = k + 1
-                    self.left_child_id[i,k] = node_to_index[node.child] if node.ifLeftExist else 0
-                    self.right_child_id[i,k] = node_to_index[node.sibling] if node.ifRightExist else 0
+                    self.left_child_id[i,k] = node_to_index[node.child] if node.child is not None else 0
+                    self.right_child_id[i,k] = node_to_index[node.sibling] if node.sibling is not None else 0
                     self.node_word[i,k] = config.reverse_encoder.vocab[node.val] if node.val is not None else 0
 
             self.js_programs = js_programs
@@ -339,7 +334,8 @@ class Reader():
                 nodes_list = []
                 ast_node_head.postOrderTraversal(ast_node_head, lambda node, args: args.append(node), nodes_list)
                 ast_node_graph = nodes_list
-                pad = [ Node('Null') for i in range(self.config.reverse_encoder.max_ast_depth - len(ast_node_graph)) ]
+
+                pad = [ Node(None) for i in range(self.config.reverse_encoder.max_ast_depth - len(ast_node_graph)) ]
                 ast_node_graph = pad + ast_node_graph
 
                 self.validate_sketch_paths(program, ast_paths)
