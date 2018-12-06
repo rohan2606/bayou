@@ -56,6 +56,13 @@ class Reader():
             with open('data/js_prog_ids', 'rb') as f:
                 self.js_prog_ids = pickle.load(f)
 
+            with open('data/left_child_id.txt', 'rb') as f:
+                self.left_child_id = pickle.load(f)
+            with open('data/right_child_id.txt', 'rb') as f:
+                self.right_child_id = pickle.load(f)
+            with open('data/node_word.txt', 'rb') as f:
+                self.node_word = pickle.load(f)
+
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
                 json.dump(jsconfig, fp=f, indent=2)
