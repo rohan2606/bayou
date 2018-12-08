@@ -120,7 +120,7 @@ def forward_pass(clargs):
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
-    config.batch_size = 500 
+    config.batch_size = 500
 
     reader = Reader(clargs, config, infer=True)
 
@@ -169,7 +169,7 @@ def forward_pass(clargs):
                     infer_vars[prog_id]['count_prog_ids'] = 1
                     infer_vars[prog_id]['JS'] = jsp[js_prog_ids[i]]
                 else:
-                    infer_vars[prog_id]['b1'] += b1[i].round(decimals=2)
+                    infer_vars[prog_id]['a2'] += a2[i].round(decimals=2)
                     infer_vars[prog_id]['b2'] += b2[i].round(decimals=2)
                     infer_vars[prog_id]['ProbY'] = np.logaddexp( infer_vars[prog_id]['ProbY'] , prob_Y[i].round(decimals=2) )
                     infer_vars[prog_id]['count_prog_ids'] += 1
@@ -183,8 +183,8 @@ def forward_pass(clargs):
     print('Batch Processing Completed')
 
     for prog_id in list(infer_vars.keys()):
-        infer_vars[prog_id]['b1'] /= infer_vars[prog_id]['count_prog_ids']
-        infer_vars[prog_id]['b1'] = infer_vars[prog_id]['b1'].round(decimals=2)
+        infer_vars[prog_id]['a2'] /= infer_vars[prog_id]['count_prog_ids']
+        infer_vars[prog_id]['a2'] = infer_vars[prog_id]['a2'].round(decimals=2)
 
         infer_vars[prog_id]['b2'] /= infer_vars[prog_id]['count_prog_ids']
         infer_vars[prog_id]['b2'] = infer_vars[prog_id]['b2'].round(decimals=2)
