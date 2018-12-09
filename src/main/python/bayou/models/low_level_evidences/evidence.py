@@ -20,7 +20,7 @@ import json
 import nltk
 from itertools import chain
 from collections import Counter
-
+import gensim
 
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK, CHILD_EDGE, SIBLING_EDGE
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
@@ -56,6 +56,8 @@ class Evidence(object):
                 e = ClassTypes()
             elif name == 'formalparam':
                 e = FormalParam()
+            elif name == 'javadoc':
+                e = JavaDoc()
             elif name == 'sorrreturntype':
                 e = sorrReturnType()
             elif name == 'sorrformalparam':
@@ -182,7 +184,7 @@ class Sequences(Evidence):
     def wrangle(self, data):
         wrangled = np.zeros((len(data), self.max_depth), dtype=np.int32)
         for i, seqs in enumerate(data):
-            seq = seqs[0]
+            seq = seqs[0]# NOT A BUG every sequence is read as List of List
             for pos,c in enumerate(seq):
                 if pos < self.max_depth and c != 0:
                     wrangled[i, self.max_depth - 1 - pos] = c
@@ -393,14 +395,8 @@ class CallSequences(Sequences):
         self.vocab_size = 1
 
     def read_data_point(self, program, infer):
-        json_sequences = program['sequences'] if 'sequences' in program else []
-        list_seqs = [[]]
-
-        for json_seq in json_sequences:
-            list_seqs.append(self.word2num(json_seq, infer))
-        if len(list_seqs) > 1:
-            list_seqs.remove([])
-        return list_seqs
+        json_seq = program['sequences'] if 'sequences' in program else []
+        return [self.word2num(json_seq, infer)]
 
 
     @staticmethod
@@ -427,6 +423,49 @@ class FormalParam(Sequences):
             json_sequence.insert(0, 'Start')
             json_sequence.insert(0, 'None')
         return [self.word2num(json_sequence, infer)]
+
+
+# handle sequences as i/p
+class JavaDoc(Sequences):
+
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
+        self.model = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
+        self.n_Dims=300
+
+    def read_data_point(self, program, infer):
+        string_sequence = program['javaDoc'] if ('javaDoc' in program and program['javaDoc'] is not None) else []
+        if len(string_sequence) == 0:
+             return [[]]
+        string_sequence = re.sub('[^A-Za-z0-9]+', ' ', string_sequence)
+        new_string_seq = []
+        for word in string_sequence.split(" "):
+              if word in self.model:
+                  new_string_seq.append(word.lower())
+
+        #string_sequence = [word.lower() if word in model for word in string_sequence.split(" ")]
+
+        return [self.word2num(new_string_seq , infer)]
+
+    def init_sigma(self, config):
+        with tf.variable_scope(self.name):
+            #REPLACE BY WORD2VEC
+            # self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
+
+            vecrep_words = np.zeros((self.vocab_size,self.n_Dims), dtype=np.float32)
+            for key in self.vocab:
+            	vocab_ind = self.vocab[key]
+            	if key in self.model:
+            		vecrep_words[vocab_ind] = self.model[key]
+
+            self.emb = tf.Variable(vecrep_words, name='emb',trainable=False)
+        # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+            self.sigma = tf.get_variable('sigma', [])
+        del self.model
+
 
 
 class sorrCallSequences(Sequences):

@@ -69,8 +69,11 @@ def extract_evidence(clargs):
             method_name = program['method']
 
             sequences = program['sequences']
-            sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
+            # sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
+
+            sequences = [[shorten(call) for call in json_seq] for json_seq in sequences]
             sequences.sort(key=len, reverse=True)
+            sequences = sequences[0]
 
             if 'returnType' not in program:
                 continue
@@ -104,7 +107,7 @@ def extract_evidence(clargs):
             if method_name in programs_dict[file_name]:
                 print('Hit Found')
 
-            programs_dict[file_name][method_name] = [returnType, formalParam, sequences[0]]
+            programs_dict[file_name][method_name] = [returnType, formalParam, sequences]
 
 
         except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
@@ -142,10 +145,13 @@ def extract_evidence(clargs):
             file_name = program['file']
             method_name = program['method']
 
+
+
             sequences = program['sequences']
-            sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
+            sequences = [[shorten(call) for call in json_seq] for json_seq in sequences]
             sequences.sort(key=len, reverse=True)
-            program['sequences'] = sequences
+
+            program['sequences'] = sequences[0]
 
             if 'returnType' not in program:
                 continue
@@ -188,9 +194,17 @@ def extract_evidence(clargs):
             sample['returnType'] = returnType
             sample['formalParam'] = newFP
 
+
             classTypes = list(set(program['classTypes'])) if 'classTypes' in program else []
-            random.shuffle(classTypes)
-            sample['classTypes'] = classTypes
+            filteredClassTypes = []
+            for type in classTypes:
+                if type in topRetKeys or type in topRetKeys:
+                    filteredClassTypes.append(type)
+
+            sample['classTypes'] = filteredClassTypes
+            if len(filteredClassTypes) == 0:
+                del sample['classTypes']
+
 
             sample['sorrreturntype'] = []
             sample['sorrformalparam'] = []
@@ -210,6 +224,46 @@ def extract_evidence(clargs):
 
                 for choice, evidence in zip(programs_dict[file_name][method],['sorrreturntype', 'sorrformalparam', 'sorrsequences']):
                     sample[evidence].append(choice)
+
+
+
+            ## SORR RET
+            oldSorrRet = sample['sorrreturntype']
+            filteredSorrRet = []
+            for type in oldSorrRet:
+                if type in topRetKeys:
+                    filteredSorrRet.append(type)
+            sample['sorrreturntype'] = list(set(filteredSorrRet))
+            if len(sample['sorrreturntype']) == 0:
+                del sample['sorrreturntype']
+
+            ## SORR FP
+            oldSorrFP = sample['sorrformalparam']
+            filteredSorrFP = []
+            for FP in oldSorrFP:
+                temp = []
+                for type in FP:
+                    if type in topFPKeys:
+                        temp.append(type)
+                if len(temp) > 0:
+                    filteredSorrFP.append( tuple(temp) )
+
+            sample['sorrformalparam'] = list(set(filteredSorrFP))
+            if len(sample['sorrformalparam']) == 0:
+                del sample['sorrformalparam']
+
+            ## SORR SEQ
+            oldSorrSeq = sample['sorrsequences']
+            filteredSorrSeq = []
+            for seq in oldSorrSeq:
+                if len(seq) > 0:
+                    filteredSorrSeq.append(tuple(seq))
+
+            sample['sorrsequences'] = list(set(filteredSorrSeq))
+            if len(sample['sorrsequences']) == 0:
+                del sample['sorrsequences']
+
+
 
             programs.append(sample)
 
