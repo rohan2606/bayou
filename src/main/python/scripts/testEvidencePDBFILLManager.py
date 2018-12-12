@@ -122,7 +122,8 @@ def extract_evidence(clargs):
         keywords = list(set(chain.from_iterable([KeywordsFromCall(call)
                                                 for call in calls])))
 
-        sequences = []
+        sequence = []
+        javaDoc = ""
         for string in re.findall(r"\S+", program['body']): # separates out all lines of a program
             if 'call:' in string:
                 apicalls.append(string.split(":")[1])
@@ -130,21 +131,23 @@ def extract_evidence(clargs):
                 types.append(string.split(":")[1])
             if 'keyword:' in string:
                 keywords.append(string.split(":")[1])
-            sequence = []
             if 'sequence:' in string:
                 for call in string.split(":")[1:]:
                     sequence.append(call)
-                sequences.append(sequence)
+            if 'javadoc:' in string:
+                javaDoc = " ".join(re.split(" |:" , string)[1:])
 
-        sample['sequences'] = sequences
+
+
+
+        sample['javaDoc'] = javaDoc
+
+        sample['sequences'] = sequence
 
         file_name = program['file']
         method_name = program['method']
 
-        sequences = program['sequences']
         returnType = program['returnType'] if 'returnType' in program else "__Constructor__"
-
-
         formalParam = program['formalParam'] if 'formalParam' in program else []
 
         # Take in classTypes and sample a few
