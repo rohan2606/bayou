@@ -19,7 +19,7 @@ import tensorflow as tf
 import argparse
 import os
 import sys
-import json
+import simplejson as json
 import textwrap
 
 import time
@@ -69,40 +69,48 @@ def test_get_vals(clargs):
 
     programs = []
     a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
+    i=0
+    j=0
     for prog_id in sorted(list(infer_vars.keys())):
-        a1s += [infer_vars[prog_id]['a1']]
-        a2s += [infer_vars[prog_id]['a2']]
-        b1s += [list(infer_vars[prog_id]['b1'])]
-        b2s += [list(infer_vars[prog_id]['b2'])]
-        prob_Ys += [infer_vars[prog_id]['ProbY']]
-        #Ys += [infer_vars[prog_id]['Y']]
 
-        program = infer_vars[prog_id]['JS']
-        #if program['returnType']=='None':
-        #   program['returnType'] = 'void'
-        # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
-        program['a1'] = infer_vars[prog_id]['a1'].item()
-        program['b1'] = [val.item() for val in infer_vars[prog_id]['b1']]
-        program['a2'] = infer_vars[prog_id]['a2'].item()
-        program['b2'] = [val.item() for val in infer_vars[prog_id]['b2']]
-        program['ProbY'] = infer_vars[prog_id]['ProbY'].item()
+        if True:
+           #a1s += [infer_vars[prog_id]['a1']]
+           a2s += [infer_vars[prog_id]['a2']]
+           #b1s += [list(infer_vars[prog_id]['b1'])]
+           b2s += [list(infer_vars[prog_id]['b2'])]
+           prob_Ys += [infer_vars[prog_id]['ProbY']]
+           #Ys += [infer_vars[prog_id]['Y']]
 
-        del infer_vars[prog_id]
+           program = infer_vars[prog_id]['JS']
+           #if program['returnType']=='None':
+           #   program['returnType'] = 'void'
+           # a1, a2 and ProbY are all scalars, b1 and b2 are vectors
+           #program['a1'] = infer_vars[prog_id]['a1'].item()
+           #program['b1'] = [val.item() for val in infer_vars[prog_id]['b1']]
+           program['a2'] = "%.3f" % infer_vars[prog_id]['a2'].item()
+           program['b2'] = [ "%.3f" % val.item() for val in infer_vars[prog_id]['b2']]
+           program['ProbY'] = "%.3f" % infer_vars[prog_id]['ProbY'].item()
 
-        programs.append(program)
+           del infer_vars[prog_id]
+
+           programs.append(program)
+
+           #prob_Ys = normalize_log_probs(prob_Ys)
+           #print('Normalizing done')
+           i += 1
+
+           if i % 100000 == 0:
+               j += 1
+
+               fileName = "Program_output_" + str(j) + ".json"
+               print('\nWriting to {}...'.format(fileName), end='')
+               with open(fileName, 'w') as f:
+                    json.dump({'programs': programs}, fp=f, indent=2)
+               programs = []
+               a1s,a2s,b1s,b2s,prob_Ys  = [],[],[],[],[]
+
 
     print('New arrays saving done')
-    #prob_Ys = normalize_log_probs(prob_Ys)
-    #print('Normalizing done')
-
-
-    print('\nWriting to {}...'.format('Program_output_json.json'), end='')
-    with open('Program_output_json.json', 'w') as f:
-        json.dump({'programs': programs}, fp=f, indent=2)
-
-    print('Files Saved')
-    del programs
-
     return a1s, b1s, a2s, b2s, prob_Ys
 
 def forward_pass(clargs):
@@ -161,9 +169,9 @@ def forward_pass(clargs):
                 prog_id = prog_ids[i]
                 if prog_id not in infer_vars:
                     infer_vars[prog_id] = {}
-                    infer_vars[prog_id]['a1'] = a1[i].round(decimals=2)
+                    #infer_vars[prog_id]['a1'] = a1[i].round(decimals=2)
                     infer_vars[prog_id]['a2'] = a2[i].round(decimals=2)
-                    infer_vars[prog_id]['b1'] = b1[i].round(decimals=2)
+                    #infer_vars[prog_id]['b1'] = b1[i].round(decimals=2)
                     infer_vars[prog_id]['b2'] = b2[i].round(decimals=2)
                     infer_vars[prog_id]['ProbY'] = prob_Y[i].round(decimals=2)
                     infer_vars[prog_id]['count_prog_ids'] = 1
@@ -230,7 +238,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save1'])
+    clargs = parser.parse_args(['--save', 'save'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)
