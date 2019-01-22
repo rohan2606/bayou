@@ -16,12 +16,16 @@ from __future__ import print_function
 import argparse
 import sys
 import json
-import ijson.backends.yajl2_cffi as ijson
+import ijson as ijson
 import math
 import random
 import numpy as np
 from itertools import chain
 import re
+
+import sys
+sys.path.append('/home/rm38/bayou/src/main/python/')
+
 
 import bayou.models.low_level_evidences.evidence
 from bayou.models.low_level_evidences.utils import gather_calls
@@ -42,8 +46,6 @@ def extract_evidence(clargs):
 
     f = open(clargs.input_file[0] , 'rb')
     print('Done')
-    done = 0
-    programs = []
 
     ''' Program_dict dictionary holds Key values in format
     (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
@@ -69,9 +71,9 @@ def extract_evidence(clargs):
             method_name = program['method']
 
             sequences = program['sequences']
-            # sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
 
-            sequences = [[shorten(call) for call in json_seq] for json_seq in sequences]
+            sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
+            # sequences = [[shorten(call) for call in json_seq] for json_seq in sequences]
             sequences.sort(key=len, reverse=True)
             sequences = sequences[0]
 
@@ -124,6 +126,16 @@ def extract_evidence(clargs):
     print('{:8d} programs/asts to search over'.format(done - ignored))
 
 
+    trainProgDict = set()
+    for program_file_name in programs_dict.keys():
+        rand = random.uniform(0,1)
+        if rand <= 0.7:
+            trainProgDict.add(program_file_name)
+
+
+    train_programs = []
+    test_programs = []
+
     topRetKeys = dict()
     for w in sorted(returnDict, key=returnDict.get, reverse=True)[:1000]:
         topRetKeys[w] = returnDict[w]
@@ -148,7 +160,8 @@ def extract_evidence(clargs):
 
 
             sequences = program['sequences']
-            sequences = [[shorten(call) for call in json_seq] for json_seq in sequences]
+            sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
+            # sequences = [[shorten(call) for call in json_seq] for json_seq in sequences]
             sequences.sort(key=len, reverse=True)
 
             program['sequences'] = sequences[0]
@@ -248,12 +261,16 @@ def extract_evidence(clargs):
                 if len(temp) > 0:
                     filteredSorrFP.append( tuple(temp) )
 
+            filteredSorrFP.sort(key=len, reverse=True)
             sample['sorrformalparam'] = list(set(filteredSorrFP))
+
+
             if len(sample['sorrformalparam']) == 0:
                 del sample['sorrformalparam']
 
             ## SORR SEQ
             oldSorrSeq = sample['sorrsequences']
+            oldSorrSeq.sort(key=len, reverse=True)
             filteredSorrSeq = []
             for seq in oldSorrSeq:
                 if len(seq) > 0:
@@ -264,8 +281,10 @@ def extract_evidence(clargs):
                 del sample['sorrsequences']
 
 
-
-            programs.append(sample)
+            if file_name in trainProgDict:
+                train_programs.append(sample)
+            else:
+                test_programs.append(sample)
 
         except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
             ignored += 1
@@ -274,12 +293,19 @@ def extract_evidence(clargs):
         if done % 100000 == 0:
             print('Extracted evidence [API/Type/Keywords/Sorrounding Evidences] for {} programs'.format(done), end='\n')
 
-    random.shuffle(programs)
+    random.shuffle(train_programs)
 
 
     print('\nWriting to {}...'.format(clargs.output_file[0]), end='')
-    with open(clargs.output_file[0], 'w') as f:
-        json.dump({'programs': programs}, fp=f, indent=2)
+    outFile = clargs.output_file[0]
+    outFile = outFile.split(".")[0]
+
+    with open(outFile + "_train.json", 'w') as f:
+        json.dump({'programs': train_programs}, fp=f, indent=2)
+
+    with open(outFile + "_test.json", 'w') as f:
+        json.dump({'programs': test_programs}, fp=f, indent=2)
+
     print('done')
 
 
