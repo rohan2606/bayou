@@ -432,9 +432,9 @@ class JavaDoc(Sequences):
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
-
-        self.model = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
+        self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
         self.n_Dims=300
+
 
     def read_data_point(self, program, infer):
         string_sequence = program['javaDoc'] if ('javaDoc' in program and program['javaDoc'] is not None) else []
@@ -443,7 +443,7 @@ class JavaDoc(Sequences):
         string_sequence = re.sub('[^A-Za-z0-9]+', ' ', string_sequence)
         new_string_seq = []
         for word in string_sequence.split(" "):
-              if word in self.model:
+              if word in self.word2vecModel:
                   new_string_seq.append(word.lower())
 
         #string_sequence = [word.lower() if word in model for word in string_sequence.split(" ")]
@@ -458,13 +458,12 @@ class JavaDoc(Sequences):
             vecrep_words = np.zeros((self.vocab_size,self.n_Dims), dtype=np.float32)
             for key in self.vocab:
             	vocab_ind = self.vocab[key]
-            	if key in self.model:
-            		vecrep_words[vocab_ind] = self.model[key]
+            	if key in self.word2vecModel:
+            		vecrep_words[vocab_ind] = self.word2vecModel[key]
 
             self.emb = tf.Variable(vecrep_words, name='emb',trainable=False)
         # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             self.sigma = tf.get_variable('sigma', [])
-        del self.model
 
 
 
