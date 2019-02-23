@@ -38,7 +38,7 @@ class EmbeddingBatch():
         for j, program in enumerate(batchProgram):
             self.A[j] = np.asarray(program['a1'])
             self.B[j] = np.asarray(program['b1'])
-            self.jsEmbedding[j] = program
+            self.jsEmbedding[j] = program['body']
 
 
 class Embedding_iterator_WBatch():

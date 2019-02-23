@@ -41,8 +41,10 @@ def processJSONs(inFile, logdir, expNumber=1):
         line = line.strip()
         if os.path.isfile(line):
             js = processEachJSON(line, expNumber, logdir)
-            programs.append(js)
-            count += 1
+
+            if js != {}:
+                programs.append(js)
+                count += 1
 
     with open(logdir + '/L4TestProgramList.json', 'w') as f:
          json.dump({'programs': programs}, fp=f, indent=2)

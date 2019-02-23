@@ -14,7 +14,7 @@ if __name__=="__main__":
     dimension = 256
     topK = 10
 
-    JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, maxJSONs=70)
+    JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, maxJSONs=30)
     listOfColDB = JSONReader.readAllJSONs()
 
     print ("Initiate Scanner")
@@ -23,11 +23,27 @@ if __name__=="__main__":
     embIt = Embedding_iterator_WBatch('../log/EmbeddedProgramList.json', batch_size, dimension)
     print ("Searching Now!")
 
-    k=0
+    count, posCount = 0 , 0
     for embedding in embIt.embList:
         start = time.time()
-        k = k+1
-        topKProgs = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
+        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
+
+        for batch_id , topKProgs in enumerate(topKProgsBatch):
+            # print ("=====================================================")
+
+            desire = embedding.jsEmbedding[batch_id]
+            # print (desire)
+
+            for prog in topKProgs:
+                # print ("---------------------------------------------------------")
+                # print (prog.body)
+
+                if prog.body == desire:
+                    posCount += 1
+                    break
+
+
+        count = count + batch_size
         end = time.time()
-        print (k)
-        print((end - start)/( batch_size))
+        print ( str(posCount / count) +  " out of " + str(count) )
+        print(  " Time Spent ::  " + str((end - start)/( batch_size)))

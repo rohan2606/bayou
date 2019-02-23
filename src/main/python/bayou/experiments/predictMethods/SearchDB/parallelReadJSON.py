@@ -54,13 +54,7 @@ class parallelReadJSON():
 
 
     def readEachJSON(self, fileName):
-        print("Starting to read " + fileName)
-
-        # print("Counting .. ")
-        # with open( fileName , 'rb') as f:
-        #     count = 0
-        #     for _ in ijson.items(f, 'programs.item'):
-        #         count+=1
+        # print("Starting to read " + fileName)
 
         with open( fileName , 'r') as f:
             js = json.load(f)
@@ -72,5 +66,5 @@ class parallelReadJSON():
                 decodedProgram = skinnyProgramInBatch(jsProgram, k, Program_DB_j, self.batch_size)
                 Program_DB_j.setValues(jsProgram, decodedProgram, k)
 
-        print("Read " + fileName)
+        # print("Read " + fileName)
         return Program_DB_j

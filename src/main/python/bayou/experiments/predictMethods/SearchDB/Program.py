@@ -46,9 +46,12 @@ class skinnyProgramInBatch():
         print("Body :: " , self.body)
 
 
-    def getDistance(self, batch_id):
+    def setDistance(self, batch_id):
         self.distance[batch_id] = self.colDB.distance[batch_id, self.index]
         return
+
+    def getDistance(self, batch_id):
+        return self.distance[batch_id]
 
 # class Program():
 #

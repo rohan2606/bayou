@@ -57,6 +57,7 @@ def embedding_server(logdir):
         for program in js['programs']:
             a1, b1 = predictor.get_a1b1(program)
             # program = {}
+            
             program['a1'] = a1[0].item() # .item() converts a numpy element to a python element, one that is JSON serializable
             program['b1'] = [val.item() for val in b1[0]]
             programs.append(program)

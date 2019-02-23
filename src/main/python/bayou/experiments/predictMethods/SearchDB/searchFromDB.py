@@ -51,21 +51,21 @@ class searchFromDB():
             for j, topProgsForBatch_j in enumerate(topProgramsForThread_t):
                 topProgramForBatch[j].extend(topProgsForBatch_j)
 
+
+        opTopProgramForBatch = []
         for j, topKProgs in enumerate(topProgramForBatch):
-            [prog.getDistance(j) for prog in topKProgs]
-            topKProgs.sort(key=lambda x: x.distance, reverse=True)
-            
+            [prog.setDistance(j) for prog in topKProgs]
+            temp = sorted(topKProgs, key=lambda x: x.getDistance(j), reverse=True)[:self.topK]
+            opTopProgramForBatch.append(temp)
+            # [print (prog.distance[j]) for prog in topKProgs]
 
 
-        # if printProgs == 'yes':
-        #     self.printTopProgs(searchEmbedding , topKBatchProgs)
+        return opTopProgramForBatch
 
-        return topProgramForBatch
-
-    def printTopProgs(self, topKBatchProgs):
-
-        for i, topKProgs in enumerate(topKBatchProgs):
-            print (self.searchEmbedding.jsEmbedding[i]['body'])
-            for j, topKProgs in enumerate(topKBatchProgs):
-                for rank, program in enumerate(topKProgs):
-                    program.print_self(rank)
+    # def printTopProgs(self, topKBatchProgs):
+    #
+    #     for i, topKProgs in enumerate(topKBatchProgs):
+    #         print (self.searchEmbedding.jsEmbedding[i]['body'])
+    #         for j, topKProgs in enumerate(topKBatchProgs):
+    #             for rank, program in enumerate(topKProgs):
+    #                 program.print_self(rank)
