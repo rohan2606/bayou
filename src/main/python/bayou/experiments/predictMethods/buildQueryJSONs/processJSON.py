@@ -32,6 +32,10 @@ max_ast_depth = 32
 def processJSONs(inFile, logdir, expNumber=1):
     print("Processing JSONs ... ", end="")
     sys.stdout.flush()
+
+    if not os.path.exists(logdir):
+          os.makedirs(logdir)
+
     with open(inFile) as f:
         jsonLines = f.readlines()
 
@@ -41,8 +45,10 @@ def processJSONs(inFile, logdir, expNumber=1):
         line = line.strip()
         if os.path.isfile(line):
             js = processEachJSON(line, expNumber, logdir)
-            programs.append(js)
-            count += 1
+
+            if js != {}:
+                programs.append(js)
+                count += 1
 
     with open(logdir + '/L4TestProgramList.json', 'w') as f:
          json.dump({'programs': programs}, fp=f, indent=2)
@@ -53,11 +59,12 @@ def processJSONs(inFile, logdir, expNumber=1):
 def processEachJSON(fileName, expNumber, logdir):
     js = extract_evidence(fileName, expNumber)
     js = json.JSONDecoder().decode(js)
+    js = modifyInputForExperiment(js, expNumber)
 
-    writeFile = fileName.split("/")[-1]
 
-    with open(logdir + '/JSONFiles/' + writeFile, 'w') as f:
-        json.dump(js, fp=f, indent=2)
+    #writeFile = fileName.split("/")[-1]
+    #with open(logdir + '/JSONFiles/' + writeFile, 'w') as f:
+    #    json.dump(js, fp=f, indent=2)
 
     return js
 
@@ -65,29 +72,64 @@ def processEachJSON(fileName, expNumber, logdir):
 
 def modifyInputForExperiment(sample, expNumber):
 
-    if expNumber == 1:
+
+    if 'apicalls' in sample and len(sample['apicalls']) < 2:
+         return {}
+
+
+
+    ## You need to have all sorrounding infos bros
+    for ev in ['javaDoc', 'sorrreturntype' , 'sorrformalparam', 'sorrreturntype', 'classTypes']:
+            if ev not in sample:
+                return {}
+            if ev == 'javaDoc' and ev in sample and sample[ev] == None:
+                return {}
+    
+
+    if expNumber == 0: # onlyJavaDoc
+
+        for ev in [ 'sorrreturntype' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+            if ev in sample:
+                del sample[ev]
+
+
+    if expNumber == 1: #only sorrounding infos
 
         for ev in ['javaDoc', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
 
-    elif expNumber == 2:
-        for ev in ['sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+
+    elif expNumber == 2: # sorrounding plus javadoc
+
+
+        for ev in [  'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+            if ev in sample:
+                del sample[ev]
+        
+
+    elif expNumber == 3: ##  sorrounding , ret, fp , jD plus KEYWORDSSSS
+        for ev in ['sequences', 'apicalls', 'types']:
             if ev in sample:
                 del sample[ev]
 
-    elif expNumber == 3:
+
+
+    elif expNumber == 4: ## sorrounding plus jD and ret and fp
         for ev in ['sequences', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
 
-    elif expNumber == 4:
+    elif expNumber == 5: ## all but sequences
         for ev in ['sequences']:
             if ev in sample:
                 del sample[ev]
-        for ev in [ 'apicalls', 'types', 'keywords']:
-            sample[ev]
 
+
+    elif expNumber == 6: ## all 
+        for ev in []:
+            if ev in sample:
+                del sample[ev]
 
 
     return sample
@@ -173,11 +215,11 @@ def extract_evidence(fileName, expNumber):
 
         sequences = program['sequences']
         sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
-
+        sequences.sort(key=len, reverse=True)
         sample['sequences'] = sequences[0]
 
         # Take in classTypes and sample a few
-        sample['classTypes'] = list(set(program['classTypes'])) if 'classTypes' in program else []
+        sample['classTypes'] = list(program['classTypes']) if 'classTypes' in program else []
         if len(sample['classTypes']) == 0:
             del sample['classTypes']
 
@@ -199,7 +241,7 @@ def extract_evidence(fileName, expNumber):
                 sample[evidence].append(choice)
 
         ## SORR RET
-        sample['sorrreturntype'] = list(set(sample['sorrreturntype']))
+        sample['sorrreturntype'] = list(sample['sorrreturntype'])
         if len(sample['sorrreturntype']) == 0:
             del sample['sorrreturntype']
 
@@ -212,7 +254,7 @@ def extract_evidence(fileName, expNumber):
                 filteredSorrFP.append( tuple(temp) )
 
         filteredSorrFP.sort(key=len, reverse=True)
-        sample['sorrformalparam'] = list(set(filteredSorrFP))
+        sample['sorrformalparam'] = list(filteredSorrFP)
         if len(sample['sorrformalparam']) == 0:
             del sample['sorrformalparam']
 
@@ -224,13 +266,12 @@ def extract_evidence(fileName, expNumber):
             if len(seq) > 0:
                 filteredSorrSeq.append(tuple(seq))
 
-        sample['sorrsequences'] = list(set(filteredSorrSeq))
+        sample['sorrsequences'] = list(filteredSorrSeq)
         if len(sample['sorrsequences']) == 0:
             del sample['sorrsequences']
 
         done += 1
         # print('Extracted evidence for {} programs'.format(done), end='\n')
 
-        sample = modifyInputForExperiment(sample, expNumber)
 
     return json.dumps(sample, indent=2)

@@ -70,7 +70,11 @@ if __name__ == "__main__":
     queryFilesInJson = logdir + '/L3JSONFiles.txt'
 
     cleanUp(logdir = logdir)
-    sampleFiles(queryFilesSampled, k=1000)
+    sampleFiles(queryFilesSampled, k=500)
     runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
-    processJSONs(queryFilesInJson,  logdir, expNumber = 2)
-    embedding_server(logdir)
+
+    EmbS = embedding_server()    
+    for expNumber in range(7):
+         logdir = "../log/" + "expNumber_" + str(expNumber) 
+         processJSONs(queryFilesInJson,  logdir, expNumber = expNumber)
+         EmbS.getEmbeddings(logdir)

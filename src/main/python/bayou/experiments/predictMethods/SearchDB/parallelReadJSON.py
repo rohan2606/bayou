@@ -23,14 +23,14 @@ class parallelReadJSON():
 
 
         numThreads = self.numThreads
-        print("Start parallel multiprocessing")
+        print("Start parallel multiprocessing read JSONs")
         fileChunks = [files[i::numThreads] for i in range(numThreads)]
         pool = Pool(processes=numThreads)
         result = pool.map(self.readMultipleJSONs, fileChunks)
 
         # pool.close()
         # pool.join()
-        print("Done with multi-multiprocessing")
+        print("Done with multi-multiprocessing read JSONs")
         #Aggregate the result
         FinalProgram_DB = []
         for item in result:
@@ -43,24 +43,18 @@ class parallelReadJSON():
     def readMultipleJSONs(self, files):
 
         Program_DB_all=[]
-        print ("Starting to read " + str(len(files)) + " JSON files")
+        #print ("Starting to read " + str(len(files)) + " JSON files")
         for file in files:
             Program_DB_j = self.readEachJSON(file)
             Program_DB_all.append(Program_DB_j)
 
 
-        print ("Completed reading " + str(len(files)) + " JSON files")
+        #print ("Completed reading " + str(len(files)) + " JSON files")
         return Program_DB_all
 
 
     def readEachJSON(self, fileName):
-        print("Starting to read " + fileName)
-
-        # print("Counting .. ")
-        # with open( fileName , 'rb') as f:
-        #     count = 0
-        #     for _ in ijson.items(f, 'programs.item'):
-        #         count+=1
+        # print("Starting to read " + fileName)
 
         with open( fileName , 'r') as f:
             js = json.load(f)
@@ -72,5 +66,5 @@ class parallelReadJSON():
                 decodedProgram = skinnyProgramInBatch(jsProgram, k, Program_DB_j, self.batch_size)
                 Program_DB_j.setValues(jsProgram, decodedProgram, k)
 
-        print("Read " + fileName)
+        # print("Read " + fileName)
         return Program_DB_j
