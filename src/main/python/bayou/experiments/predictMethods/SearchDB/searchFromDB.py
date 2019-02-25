@@ -80,10 +80,3 @@ class searchFromDB():
 
         return opTopProgramForBatch
 
-    # def printTopProgs(self, topKBatchProgs):
-    #
-    #     for i, topKProgs in enumerate(topKBatchProgs):
-    #         print (self.searchEmbedding.jsEmbedding[i]['body'])
-    #         for j, topKProgs in enumerate(topKBatchProgs):
-    #             for rank, program in enumerate(topKProgs):
-    #                 program.print_self(rank)

@@ -66,6 +66,7 @@ class embedding_server():
             if ignored == True:
                 continue
 
+            
             program['a1'] = a1[0].item() # .item() converts a numpy element to a python element, one that is JSON serializable
             program['b1'] = [val.item() for val in b1[0]]
             program['a2'] = a2[0].item()
