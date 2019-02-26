@@ -22,9 +22,9 @@ def ListToFormattedString(alist, Type):
 
 if __name__=="__main__":
 
-    numThreads = 30
-    batch_size = 1
-    maxJSONs = 7
+    numThreads = 20
+    batch_size = 10
+    maxJSONs = 70
     dimension = 256
     topK = 10000
 
@@ -33,35 +33,50 @@ if __name__=="__main__":
 
     print ("Initiate Scanner")
     scanner = searchFromDB(listOfColDB, topK, batch_size)
-    print ("Load Embedding")
-    embIt = Embedding_iterator_WBatch('../log/expNumber_6/EmbeddedProgramList.json', batch_size, dimension)
-    print ("Searching Now!")
 
-    count = 0    
-    hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
-    hit_counts = np.zeros(len(hit_points))
+    for expNumber in [0,1,2,3,4,5,6]:
+	    print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
+	    embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
+	    #print ("Searching Now!")
+
+	    count = 0    
+	    hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
+	    hit_counts = np.zeros(len(hit_points))
 
 
-    for kkk, embedding in enumerate(embIt.embList):
+	    for kkk, embedding in enumerate(embIt.embList):
+	        start = time.time()
+	        scanner.addAColDB(embedding.js, dimension, batch_size)
+	        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
 
-        start = time.time()
-        scanner.addAColDB(embedding.js, dimension, batch_size)
-        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
+		 
+	        for batch_id , topKProgs in enumerate(topKProgsBatch):
+	            desire = embedding.js[batch_id]['body']
+	            desireAPIcalls = embedding.js[batch_id]['testapicalls']
+	            rank = topK + 1
+	            for j, prog in enumerate(topKProgs):
+                        flag=True
+                        for api in desireAPIcalls:
+                            if api not in prog.body:
+                                flag=False
+                        if flag == True:
+                            rank = j
+                            break
+                        '''
+	                if desire in prog.body :
+	                    rank = j
+	                    break
+                        '''
+	            count += 1
+	            hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
+		     
+	        scanner.deleteLastColDB()
 
-         
-        for batch_id , topKProgs in enumerate(topKProgsBatch):
-            desire = embedding.js[batch_id]['body']
-            rank = topK + 1
-            for j, prog in enumerate(topKProgs):
-                if desire in prog.body :
-                    rank = j
-                    break
-            count += 1
-            hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
-             
-        scanner.deleteLastColDB()
-
-        end = time.time()
-        print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
-                  (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
-        print(  " Time Spent ::  " + str((end - start)/( batch_size)))
+	        end = time.time()
+	        #print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
+                #          (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
+	        if kkk % 9 == 0 and kkk > 0:
+	              print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
+			  (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
+	              break
+		#print(  " Time Spent ::  " + str((end - start)/( batch_size)))

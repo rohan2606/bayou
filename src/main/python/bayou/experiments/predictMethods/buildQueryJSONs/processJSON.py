@@ -72,23 +72,24 @@ def processEachJSON(fileName, expNumber, logdir):
 
 def modifyInputForExperiment(sample, expNumber):
 
+   
 
-    if 'apicalls' in sample and len(sample['apicalls']) < 2:
+    if ( 'apicalls' not in sample ) or ('apicalls' in sample and len(sample['apicalls']) < 2):
          return {}
 
-
+    sample['testapicalls'] = sample['apicalls']
 
     ## You need to have all sorrounding infos bros
-    for ev in ['javaDoc', 'sorrreturntype' , 'sorrformalparam', 'sorrreturntype', 'classTypes']:
-            if ev not in sample:
-                return {}
-            if ev == 'javaDoc' and ev in sample and sample[ev] == None:
-                return {}
+    for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes']:
+        if ev not in sample:
+            return {}
+        if ev == 'javaDoc' and sample[ev] == None:
+            return {}
     
 
     if expNumber == 0: # onlyJavaDoc
 
-        for ev in [ 'sorrreturntype' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+        for ev in [ 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
 
@@ -108,15 +109,15 @@ def modifyInputForExperiment(sample, expNumber):
                 del sample[ev]
         
 
-    elif expNumber == 3: ##  sorrounding , ret, fp , jD plus KEYWORDSSSS
-        for ev in ['sequences', 'apicalls', 'types']:
+    elif expNumber == 3: ##  sorrounding , ret, fp , jD 
+        for ev in ['sequences', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
 
 
 
-    elif expNumber == 4: ## sorrounding plus jD and ret and fp
-        for ev in ['sequences', 'apicalls', 'types', 'keywords']:
+    elif expNumber == 4: ## sorrounding plus jD and ret and fp and keywords
+        for ev in ['sequences', 'apicalls', 'types']:
             if ev in sample:
                 del sample[ev]
 

@@ -63,10 +63,10 @@ class embedding_server():
         for program in js['programs']:
             a1, b1, a2, b2, probY,ignored = self.predictor.get_a1b1a2b2(program)
 
+
             if ignored == True:
                 continue
 
-            
             program['a1'] = a1[0].item() # .item() converts a numpy element to a python element, one that is JSON serializable
             program['b1'] = [val.item() for val in b1[0]]
             program['a2'] = a2[0].item()
