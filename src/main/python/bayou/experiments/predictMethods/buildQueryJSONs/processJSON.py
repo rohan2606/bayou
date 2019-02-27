@@ -76,8 +76,14 @@ def modifyInputForExperiment(sample, expNumber):
 
     if ( 'apicalls' not in sample ) or ('apicalls' in sample and len(sample['apicalls']) < 1):
          return {}
+    
+    
+    sample['testwords'] = sample['apicalls']
 
-    sample['testapicalls'] = sample['apicalls']
+    if 'types' in sample:
+         sample['testwords'] += sample['types']
+    if 'keywords' in sample:
+         sample['testwords'] += sample['keywords'] 
 
     ## You need to have all sorrounding infos bros
     for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes']:
@@ -220,7 +226,7 @@ def extract_evidence(fileName, expNumber):
         sample['sequences'] = sequences[0]
 
         # Take in classTypes and sample a few
-        sample['classTypes'] = list(program['classTypes']) if 'classTypes' in program else []
+        sample['classTypes'] = list(set(program['classTypes'])) if 'classTypes' in program else []
         if len(sample['classTypes']) == 0:
             del sample['classTypes']
 
@@ -242,7 +248,7 @@ def extract_evidence(fileName, expNumber):
                 sample[evidence].append(choice)
 
         ## SORR RET
-        sample['sorrreturntype'] = list(sample['sorrreturntype'])
+        sample['sorrreturntype'] = list(set(sample['sorrreturntype']))
         if len(sample['sorrreturntype']) == 0:
             del sample['sorrreturntype']
 
@@ -255,7 +261,7 @@ def extract_evidence(fileName, expNumber):
                 filteredSorrFP.append( tuple(temp) )
 
         filteredSorrFP.sort(key=len, reverse=True)
-        sample['sorrformalparam'] = list(filteredSorrFP)
+        sample['sorrformalparam'] = list(set(filteredSorrFP))
         if len(sample['sorrformalparam']) == 0:
             del sample['sorrformalparam']
 
@@ -267,7 +273,7 @@ def extract_evidence(fileName, expNumber):
             if len(seq) > 0:
                 filteredSorrSeq.append(tuple(seq))
 
-        sample['sorrsequences'] = list(filteredSorrSeq)
+        sample['sorrsequences'] = list(set(filteredSorrSeq))
         if len(sample['sorrsequences']) == 0:
             del sample['sorrsequences']
 
