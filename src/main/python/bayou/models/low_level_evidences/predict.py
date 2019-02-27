@@ -152,7 +152,7 @@ class BayesianPredictor(object):
             self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
 
 
-        self.probY = 0.0 * -1 * self.loss + self.get_multinormal_lnprob(self.psi_reverse_encoder)  - self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
+        probY = -1 * self.loss + self.get_multinormal_lnprob(self.psi_reverse_encoder)  - self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
         EncA, EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
         RevEncA, RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
@@ -165,7 +165,8 @@ class BayesianPredictor(object):
         
         self.EncA = tf.reduce_mean(EncA, axis=0, keepdims=True)
         self.EncB = tf.reduce_mean(EncB, axis=0, keepdims=True)
-
+        
+        self.probY = tf.reduce_mean( probY, axis=0, keepdims=True)
 
 
 

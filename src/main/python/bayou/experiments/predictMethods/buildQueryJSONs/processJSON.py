@@ -74,7 +74,7 @@ def modifyInputForExperiment(sample, expNumber):
 
    
 
-    if ( 'apicalls' not in sample ) or ('apicalls' in sample and len(sample['apicalls']) < 2):
+    if ( 'apicalls' not in sample ) or ('apicalls' in sample and len(sample['apicalls']) < 1):
          return {}
 
     sample['testapicalls'] = sample['apicalls']

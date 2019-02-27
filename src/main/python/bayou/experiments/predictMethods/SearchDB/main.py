@@ -54,6 +54,7 @@ if __name__=="__main__":
 	            desire = embedding.js[batch_id]['body']
 	            desireAPIcalls = embedding.js[batch_id]['testapicalls']
 	            rank = topK + 1
+
 	            for j, prog in enumerate(topKProgs):
                         flag=True
                         for api in desireAPIcalls:
@@ -63,9 +64,9 @@ if __name__=="__main__":
                             rank = j
                             break
                         '''
-	                if desire in prog.body :
-	                    rank = j
-	                    break
+                        if desire in prog.body :
+                            rank = j
+                            break
                         '''
 	            count += 1
 	            hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
@@ -73,10 +74,10 @@ if __name__=="__main__":
 	        scanner.deleteLastColDB()
 
 	        end = time.time()
-	        #print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
-                #          (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
+	        print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
+                          (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 	        if kkk % 9 == 0 and kkk > 0:
-	              print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
-			  (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
+	              #print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
+		      #	  (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 	              break
 		#print(  " Time Spent ::  " + str((end - start)/( batch_size)))
