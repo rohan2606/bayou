@@ -76,5 +76,6 @@ if __name__ == "__main__":
     EmbS = embedding_server()    
     for expNumber in range(7):
          logdir = "../log/" + "expNumber_" + str(expNumber) 
-         processJSONs(queryFilesInJson,  logdir, expNumber = expNumber)
+         count = processJSONs(queryFilesInJson,  logdir, expNumber = expNumber)
          EmbS.getEmbeddings(logdir)
+         print("Number of programs processed for exp " + str(expNumber) + " is "  + str(count))

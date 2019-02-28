@@ -3,7 +3,7 @@ from searchFromDB import searchFromDB
 from Embedding import Embedding_iterator_WBatch
 import time
 import numpy as np
-
+import re
 def rank_statistic(_rank, total, prev_hits, cutoff):
     cutoff = np.array(cutoff)
     hits = prev_hits + (_rank < cutoff)
@@ -46,17 +46,20 @@ if __name__=="__main__":
 
 	    for kkk, embedding in enumerate(embIt.embList):
 	        start = time.time()
+	        #print (embedding.js)
 	        scanner.addAColDB(embedding.js, dimension, batch_size)
 	        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
 
 		 
 	        for batch_id , topKProgs in enumerate(topKProgsBatch):
 	            desire = embedding.js[batch_id]['body']
-	            desireAPIcalls = embedding.js[batch_id]['testapicalls']
+	            desireAPIcalls = embedding.js[batch_id]['testwords']
+	            desire = re.sub(r'\*\*(.*?)\*\/', '', desire)
 	            rank = topK + 1
 
 	            for j, prog in enumerate(topKProgs):
-                        flag=True
+                        
+                        '''flag=True
                         for api in desireAPIcalls:
                             if api not in prog.body:
                                 flag=False
@@ -67,7 +70,6 @@ if __name__=="__main__":
                         if desire in prog.body :
                             rank = j
                             break
-                        '''
 	            count += 1
 	            hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
 		     

@@ -15,9 +15,10 @@
 from __future__ import print_function
 
 
-CHILD_EDGE = 'V'
-SIBLING_EDGE = 'H'
-
+#CHILD_EDGE = 'V'
+#SIBLING_EDGE = 'H'
+CHILD_EDGE = True
+SIBLING_EDGE = False
 
 class Node():
     def __init__(self, call, child=None, sibling=None):

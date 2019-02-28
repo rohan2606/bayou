@@ -53,7 +53,7 @@ def processJSONs(inFile, logdir, expNumber=1):
     with open(logdir + '/L4TestProgramList.json', 'w') as f:
          json.dump({'programs': programs}, fp=f, indent=2)
     print ("Done")
-    return
+    return count
 
 
 def processEachJSON(fileName, expNumber, logdir):
@@ -80,24 +80,24 @@ def modifyInputForExperiment(sample, expNumber):
     
     sample['testwords'] = sample['apicalls']
 
-    if 'types' in sample:
-         sample['testwords'] += sample['types']
-    if 'keywords' in sample:
-         sample['testwords'] += sample['keywords'] 
 
     ## You need to have all sorrounding infos bros
     for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes']:
         if ev not in sample:
             return {}
-        if ev == 'javaDoc' and sample[ev] == None:
+        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 3 ):
             return {}
+        if ev == 'sorrsequences' and len(sample[ev]) < 5:
+            return {}
+        
     
-
     if expNumber == 0: # onlyJavaDoc
 
         for ev in [ 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
+        sample['returnType'] = 'None'
+        sample['formalParam'] = ['None']
 
 
     if expNumber == 1: #only sorrounding infos
@@ -105,7 +105,8 @@ def modifyInputForExperiment(sample, expNumber):
         for ev in ['javaDoc', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
-
+        sample['returnType'] = 'None'
+        sample['formalParam'] = ['None']
 
     elif expNumber == 2: # sorrounding plus javadoc
 
@@ -113,6 +114,8 @@ def modifyInputForExperiment(sample, expNumber):
         for ev in [  'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
+        sample['returnType'] = 'None'
+        sample['formalParam'] = ['None']
         
 
     elif expNumber == 3: ##  sorrounding , ret, fp , jD 
