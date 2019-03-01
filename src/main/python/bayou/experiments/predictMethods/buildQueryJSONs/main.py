@@ -70,7 +70,7 @@ if __name__ == "__main__":
     queryFilesInJson = logdir + '/L3JSONFiles.txt'
 
     cleanUp(logdir = logdir)
-    sampleFiles(queryFilesSampled, k=10000)
+    sampleFiles(queryFilesSampled, k=50000)
     runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
 
     EmbS = embedding_server()    
