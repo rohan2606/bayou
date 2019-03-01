@@ -87,7 +87,7 @@ def modifyInputForExperiment(sample, expNumber):
             return {}
         if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 3 ):
             return {}
-        if ev == 'sorrsequences' and len(sample[ev]) < 5:
+        if ev == 'sorrsequences' and len(sample[ev]) < 9:
             return {}
         
     
