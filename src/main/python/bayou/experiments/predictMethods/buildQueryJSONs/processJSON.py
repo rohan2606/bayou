@@ -78,7 +78,7 @@ def modifyInputForExperiment(sample, expNumber):
          return {}
     
     
-    sample['testwords'] = sample['apicalls']
+    sample['testapicalls'] = sample['apicalls']
 
 
     ## You need to have all sorrounding infos bros
