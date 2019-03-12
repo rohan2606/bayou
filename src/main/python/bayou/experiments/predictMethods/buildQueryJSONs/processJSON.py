@@ -70,9 +70,11 @@ def processEachJSON(fileName, expNumber, logdir):
 
 
 
+def stripJavaDoc(stringBody):
+    return re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))    
+
 def modifyInputForExperiment(sample, expNumber):
 
-   
 
     if ( 'apicalls' not in sample ) or ('apicalls' in sample and len(sample['apicalls']) < 1):
          return {}
@@ -222,6 +224,7 @@ def extract_evidence(fileName, expNumber):
         sample['types'] = types
         sample['keywords'] = keywords
 
+        sample['body'] = stripJavaDoc(sample['body'])
 
         sequences = program['sequences']
         sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]

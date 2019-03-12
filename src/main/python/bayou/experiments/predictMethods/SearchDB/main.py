@@ -22,9 +22,9 @@ def ListToFormattedString(alist, Type):
 
 if __name__=="__main__":
 
-    numThreads = 20
+    numThreads = 8
     batch_size = 10
-    maxJSONs = 70
+    maxJSONs = 7
     dimension = 256
     topK = 10000
 
@@ -37,7 +37,6 @@ if __name__=="__main__":
     for expNumber in [0,1,2,3,4,5,6]:
 	    print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
 	    embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
-	    #print ("Searching Now!")
 
 	    count = 0    
 	    hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
@@ -46,27 +45,15 @@ if __name__=="__main__":
 
 	    for kkk, embedding in enumerate(embIt.embList):
 	        start = time.time()
-	        #print (embedding.js)
 	        scanner.addAColDB(embedding.js, dimension, batch_size)
 	        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
 
 		 
 	        for batch_id , topKProgs in enumerate(topKProgsBatch):
 	            desire = embedding.js[batch_id]['body']
-	            desireAPIcalls = embedding.js[batch_id]['testwords']
-	            desire = re.sub(r'\*\*(.*?)\*\/', '', desire)
 	            rank = topK + 1
 
 	            for j, prog in enumerate(topKProgs):
-                        
-                        '''flag=True
-                        for api in desireAPIcalls:
-                            if api not in prog.body:
-                                flag=False
-                        if flag == True:
-                            rank = j
-                            break
-                        '''
                         if desire in prog.body :
                             rank = j
                             break
