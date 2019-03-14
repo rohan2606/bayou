@@ -24,8 +24,9 @@ import gensim
 
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK, CHILD_EDGE, SIBLING_EDGE
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
+from bayou.models.low_level_evidences.biRNN import biRNN
 from nltk.stem.wordnet import WordNetLemmatizer
-
+from bayou.models.low_level_evidences.preProcessor import preProcessor
 
 class Evidence(object):
 
@@ -434,19 +435,22 @@ class JavaDoc(Sequences):
         self.vocab_size = 1
         self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
         self.n_Dims=300
+        self.jDpreProc = preProcessor()
 
 
     def read_data_point(self, program, infer):
+
+        infer=False
+        
         string_sequence = program['javaDoc'] if ('javaDoc' in program and program['javaDoc'] is not None) else []
         if len(string_sequence) == 0:
              return [[]]
-        string_sequence = re.sub('[^A-Za-z0-9]+', ' ', string_sequence)
-        new_string_seq = []
-        for word in string_sequence.split(" "):
-              if word in self.word2vecModel:
-                  new_string_seq.append(word.lower())
+        string_sequence = self.jDpreProc.preProcessing(string_sequence)
 
-        #string_sequence = [word.lower() if word in model for word in string_sequence.split(" ")]
+        new_string_seq = []
+        for word in string_sequence:
+              # if word in self.word2vecModel:
+            new_string_seq.append(word)
 
         return [self.word2num(new_string_seq , infer)]
 
@@ -461,10 +465,29 @@ class JavaDoc(Sequences):
             	if key in self.word2vecModel:
             		vecrep_words[vocab_ind] = self.word2vecModel[key]
 
-            self.emb = tf.Variable(vecrep_words, name='emb',trainable=False)
+            self.emb = tf.Variable(vecrep_words, name='emb',trainable=True)
         # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             self.sigma = tf.get_variable('sigma', [])
 
+    def encode(self, inputs, config, infer):
+        with tf.variable_scope(self.name):
+            # Drop some inputs
+            if not infer:
+                inp_shaped_zeros = tf.zeros_like(inputs)
+                rand = tf.random_uniform( (config.batch_size, self.max_depth) )
+                inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
+
+            BiGRU_Encoder = biRNN(self.num_layers, self.units, inputs, config.batch_size, self.emb, config.latent_size)
+            encoding = BiGRU_Encoder.output
+
+            w = tf.get_variable('w', [self.units, config.latent_size ])
+            b = tf.get_variable('b', [config.latent_size])
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+
+            zeros = tf.zeros([config.batch_size , config.latent_size])
+            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
+
+            return latent_encoding
 
 
 class sorrCallSequences(Sequences):

@@ -41,7 +41,7 @@ class Reader():
         self.infer = infer
         self.config = config
 
-        if clargs.continue_from is not None or dataIsThere:
+        if False : #clargs.continue_from is not None or dataIsThere:
             with open('data/inputs.txt', 'rb') as f:
                 self.inputs = pickle.load(f)
             with open('data/nodes.txt', 'rb') as f:

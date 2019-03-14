@@ -83,7 +83,8 @@ def train(clargs):
         config_file = clargs.config
 
     with open(config_file) as f:
-        config = read_config(json.load(f), chars_vocab=(clargs.continue_from or dataIsThere))
+        js = json.load(f)
+        config = read_config(js, chars_vocab=(clargs.continue_from or dataIsThere))
 
     reader = Reader(clargs, config, dataIsThere=dataIsThere)
 
@@ -109,7 +110,7 @@ def train(clargs):
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
-    model = Model(config , iterator, bayou_mode=False)
+    model = Model(config , iterator, bayou_mode=True)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
@@ -122,8 +123,8 @@ def train(clargs):
 
         # restore model
         if clargs.continue_from is not None:
-            bayou_vars = get_var_list()['bayou_vars']
-            old_saver = tf.train.Saver(bayou_vars, max_to_keep=None)
+            vars = list(set(get_var_list()['all_vars']) - set(get_var_list()['javadoc_vars']))
+            old_saver = tf.train.Saver(vars, max_to_keep=None)
             ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
             old_saver.restore(sess, ckpt.model_checkpoint_path)
 
@@ -182,7 +183,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save1',
+    parser.add_argument('--save', type=str, default='save2',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -190,12 +191,12 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save',
+     ['--continue_from', 'save1',
      #['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-Licensed_test.json'])
+    '/home/ubuntu/DATA-Licensed_test-top.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

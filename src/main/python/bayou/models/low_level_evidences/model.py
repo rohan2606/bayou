@@ -169,10 +169,11 @@ class Model():
             self.allEvSigmas = [ ev.sigma for ev in self.config.evidence ]
             #unused if MultiGPU is being used
             with tf.name_scope("train"):
-                if bayou_mode:
-                    train_ops = get_var_list()['bayou_vars']
-                else:
-                    train_ops = get_var_list()['rev_encoder_vars']
+                # if bayou_mode:
+                #     train_ops = get_var_list()['bayou_vars']
+                # else:
+                #     train_ops = get_var_list()['rev_encoder_vars']
+                train_ops = get_var_list()['javadoc_vars']
 
         if not infer:
             opt = tf.train.AdamOptimizer(config.learning_rate)
