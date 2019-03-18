@@ -30,6 +30,7 @@ max_ast_depth = 32
 
 
 def processJSONs(inFile, logdir, expNumber=1):
+    random.seed(12)
     print("Processing JSONs ... ", end="")
     sys.stdout.flush()
 
@@ -84,13 +85,18 @@ def modifyInputForExperiment(sample, expNumber):
 
 
     ## You need to have all sorrounding infos bros
-    for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes']:
+    for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
         if ev not in sample:
             return {}
         if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 3 ):
             return {}
         if ev == 'sorrsequences' and len(sample[ev]) < 9:
             return {}
+        if ev == 'sequences':
+            for elem in sample[ev]:
+                if elem not in sample['apicalls']:
+                    return {}
+               
         
     
     if expNumber == 0: # onlyJavaDoc

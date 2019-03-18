@@ -22,9 +22,9 @@ def ListToFormattedString(alist, Type):
 
 if __name__=="__main__":
 
-    numThreads = 8
+    numThreads = 32
     batch_size = 10
-    maxJSONs = 7
+    maxJSONs = 69
     dimension = 256
     topK = 10000
 
@@ -34,7 +34,7 @@ if __name__=="__main__":
     print ("Initiate Scanner")
     scanner = searchFromDB(listOfColDB, topK, batch_size)
 
-    for expNumber in [0,1,2,3,4,5,6]:
+    for expNumber in [5,6]:
 	    print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
 	    embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
 
