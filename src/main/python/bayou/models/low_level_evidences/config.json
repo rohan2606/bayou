@@ -93,7 +93,7 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": 1,
-            "max_nums": 10,
+            "max_nums": 8,
             "ev_drop_prob":0.8,
             "ev_call_drop_prob":0.8
         },

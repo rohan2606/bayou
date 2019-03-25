@@ -466,8 +466,84 @@ class JavaDoc(Sequences):
             self.sigma = tf.get_variable('sigma', [])
 
 
+class sorrReturnType(Sets):
 
-class sorrCallSequences(Sequences):
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
+    def read_data_point(self, program, infer):
+        sorrreturnType = program['sorrreturntype'] if 'sorrreturntype' in program else []
+        return self.word2num(sorrreturnType, infer)
+
+
+
+
+# handle sequences as i/p
+class SetsOfSequences(Evidence):
+
+
+    def placeholder(self, config):
+        # type: (object) -> object
+        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums, self.max_depth])
+
+    def wrangle(self, data):
+        wrangled = np.zeros((len(data), self.max_nums, self.max_depth), dtype=np.int32)
+        for i, seqs in enumerate(data):
+            for j, seq in enumerate(seqs):
+                if j < self.max_nums:
+                    for pos,c in enumerate(seq):
+                        if pos < self.max_depth and c != 0:
+                            wrangled[i, j, self.max_depth - 1 - pos] = c
+        return wrangled
+
+    def exists(self, inputs, config, infer):
+        i = tf.expand_dims(tf.reduce_sum(inputs, axis=[1,2]),axis=1)
+        # Drop a few types of evidences during training
+        if not infer:
+            i_shaped_zeros = tf.zeros_like(i)
+            rand = tf.random_uniform( (config.batch_size,1) )
+            i = tf.where(tf.less(rand, self.ev_drop_prob) , i, i_shaped_zeros)
+        i = tf.reduce_sum(i, axis=1)
+
+        return tf.not_equal(i, 0)
+
+
+    def init_sigma(self, config):
+        with tf.variable_scope(self.name):
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
+        # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+            self.sigma = tf.get_variable('sigma', [])
+
+
+    def encode(self, inputs, config, infer):
+        with tf.variable_scope(self.name):
+            # Drop some inputs
+            inputs = tf.reshape(inputs, [config.batch_size * self.max_nums, self.max_depth])
+
+            if not infer:
+                inp_shaped_zeros = tf.zeros_like(inputs)
+                rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
+                inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
+
+
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size * self.max_nums, self.emb, config.latent_size)
+            encoding = LSTM_Encoder.output
+
+            w = tf.get_variable('w', [self.units, config.latent_size ])
+            b = tf.get_variable('b', [config.latent_size])
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+
+            zeros = tf.zeros_like(latent_encoding)
+            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
+
+            latent_encoding = tf.reduce_sum( tf.reshape(latent_encoding, [config.batch_size ,self.max_nums, config.latent_size]) , axis=1)
+
+            return latent_encoding
+
+
+class sorrCallSequences(SetsOfSequences):
 
     def __init__(self):
         self.vocab = dict()
@@ -486,7 +562,7 @@ class sorrCallSequences(Sequences):
 
 
 # handle sequences as i/p
-class sorrFormalParam(Sequences):
+class sorrFormalParam(SetsOfSequences):
 
     def __init__(self):
         self.vocab = dict()
@@ -503,15 +579,3 @@ class sorrFormalParam(Sequences):
         if len(list_seqs) > 1:
             list_seqs.remove([])
         return list_seqs
-
-
-class sorrReturnType(Sets):
-
-    def __init__(self):
-        self.vocab = dict()
-        self.vocab['None'] = 0
-        self.vocab_size = 1
-
-    def read_data_point(self, program, infer):
-        sorrreturnType = program['sorrreturntype'] if 'sorrreturntype' in program else []
-        return self.word2num(sorrreturnType, infer)
