@@ -3,6 +3,7 @@ import subprocess
 
 import sys
 import json
+import os
 
 from processJSON import processJSONs
 from buildEmbeddings import embedding_server
@@ -46,6 +47,7 @@ def runDomDriver(queryFilesSampled, queryFilesInJson, logdir):
 
     fileStdOut = logdir + '/L2stdoutDomDriver.txt'
     fileStdErr = logdir + '/L2stderrDomDriver.txt'
+    JSONFiles =  logdir + '/JSONFiles'
 
     java_jar = "/home/ubuntu/bayou/tool_files/maven_3_3_9/batch_dom_driver/target/batch_dom_driver-1.0-jar-with-dependencies.jar"
     configFile = "/home/ubuntu/bayou/Java-prog-extract-config.json"
@@ -56,6 +58,9 @@ def runDomDriver(queryFilesSampled, queryFilesInJson, logdir):
 
     with open(queryFilesInJson, 'w') as f:
         subprocess.run(["sed",  "s/.java$/.java.json/g", fileStdOut] , stdout=f)
+
+    #subprocess.run(["while" , "read", "LINE;", "do", "cp", "$LINE", "JSONFiles/;", "done", "<", "L3JSONFiles.txt"], shell=True)
+
 
     print("Done")
     return
@@ -69,13 +74,14 @@ if __name__ == "__main__":
     queryFilesSampled = logdir + "/L1SampledQueryFileNamesfiles.txt"
     queryFilesInJson = logdir + '/L3JSONFiles.txt'
 
-    cleanUp(logdir = logdir)
-    sampleFiles(queryFilesSampled, k=50000)
-    runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
+    if not os.path.exists(queryFilesInJson):
+        cleanUp(logdir = logdir)
+        sampleFiles(queryFilesSampled, k=500)
+        runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
 
-    EmbS = embedding_server()    
-    for expNumber in range(7):
-         logdir = "../log/" + "expNumber_" + str(expNumber) 
-         count = processJSONs(queryFilesInJson,  logdir, expNumber = expNumber)
-         EmbS.getEmbeddings(logdir)
+    EmbS = embedding_server()
+    for expNumber in range(11):
+         exp_logdir = logdir + "/expNumber_" + str(expNumber)
+         count = processJSONs(queryFilesInJson,  exp_logdir, expNumber = expNumber)
+         EmbS.getEmbeddings(exp_logdir)
          print("Number of programs processed for exp " + str(expNumber) + " is "  + str(count))

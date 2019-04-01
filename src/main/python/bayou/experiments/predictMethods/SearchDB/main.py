@@ -1,24 +1,15 @@
 from parallelReadJSON import parallelReadJSON
 from searchFromDB import searchFromDB
 from Embedding import Embedding_iterator_WBatch
+from utils import rank_statistic, ListToFormattedString
+
 import time
 import numpy as np
 import re
-def rank_statistic(_rank, total, prev_hits, cutoff):
-    cutoff = np.array(cutoff)
-    hits = prev_hits + (_rank < cutoff)
-    prctg = hits / total
-    return hits, prctg
+import json
 
-def ListToFormattedString(alist, Type):
-    # Each item is right-adjusted, width=3
-    if Type == 'float':
-        formatted_list = ['{:.2f}' for item in alist]
-        s = ','.join(formatted_list)
-    elif Type == 'int':
-        formatted_list = ['{:>3}' for item in alist]
-        s = ','.join(formatted_list)
-    return s.format(*alist)
+logdir = "../log"
+
 
 if __name__=="__main__":
 
@@ -28,45 +19,58 @@ if __name__=="__main__":
     dimension = 256
     topK = 10000
 
+
+
     JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, maxJSONs=maxJSONs)
-    listOfColDB = JSONReader.readAllJSONs()
+    listOfColDB = JSONReader.getSearchDatabase()
+
 
     print ("Initiate Scanner")
     scanner = searchFromDB(listOfColDB, topK, batch_size)
 
-    for expNumber in [5,6]:
-	    print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
-	    embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
+    for expNumber in range(11):
+        print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
+        embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
 
-	    count = 0    
-	    hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
-	    hit_counts = np.zeros(len(hit_points))
+        count = 0
+        hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
+        hit_counts = np.zeros(len(hit_points))
+
+        JSONList = []
+        for kkk, embedding in enumerate(embIt.embList):
+            scanner.addAColDB(embedding.js, dimension, batch_size)
+            topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
 
 
-	    for kkk, embedding in enumerate(embIt.embList):
-	        start = time.time()
-	        scanner.addAColDB(embedding.js, dimension, batch_size)
-	        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
+            for batch_id , topKProgs in enumerate(topKProgsBatch):
 
-		 
-	        for batch_id , topKProgs in enumerate(topKProgsBatch):
-	            desire = embedding.js[batch_id]['body']
-	            rank = topK + 1
+                topProgramDict = dict()
 
-	            for j, prog in enumerate(topKProgs):
-                        if desire in prog.body :
+                desire = embedding.js[batch_id]['body']
+
+                topProgramDict['desiredProg'] = desire
+                rank = topK + 1
+
+                programList = list()
+
+                for j, prog in enumerate(topKProgs):
+                    if j < 100:
+                        programList.append({j:prog.body})
+                        
+                    if desire in prog.body :
+                        if j < rank:
                             rank = j
-                            break
-	            count += 1
-	            hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
-		     
-	        scanner.deleteLastColDB()
 
-	        end = time.time()
-	        print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
+                topProgramDict['topPrograms'] = programList
+                count += 1
+                hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
+
+                JSONList.append(topProgramDict)
+
+            scanner.deleteLastColDB()
+            print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
                           (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
-	        if kkk % 9 == 0 and kkk > 0:
-	              #print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
-		      #	  (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
-	              break
-		#print(  " Time Spent ::  " + str((end - start)/( batch_size)))
+            if kkk % 9 == 0 and kkk > 0:
+                with open(logdir + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
+                     json.dump({'topPrograms': JSONList}, fp=f, indent=2)
+                break

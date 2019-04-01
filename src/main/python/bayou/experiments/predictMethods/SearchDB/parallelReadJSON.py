@@ -3,6 +3,10 @@ import ijson.backends.yajl2_cffi as ijson
 import simplejson as json
 from MyDataBase import MyColumnDatabaseWBatch
 from Program import skinnyProgramInBatch
+import pickle
+import os
+
+backupDB = '../log/bayouSearchColDb_backup.pkl'
 
 class parallelReadJSON():
 
@@ -14,6 +18,20 @@ class parallelReadJSON():
         self.dimension = dimension
         self.batch_size = batch_size
         self.numThreads = numThreads
+
+
+    def getSearchDatabase(self):
+
+        if not os.path.exists(backupDB):
+            FinalProgram_DB = self.readAllJSONs()
+            with open(backupDB , 'wb') as output:
+                pickle.dump(FinalProgram_DB, output)
+        else:
+            with open(backupDB, 'rb') as input:
+                FinalProgram_DB = pickle.load(input)
+
+        return FinalProgram_DB
+
 
 
     def readAllJSONs(self):

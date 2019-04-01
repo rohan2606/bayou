@@ -72,15 +72,15 @@ def processEachJSON(fileName, expNumber, logdir):
 
 
 def stripJavaDoc(stringBody):
-    return re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))    
+    return re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))
 
 def modifyInputForExperiment(sample, expNumber):
 
 
     if ( 'apicalls' not in sample ) or ('apicalls' in sample and len(sample['apicalls']) < 1):
          return {}
-    
-    
+
+
     sample['testapicalls'] = sample['apicalls']
 
 
@@ -88,17 +88,17 @@ def modifyInputForExperiment(sample, expNumber):
     for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
         if ev not in sample:
             return {}
-        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 3 ):
+        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 1 ):
             return {}
-        if ev == 'sorrsequences' and len(sample[ev]) < 9:
+        if ev == 'sorrsequences' and len(sample[ev]) < 1:
             return {}
         if ev == 'sequences':
             for elem in sample[ev]:
                 if elem not in sample['apicalls']:
                     return {}
-               
-        
-    
+
+
+
     if expNumber == 0: # onlyJavaDoc
 
         for ev in [ 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
@@ -124,9 +124,9 @@ def modifyInputForExperiment(sample, expNumber):
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
-        
 
-    elif expNumber == 3: ##  sorrounding , ret, fp , jD 
+
+    elif expNumber == 3: ##  sorrounding , ret, fp , jD
         for ev in ['sequences', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
@@ -144,11 +144,30 @@ def modifyInputForExperiment(sample, expNumber):
                 del sample[ev]
 
 
-    elif expNumber == 6: ## all 
+    elif expNumber == 6: ## all
         for ev in []:
             if ev in sample:
                 del sample[ev]
 
+    elif expNumber == 7: ## sequences
+        for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+            if ev in sample:
+                del sample[ev]
+
+    elif expNumber == 8: ## keywords
+        for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'sequences', 'apicalls', 'types']:
+            if ev in sample:
+                del sample[ev]
+
+    elif expNumber == 9: ## apicalls
+        for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'sequences', 'types', 'keywords']:
+            if ev in sample:
+                del sample[ev]
+
+    elif expNumber == 10: ## returnType
+        for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'formalParam', 'sequences', 'apicalls', 'types', 'keywords']:
+            if ev in sample:
+                del sample[ev]
 
     return sample
 
@@ -231,6 +250,8 @@ def extract_evidence(fileName, expNumber):
         sample['keywords'] = keywords
 
         sample['body'] = stripJavaDoc(sample['body'])
+
+        method_name = program['method']
 
         sequences = program['sequences']
         sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
