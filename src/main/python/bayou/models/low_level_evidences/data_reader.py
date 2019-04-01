@@ -340,7 +340,6 @@ class Reader():
             if done % 100000 == 0:
                 print('Extracted data for {} programs'.format(done), end='\n')
 
-
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts ignored by given config'.format(ignored))
         print('{:8d} programs/asts to search over'.format(done - ignored))

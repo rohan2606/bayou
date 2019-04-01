@@ -50,6 +50,8 @@ def get_var_list():
     emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Embedding')
     rev_encoder_vars = decoder_vars + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
 
+    javadoc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/mean/javadoc') + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/javadoc')
+
     bayou_vars = decoder_vars + encoder_vars + emb_vars
     fix_encoder_vars = decoder_vars + rev_encoder_vars + emb_vars
 
@@ -57,7 +59,8 @@ def get_var_list():
                 'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
                 'bayou_vars':bayou_vars,
                 'rev_encoder_vars':rev_encoder_vars,
-                'fix_encoder_vars':fix_encoder_vars
+                'fix_encoder_vars':fix_encoder_vars,
+                'javadoc_vars':javadoc_vars
                 }
     return var_dict
 
