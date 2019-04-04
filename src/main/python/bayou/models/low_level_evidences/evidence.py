@@ -21,14 +21,13 @@ import nltk
 from itertools import chain
 from collections import Counter
 
-from gensim.models import Word2Vec
+import gensim
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK, CHILD_EDGE, SIBLING_EDGE
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 from bayou.models.low_level_evidences.biRNN import biRNN
 
 from nltk.stem.wordnet import WordNetLemmatizer
-
-LEMMATIZER = WordNetLemmatizer()
+import wordninja
 
 class Evidence(object):
 
@@ -435,13 +434,10 @@ class JavaDoc(Sequences):
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
-        self.word2vecModel = Word2Vec.load('/home/ubuntu/model.bin')
-        self.n_Dims=256
+        self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
+        self.n_Dims=300
+        self.lemmatizer = WordNetLemmatizer()
 
-    def camelCaseSplit(self, inputString):
-        s = re.sub("(.)([A-Z][a-z]+)", r"\1 \2", inputString);
-        s = re.sub("([a-z])([A-Z])", r"\1 \2", s).lower().split();
-        return s
 
 
     def read_data_point(self, program, infer):
@@ -454,18 +450,23 @@ class JavaDoc(Sequences):
         # replace all non alphabetical char into underscore
         javadoc_list = [re.sub("[^a-zA-Z]", '_', w) for w in javadoc_list]
 
-        # break the terms using underscores
+            # break the terms using underscores
         tmp_list = []
         for t in javadoc_list:
-            s = re.split("_+", t)
-            tmp_list.extend(s)
+               s = re.split("_+", t)
+               tmp_list.extend(s)
 
         result_list = []
         for x in tmp_list:
-            if len(x) > 1:
-                 x = LEMMATIZER.lemmatize(x)
-                 if x in self.word2vecModel:
-                     result_list.extend(self.camelCaseSplit(x))
+            x = x.lower()
+                # x = spell(x)
+
+            x = wordninja.split(x)
+            for word in x:
+                y = self.lemmatizer.lemmatize(word, 'v')
+                y = self.lemmatizer.lemmatize(y, 'n')
+                if len(y) > 1:
+                    result_list.append(y)
 
         return [self.word2num(result_list , infer)]
 
@@ -482,6 +483,7 @@ class JavaDoc(Sequences):
 
             self.emb = tf.Variable(vecrep_words, name='emb',trainable=True)
         # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+            #self.sigma = tf.Variable(0.10, name='sigma', trainable=True) #tf.get_variable('sigma', [])
             self.sigma = tf.get_variable('sigma', [])
 
 
