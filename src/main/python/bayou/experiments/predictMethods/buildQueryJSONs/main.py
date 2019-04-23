@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     if not os.path.exists(queryFilesInJson):
         cleanUp(logdir = logdir)
-        sampleFiles(queryFilesSampled, k=500)
+        sampleFiles(queryFilesSampled, k=5000)
         runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
 
     EmbS = embedding_server()
