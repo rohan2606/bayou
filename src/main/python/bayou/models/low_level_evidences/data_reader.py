@@ -22,10 +22,8 @@ import pickle
 from collections import Counter
 import gc
 
-from bayou.models.low_level_evidences.utils import C0, gather_calls, chunks, get_available_gpus, dump_config
-from bayou.models.low_level_evidences.node import Node
-CHILD_EDGE = True
-SIBLING_EDGE = False
+from bayou.models.low_level_evidences.utils import gather_calls, dump_config
+from bayou.models.low_level_evidences.node import Node, get_ast_from_json, CHILD_EDGE, SIBLING_EDGE, TooLongLoopingException, TooLongBranchingException
 
 
 class TooLongPathError(Exception):
@@ -44,16 +42,8 @@ class Reader():
         if clargs.continue_from is not None or dataIsThere:
             with open('data/inputs.txt', 'rb') as f:
                 self.inputs = pickle.load(f)
-            with open('data/nodes.txt', 'rb') as f:
-                self.nodes = pickle.load(f)
-            with open('data/edges.txt', 'rb') as f:
-                self.edges = pickle.load(f)
-            with open('data/targets.txt', 'rb') as f:
-                self.targets = pickle.load(f)
-            with open('data/prog_ids', 'rb') as f:
-                self.prog_ids = pickle.load(f)
-            with open('data/js_prog_ids', 'rb') as f:
-                self.js_prog_ids = pickle.load(f)
+            with open('data/nodes_edges_targets.txt', 'rb') as f:
+                [self.nodes , self.edges, self.targets] = pickle.load(f)
 
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
@@ -70,17 +60,12 @@ class Reader():
             random.seed(12)
             # read the raw evidences and targets
             print('Reading data file...')
-            prog_ids, raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
+            raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
             print('Done!')
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                              enumerate(config.evidence)]
 
-
-            # align with number of batches and have it as a multiple of #GPUs
-            devices = get_available_gpus()
             config.num_batches = int(len(raw_targets) / config.batch_size)
-            if len(devices) > 0:
-                config.num_batches = config.num_batches - (config.num_batches % len(devices))
 
             ################################
 
@@ -89,45 +74,35 @@ class Reader():
             for i in range(len(raw_evidences)):
                 raw_evidences[i] = raw_evidences[i][:sz]
             raw_targets = raw_targets[:sz]
-            prog_ids = prog_ids[:sz]
             js_programs = js_programs[:sz]
 
         # setup input and target chars/vocab
             if clargs.continue_from is None:
-                config.decoder.vocab = self.CallMapDict
-                config.decoder.vocab_size = len(self.CallMapDict)
+                config.decoder.vocab, config.decoder.vocab_size = self.decoder_api_dict.get_call_dict()
                 # adding the same variables for reverse Encoder
-                config.reverse_encoder.vocab = self.CallMapDict
-                config.reverse_encoder.vocab_size = len(self.CallMapDict)
+                config.reverse_encoder.vocab, config.reverse_encoder.vocab_size = self.decoder_api_dict.get_call_dict()
 
             # wrangle the evidences and targets into numpy arrays
             self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
             self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
             self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
             self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
-            self.prog_ids = np.zeros(sz, dtype=np.int32)
-            self.js_prog_ids = np.zeros(sz, dtype=np.int32)
+
             for i, path in enumerate(raw_targets):
-                self.nodes[i, :len(path)] = [p[0] for p in path]
-                self.edges[i, :len(path)] = [p[1] for p in path]
-                self.targets[i, :len(path)-1] = self.nodes[i, 1:len(path)]  # shifted left by one
-                self.prog_ids[i] = prog_ids[i]
-                self.js_prog_ids[i] = i
+                len_path = min(len(path) , config.decoder.max_ast_depth)
+                mod_path = path[:len_path]
+
+                self.nodes[i, :len_path]   =  [ p[0] for p in mod_path ]
+                self.edges[i, :len_path]   =  [ p[1] for p in mod_path ]
+                self.targets[i, :len_path] =  [ p[2] for p in mod_path ]
+
             self.js_programs = js_programs
 
 
             with open('data/inputs.txt', 'wb') as f:
                 pickle.dump(self.inputs, f)
-            with open('data/nodes.txt', 'wb') as f:
-                pickle.dump(self.nodes, f)
-            with open('data/edges.txt', 'wb') as f:
-                pickle.dump(self.edges, f)
-            with open('data/targets.txt', 'wb') as f:
-                pickle.dump(self.targets, f)
-            with open('data/prog_ids', 'wb') as f:
-                pickle.dump(self.prog_ids, f)
-            with open('data/js_prog_ids', 'wb') as f:
-                pickle.dump(self.js_prog_ids, f)
+            with open('data/nodes_edges_targets.txt', 'wb') as f:
+                pickle.dump([self.nodes , self.edges, self.targets] , f)
             with open('data/js_programs.json', 'w') as f:
                 json.dump({'programs': self.js_programs}, fp=f, indent=2)
             jsconfig = dump_config(config)
@@ -137,225 +112,99 @@ class Reader():
                 json.dump(jsconfig, fp=f, indent=2)
 
 
-    def get_ast_paths(self, js, idx=0):
-        #print (idx)
-        cons_calls = []
-        i = idx
-        curr_Node = None
-        head = None
-        while i < len(js):
-            if js[i]['node'] == 'DAPICall':
-                cons_calls.append((js[i]['_call'], SIBLING_EDGE))
-                if curr_Node == None:
-                    curr_Node = Node(js[i]['_call'])
-                    head = curr_Node
-                else:
-                    curr_Node.sibling = Node(js[i]['_call'])
-                    curr_Node = curr_Node.sibling
-            else:
-                break
-            i += 1
-        if i == len(js):
-            cons_calls.append(('STOP', SIBLING_EDGE))
-            if curr_Node == None:
-                curr_Node = Node('STOP')
-                head = curr_Node
-            else:
-                curr_Node.sibling = Node('STOP')
-                curr_Node = curr_Node.sibling
-            return head, [cons_calls]
-
-        node_type = js[i]['node']
-
-        if node_type == 'DBranch':
-
-            if curr_Node == None:
-                curr_Node = Node('DBranch')
-                head = curr_Node
-            else:
-                curr_Node.sibling = Node('DBranch')
-                curr_Node = curr_Node.sibling
-
-            nodeC, pC = self.get_ast_paths( js[i]['_cond'])  # will have at most 1 "path"
-            assert len(pC) <= 1
-            nodeC_last = nodeC.iterateHTillEnd(nodeC)
-            nodeC_last.sibling, p1 = self.get_ast_paths( js[i]['_then'])
-            nodeE, p2 = self.get_ast_paths( js[i]['_else'])
-            curr_Node.child = Node(nodeC.val, child=nodeE, sibling=nodeC.sibling)
-
-            p = [p1[0] + path for path in p2] + p1[1:]
-            pv = [cons_calls + [('DBranch', CHILD_EDGE)] + pC[0] + path for path in p]
-
-
-            nodeS, p = self.get_ast_paths( js, i+1)
-            ph = [cons_calls + [('DBranch', SIBLING_EDGE)] + path for path in p]
-            curr_Node.sibling = nodeS
-
-            return head, ph + pv
-
-        if node_type == 'DExcept':
-            if curr_Node == None:
-                curr_Node = Node('DExcept')
-                head = curr_Node
-            else:
-                curr_Node.sibling = Node('DExcept')
-                curr_Node = curr_Node.sibling
-
-            nodeT , p1 = self.get_ast_paths( js[i]['_try'])
-            nodeC , p2 =  self.get_ast_paths( js[i]['_catch'] )
-            p = [p1[0] + path for path in p2] + p1[1:]
-
-            curr_Node.child = Node(nodeT.val, child=nodeC, sibling=nodeT.sibling)
-            pv = [cons_calls + [('DExcept', CHILD_EDGE)] + path for path in p]
-
-            nodeS, p = self.get_ast_paths( js, i+1)
-            ph = [cons_calls + [('DExcept', SIBLING_EDGE)] + path for path in p]
-            curr_Node.sibling = nodeS
-            return head, ph + pv
-
-        if node_type == 'DLoop':
-            if curr_Node == None:
-                curr_Node = Node('DLoop')
-                head = curr_Node
-            else:
-                curr_Node.sibling = Node('DLoop')
-                curr_Node = curr_Node.sibling
-            nodeC, pC = self.get_ast_paths( js[i]['_cond'])  # will have at most 1 "path"
-            assert len(pC) <= 1
-            nodeC_last = nodeC.iterateHTillEnd(nodeC)
-            nodeC_last.sibling, p = self.get_ast_paths( js[i]['_body'])
-
-            pv = [cons_calls + [('DLoop', CHILD_EDGE)] + pC[0] + path for path in p]
-            nodeS, p = self.get_ast_paths( js, i+1)
-            ph = [cons_calls + [('DLoop', SIBLING_EDGE)] + path for path in p]
-
-            curr_Node.child = nodeC
-            curr_Node.sibling = nodeS
-
-            return head, ph + pv
-
-
-    def _check_DAPICall_repeats(self, nodelist):
-        """
-        Checks if an API call node repeats in succession twice in a list of nodes
-
-        :param nodelist: list of nodes to check
-        :return: None
-        :raise: InvalidSketchError if some API call node repeats, ValueError if a node is of invalid type
-        """
-        for i in range(1, len(nodelist)):
-            node = nodelist[i]
-            node_type = node['node']
-            if node_type == 'DAPICall':
-                if nodelist[i] == nodelist[i-1]:
-                    raise InvalidSketchError
-            elif node_type == 'DBranch':
-                self._check_DAPICall_repeats(node['_cond'])
-                self._check_DAPICall_repeats(node['_then'])
-                self._check_DAPICall_repeats(node['_else'])
-            elif node_type == 'DExcept':
-                self._check_DAPICall_repeats(node['_try'])
-                self._check_DAPICall_repeats(node['_catch'])
-            elif node_type == 'DLoop':
-                self._check_DAPICall_repeats(node['_cond'])
-                self._check_DAPICall_repeats(node['_body'])
-            else:
-                raise ValueError('Invalid node type: ' + node)
-
-    def validate_sketch_paths(self, program, ast_paths):
-        """
-        Checks if a sketch along with its paths is good training data:
-        1. No API call should be repeated successively
-        2. No path in the sketch should be of length more than max_ast_depth hyper-parameter
-        3. No branch, loop or except should occur more than once along a single path
-
-        :param program: the sketch
-        :param ast_paths: paths in the sketch
-        :return: None
-        :raise: TooLongPathError or InvalidSketchError if sketch or its paths is invalid
-        """
-        #self._check_DAPICall_repeats(program['ast']['_nodes'])
-        for path in ast_paths:
-            if len(path) >= self.config.decoder.max_ast_depth:
-                raise TooLongPathError
-            nodes = [node for (node, edge) in path]
-            if nodes.count('DBranch') > 1 or nodes.count('DLoop') > 1 or nodes.count('DExcept') > 1:
-                raise TooLongPathError
 
     def read_data(self, filename, infer, save=None):
-        # with open(filename) as f:
-        #     js = json.load(f)
-        f = open(filename , 'rb')
 
         data_points = []
-        callmap = dict()
-        file_ptr = dict()
-        ignored, done = 0, 0
-        if not infer:
-            self.CallMapDict = dict()
-            self.CallMapDict['STOP'] = 0
-            count = 1
-        else:
-            self.CallMapDict = self.config.decoder.vocab
-            count = self.config.decoder.vocab_size
+        done, ignored_for_branch, ignored_for_loop = 0, 0, 0
+        self.decoder_api_dict = decoderDict(infer, self.config.decoder)
+
+        f = open(filename , 'rb')
+
         for program in ijson.items(f, 'programs.item'):
             if 'ast' not in program:
                 continue
             try:
                 evidences = [ev.read_data_point(program, infer) for ev in self.config.evidence]
-                ast_node_graph, ast_paths = self.get_ast_paths(program['ast']['_nodes'])
+                ast_node_graph = get_ast_from_json(program['ast']['_nodes'])
 
-                self.validate_sketch_paths(program, ast_paths)
-                for path in ast_paths:
-                    path.insert(0, ('DSubTree', CHILD_EDGE))
+                ast_node_graph.sibling.check_nested_branch()
+                ast_node_graph.sibling.check_nested_loop()
 
-                    temp_arr = []
-                    for val in path:
-                        nodeVal = val[0]
-                        edgeVal = val[1]
-                        if nodeVal not in self.CallMapDict:
-                            if not infer:
-                                self.CallMapDict[nodeVal] = count
-                                temp_arr.append((count,edgeVal))
-                                count += 1
-                        else:
-                            temp_arr.append((self.CallMapDict[nodeVal] , edgeVal))
+                path = ast_node_graph.depth_first_search()
 
-                    sample = dict()
-                    sample['file'] = program['file']
-                    sample['method'] = program['method']
-                    sample['body'] = program['body']
-                    data_points.append((done - ignored, evidences, temp_arr, sample))
-                    #data_points.append((done - ignored, evidences, temp_arr, {}))
-                calls = gather_calls(program['ast'])
-                for call in calls:
-                    if call['_call'] not in callmap:
-                        callmap[call['_call']] = call
-                #
-                file_name = program['file']
-                file_ptr[done - ignored] = file_name
-            except (TooLongPathError, InvalidSketchError) as e:
-                ignored += 1
-            done += 1
+                parsed_data_array = []
+                for i, (curr_node_val, parent_node_id, edge_type) in enumerate(path):
+                    curr_node_id = self.decoder_api_dict.get_or_add_node_val_from_callMap(curr_node_val)
+                    # now parent id is already evaluated since this is top-down breadth_first_search
+                    parent_call = path[parent_node_id][0]
+                    parent_call_id = self.decoder_api_dict.get_node_val_from_callMap(parent_call)
+
+                    if i > 0 and not (curr_node_id is None or parent_call_id is None): # I = 0 denotes DSubtree ----sibling---> DSubTree
+                        parsed_data_array.append((parent_call_id, edge_type, curr_node_id))
+
+                sample = dict()
+                sample['file'] = program['file']
+                sample['method'] = program['method']
+                sample['body'] = program['body']
+
+                data_points.append((evidences, parsed_data_array, sample))
+                done += 1
+
+            except (TooLongLoopingException) as e1:
+                ignored_for_loop += 1
+
+            except (TooLongBranchingException) as e2:
+                ignored_for_branch += 1
+
             if done % 100000 == 0:
                 print('Extracted data for {} programs'.format(done), end='\n')
 
         print('{:8d} programs/asts in training data'.format(done))
-        print('{:8d} programs/asts ignored by given config'.format(ignored))
-        print('{:8d} programs/asts to search over'.format(done - ignored))
-        print('{:8d} data points total'.format(len(data_points)))
+        print('{:8d} programs/asts missed in training data for loop'.format(ignored_for_loop))
+        print('{:8d} programs/asts missed in training data for branch'.format(ignored_for_branch))
+
 
         # randomly shuffle to avoid bias towards initial data points during training
         random.shuffle(data_points)
-        _ids, evidences, targets, js_programs = zip(*data_points) #unzip
+        evidences, parsed_data_array, js_programs = zip(*data_points) #unzip
 
-        # save callmap if save location is given
-        if not infer:
-            if save is not None:
-                with open(os.path.join(save, 'callmap.pkl'), 'wb') as f:
-                    pickle.dump(callmap, f)
 
-            with open(os.path.join(save, 'file_ptr.pkl'), 'wb') as f:
-                pickle.dump(file_ptr, f)
+        return evidences, parsed_data_array, js_programs
 
-        return _ids, evidences, targets, js_programs
+
+
+
+class decoderDict():
+
+        def __init__(self, infer, pre_loaded_vocab=None):
+            self.infer = infer
+            if not infer:
+                self.call_dict = dict()
+                self.call_dict['STOP'] = 0
+                self.call_count = 1
+            else:
+                self.call_dict = pre_loaded_vocab.vocab
+                self.call_count = pre_loaded_vocab.vocab_size
+
+
+
+        def get_or_add_node_val_from_callMap(self, nodeVal):
+            if (self.infer) and (nodeVal not in self.call_dict):
+                return None
+            elif (self.infer) or (nodeVal in self.call_dict):
+                return self.call_dict[nodeVal]
+            else:
+                nextOpenPos = self.call_count
+                self.call_dict[nodeVal] = nextOpenPos
+                self.call_count += 1
+                return nextOpenPos
+
+        def get_node_val_from_callMap(self, nodeVal):
+            if (self.infer) and (nodeVal not in self.call_dict):
+                return None
+            else:
+                return self.call_dict[nodeVal]
+
+        def get_call_dict(self):
+            return self.call_dict, self.call_count

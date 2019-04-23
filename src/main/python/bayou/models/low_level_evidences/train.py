@@ -30,44 +30,7 @@ from bayou.models.low_level_evidences.utils import read_config, dump_config, get
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
-{                                         |
-    "model": "lle"                        | The implementation id of this model (do not change)
-    "latent_size": 32,                    | Latent dimensionality
-    "batch_size": 50,                     | Minibatch size
-    "num_epochs": 100,                    | Number of training epochs
-    "learning_rate": 0.02,                | Learning rate
-    "print_step": 1,                      | Print training output every given steps
-    "evidence": [                         | Provide each evidence type in this list
-        {                                 |
-            "name": "apicalls",           | Name of evidence ("apicalls")
-            "units": 64,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        },                                |
-        {                                 |
-            "name": "types",              | Name of evidence ("types")
-            "units": 32,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        },                                |
-        {                                 |
-            "name": "keywords",           | Name of evidence ("keywords")
-            "units": 64,                  | Size of the encoder hidden state
-            "num_layers": 3               | Number of densely connected layers
-            "tile": 1                     | Repeat the encoding n times (to boost its signal)
-        }                                 |
-    ],                                    |
-    "decoder": {                          | Provide parameters for the decoder here
-        "units": 256,                     | Size of the decoder hidden state
-        "num_layers": 3,                  | Number of layers in the decoder
-        "max_ast_depth": 32               | Maximum depth of the AST (length of the longest path)
-    }
-    "reverse_encoder": {
-        "units": 256,
-        "num_layers": 3,
-        "max_ast_depth": 32
-    }                                   |
-}                                         |
+}
 """
 #%%
 
@@ -122,16 +85,12 @@ def train(clargs):
 
         # restore model
         if clargs.continue_from is not None:
-            bayou_vars = get_var_list()['bayou_vars']
+            bayou_vars = get_var_list()['all_vars']
             old_saver = tf.train.Saver(bayou_vars, max_to_keep=None)
             ckpt = tf.train.get_checkpoint_state(clargs.continue_from)
             old_saver.restore(sess, ckpt.model_checkpoint_path)
 
-        devices = get_available_gpus()
-        if len(devices) > 0:
-            NUM_BATCHES = config.num_batches // len(devices)
-        else:
-            NUM_BATCHES = config.num_batches
+        NUM_BATCHES = config.num_batches
         # training
         #epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
@@ -140,10 +99,8 @@ def train(clargs):
             avg_loss, avg_gen_loss, avg_RE_loss , avg_FS_loss , avg_KL_loss = 0.,0.,0.,0.,0.
             for b in range(NUM_BATCHES):
                 # run the optimizer
-                loss, KL_loss, gen_loss , RE_loss, FS_loss, _ = sess.run([model.loss, model.KL_loss, model.gen_loss, model.loss_RE, model.gen_loss_FS, model.train_op])
-                allEvSigmas = sess.run(model.allEvSigmas)
-                # s = sess.run(merged_summary, feed)
-                # writer.add_summary(s,i)
+                loss, KL_loss, gen_loss , RE_loss, FS_loss, _, allEvSigmas = sess.run([model.loss, model.KL_loss, model.gen_loss, model.loss_RE, model.gen_loss_FS, model.train_op, model.allEvSigmas])
+
 
                 end = time.time()
                 avg_loss += np.mean(loss)
@@ -167,10 +124,9 @@ def train(clargs):
                 checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+1))
                 saver.save(sess, checkpoint_dir)
 
-                mul = 1 if len(devices) == 0 else len(devices)
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
-                      (checkpoint_dir, avg_loss / config.num_batches * mul))
+                      (checkpoint_dir, avg_loss / config.num_batches))
         #static_plot(epocLoss , epocGenL , epocKlLoss)
 
 
@@ -182,7 +138,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save1',
+    parser.add_argument('--save', type=str, default='save',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -190,8 +146,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save',
-     #['--config','config.json',
+     #['--continue_from', 'save',
+     ['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
