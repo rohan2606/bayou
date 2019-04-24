@@ -146,8 +146,8 @@ class SimpleDecoder(object):
 class BayesianReverseEncoder(object):
     def __init__(self, config, emb, nodes, edges, returnType, embRE, formalParam, embFP):
 
-        nodes = [ nodes[ config.reverse_encoder.max_ast_depth] for i in range(config.reverse_encoder.max_ast_depth)]
-        edges = [ edges[ config.reverse_encoder.max_ast_depth ] for i in range(config.reverse_encoder.max_ast_depth)]
+        nodes = [ nodes[i] for i in range(config.reverse_encoder.max_ast_depth)]
+        edges = [ edges[i] for i in range(config.reverse_encoder.max_ast_depth)]
 
         with tf.variable_scope("Covariance"):
             with tf.variable_scope("APITree"):

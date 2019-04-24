@@ -27,8 +27,8 @@ class Model():
 
 
         newBatch = iterator.get_next()
-        self.prog_ids, self.js_prog_ids, nodes, edges, targets = newBatch[:5]
-        ev_data = newBatch[5:]
+        nodes, edges, targets = newBatch[:3]
+        ev_data = newBatch[3:]
 
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
