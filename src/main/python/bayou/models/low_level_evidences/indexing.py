@@ -75,7 +75,7 @@ def index(clargs):
 
         programs = []
         for j in range(config.num_batches):
-            prob_Y, a2, b2 = predictor.get_all_params_inago()
+            prob_Y, a1,b1, a2, b2 = predictor.get_all_params_inago()
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
                 prog_json['a2'] = a2[i].round(decimals=2) # "%.3f" %

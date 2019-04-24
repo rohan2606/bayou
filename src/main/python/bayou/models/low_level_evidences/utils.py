@@ -20,7 +20,7 @@ from tensorflow.python.client import device_lib
 from itertools import chain
 import numpy as np
 import os
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 CONFIG_GENERAL = ['model', 'latent_size', 'batch_size', 'num_epochs',
                   'learning_rate', 'print_step', 'checkpoint_step']
@@ -51,7 +51,7 @@ def get_var_list():
     bayou_vars = decoder_vars + encoder_vars
 
     var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
-                'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
+                'encoder_vars':encoder_vars, 
                 'bayou_vars':bayou_vars,
                 'rev_encoder_vars':rev_encoder_vars
                 }

@@ -39,7 +39,7 @@ class BayesianPredictor(object):
 
     def __init__(self, save, sess, config, iterator):
         self.sess = sess
-        self.model = Model(config, iterator, infer=True, bayou_mode=bayou_mode)
+        self.model = Model(config, iterator, infer=True)
         self.config = config
         #
         # restore the saved model
@@ -51,9 +51,9 @@ class BayesianPredictor(object):
 
     def get_all_params_inago(self):
         # setup initial states and feed
-        [probY, RevEncA, RevEncB] = self.sess.run([self.model.probY, self.model.RevEncA, self.model.RevEncB])
+        [probY, EncA, EncB, RevEncA, RevEncB] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB, self.model.RevEncA, self.model.RevEncB])
 
-        return probY,RevEncA, RevEncB
+        return probY, EncA, EncB, RevEncA, RevEncB
 
     def get_ev_sigma(self):
         allEvSigmas = self.sess.run( [ ev.sigma for ev in self.config.evidence ] )

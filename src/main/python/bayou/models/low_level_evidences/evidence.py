@@ -22,7 +22,7 @@ from itertools import chain
 from collections import Counter
 
 import gensim
-from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER, C0, UNK, CHILD_EDGE, SIBLING_EDGE
+from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 from bayou.models.low_level_evidences.biRNN import biRNN
 
