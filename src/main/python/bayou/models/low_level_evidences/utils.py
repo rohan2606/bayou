@@ -29,10 +29,6 @@ CONFIG_DECODER = ['units', 'num_layers', 'max_ast_depth']
 CONFIG_REVERSE_ENCODER = ['units', 'num_layers', 'max_ast_depth']
 CONFIG_INFER = ['vocab', 'vocab_size']
 
-C0 = 'CLASS0'
-UNK = '_UNK_'
-CHILD_EDGE = 'V'
-SIBLING_EDGE = 'H'
 
 def get_available_gpus():
     local_device_protos = device_lib.list_local_devices()
@@ -47,30 +43,21 @@ def get_var_list():
     decoder_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='FS_Decoder')
 
     encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder')
-    emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Embedding')
-    rev_encoder_vars = decoder_vars + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
 
-    javadoc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/mean/javadoc') + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/javadoc')
+    rev_encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
 
-    bayou_vars = decoder_vars + encoder_vars + emb_vars
-    fix_encoder_vars = decoder_vars + rev_encoder_vars + emb_vars
+    #javadoc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/mean/javadoc') + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/javadoc')
+
+    bayou_vars = decoder_vars + encoder_vars
 
     var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
                 'encoder_vars':encoder_vars, 'emb_vars':emb_vars,
                 'bayou_vars':bayou_vars,
-                'rev_encoder_vars':rev_encoder_vars,
-                'fix_encoder_vars':fix_encoder_vars,
-                'javadoc_vars':javadoc_vars
+                'rev_encoder_vars':rev_encoder_vars
                 }
     return var_dict
 
 
-def chunks(l, n):
-    """Yield successive n-sized chunks from l."""
-    lol = []
-    for i in range(0, len(l), n):
-        lol.append(l[i:i + n])
-    return lol
 
 def find_top_rank_ids(arrin, cutoff = 10):
     rank_ids =  (-np.array(arrin)).argsort()

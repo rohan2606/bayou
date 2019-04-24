@@ -88,7 +88,6 @@ def train(clargs):
 
         NUM_BATCHES = config.num_batches
         # training
-        #epocLoss , epocGenL , epocKlLoss = [], [], []
         for i in range(config.num_epochs):
             sess.run(iterator.initializer, feed_dict=feed_dict)
             start = time.time()
@@ -106,7 +105,7 @@ def train(clargs):
                 avg_KL_loss += np.mean(KL_loss)
 
 
-                step = (i+1) * config.num_batches + b
+                step = i * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
                           'loss: {:.3f}, gen_loss: {:.3f}, Ret_loss {:.3f}, FS_loss {:.3f}, KL_loss: {:.3f}, \n\t'.format
@@ -123,7 +122,6 @@ def train(clargs):
                 print('Model checkpointed: {}. Average for epoch , '
                       'loss: {:.3f}'.format
                       (checkpoint_dir, avg_loss / config.num_batches))
-        #static_plot(epocLoss , epocGenL , epocKlLoss)
 
 
 #%%
@@ -142,8 +140,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     #['--continue_from', 'save',
-     ['--config','config.json',
+     ['--continue_from', 'save3',
+     #['--config','config.json',
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])

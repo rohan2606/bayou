@@ -37,28 +37,23 @@ class InvalidSketchError(Exception):
 
 class BayesianPredictor(object):
 
-    def __init__(self, save, sess, config, iterator, bayou_mode=False):
+    def __init__(self, save, sess, config, iterator):
         self.sess = sess
         self.model = Model(config, iterator, infer=True, bayou_mode=bayou_mode)
         self.config = config
         #
         # restore the saved model
         tf.global_variables_initializer().run()
-        if bayou_mode == True:
-            bayou_vars = get_var_list()['bayou_vars']
-            saver = tf.train.Saver(bayou_vars)
-        else:
-            saver = tf.train.Saver(tf.global_variables())
+        saver = tf.train.Saver(tf.global_variables())
         ckpt = tf.train.get_checkpoint_state(save)
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
 
     def get_all_params_inago(self):
         # setup initial states and feed
-        [probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids] = self.sess.run([self.model.probY, self.model.EncA, self.model.EncB,\
-                                                        self.model.RevEncA, self.model.RevEncB, self.model.js_prog_ids, self.model.prog_ids])
+        [probY, RevEncA, RevEncB] = self.sess.run([self.model.probY, self.model.RevEncA, self.model.RevEncB])
 
-        return probY, EncA, EncB, RevEncA, RevEncB, js_prog_ids, prog_ids
+        return probY,RevEncA, RevEncB
 
     def get_ev_sigma(self):
         allEvSigmas = self.sess.run( [ ev.sigma for ev in self.config.evidence ] )

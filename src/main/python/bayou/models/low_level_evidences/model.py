@@ -33,9 +33,6 @@ class Model():
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
 
-        with tf.variable_scope('Embedding'):
-            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
-
         with tf.variable_scope("Encoder"):
 
             self.encoder = BayesianEncoder(config, ev_data, infer)
@@ -55,6 +52,8 @@ class Model():
 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
+            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
+
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
             if bayou_mode or infer:
