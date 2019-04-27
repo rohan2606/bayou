@@ -16,6 +16,7 @@ import tensorflow as tf
 from itertools import chain
 from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
+from another_lstm import while_loop_rnn
 
 class BayesianEncoder(object):
     def __init__(self, config, inputs, infer=False):
@@ -60,47 +61,43 @@ class BayesianEncoder(object):
 class BayesianDecoder(object):
     def __init__(self, config, emb, initial_state, nodes, edges):
 
-        cells1, cells2 = [], []
-        for _ in range(config.decoder.num_layers):
-            cells1.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(config.decoder.units))
-            cells2.append(tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(config.decoder.units))
+        self.cell1 = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(config.decoder.units) #tf.nn.rnn_cell.MultiRNNCell(cells1)
+        self.cell2 = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(config.decoder.units)
 
-        self.cell1 = tf.nn.rnn_cell.MultiRNNCell(cells1)
-        self.cell2 = tf.nn.rnn_cell.MultiRNNCell(cells2)
+
+        self.outputs, state = while_loop_rnn(self.cell1, self.cell2, nodes, edges, initial_state, emb)
+
 
         # placeholders
-        self.initial_state = [initial_state] * config.decoder.num_layers
-        self.nodes = [nodes[i] for i in range(config.decoder.max_ast_depth)]
-        self.edges = [edges[i] for i in range(config.decoder.max_ast_depth)]
+        # self.nodes = [nodes[i] for i in range(config.decoder.max_ast_depth)]
+        # self.edges = [edges[i] for i in range(config.decoder.max_ast_depth)]
 
         # projection matrices for output
         with tf.variable_scope("projections"):
             self.projection_w = tf.get_variable('projection_w', [self.cell1.output_size,
                                                                  config.decoder.vocab_size])
             self.projection_b = tf.get_variable('projection_b', [config.decoder.vocab_size])
-            # tf.summary.histogram("projection_w", self.projection_w)
-            # tf.summary.histogram("projection_b", self.projection_b)
+
 
         # setup embedding
-        emb_inp = (tf.nn.embedding_lookup(emb, i) for i in self.nodes)
-
-        with tf.variable_scope('decoder_network'):
-            # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
-            with tf.variable_scope('rnn'):
-
-                self.state = self.initial_state
-                self.outputs = []
-                for i, inp in enumerate(emb_inp):
-                    if i > 0:
-                        tf.get_variable_scope().reuse_variables()
-                    with tf.variable_scope('cell1'):  # handles CHILD_EDGE
-                        output1, state1 = self.cell1(inp, self.state)
-                    with tf.variable_scope('cell2'):  # handles SIBLING_EDGE
-                        output2, state2 = self.cell2(inp, self.state)
-                    output = tf.where(self.edges[i], output1, output2)
-                    self.state = [tf.where(self.edges[i], state1[j], state2[j])
-                                  for j in range(config.decoder.num_layers)]
-                    self.outputs.append(output)
+        #
+        # with tf.variable_scope('decoder_network'):
+        #     # the decoder (modified from tensorflow's seq2seq library to fit tree RNNs)
+        #     with tf.variable_scope('rnn'):
+        #
+        #         self.state = self.initial_state
+        #         self.outputs = []
+        #         for i, inp in enumerate(emb_inp):
+        #             if i > 0:
+        #                 tf.get_variable_scope().reuse_variables()
+        #             with tf.variable_scope('cell1'):  # handles CHILD_EDGE
+        #                 output1, state1 = self.cell1(inp, self.state)
+        #             with tf.variable_scope('cell2'):  # handles SIBLING_EDGE
+        #                 output2, state2 = self.cell2(inp, self.state)
+        #             output = tf.where(self.edges[i], output1, output2)
+        #             self.state = [tf.where(self.edges[i], state1[j], state2[j])
+        #                           for j in range(config.decoder.num_layers)]
+        #             self.outputs.append(output)
 
 
 class SimpleDecoder(object):

@@ -146,7 +146,7 @@ class Reader():
                 sample = dict()
                 sample['file'] = program['file']
                 sample['method'] = program['method']
-                sample['body'] = program['body']
+                # sample['body'] = program['body']
 
                 data_points.append((evidences, parsed_data_array, sample))
                 done += 1
@@ -157,8 +157,9 @@ class Reader():
             except (TooLongBranchingException) as e2:
                 ignored_for_branch += 1
 
-            if done % 100000 == 0:
+            if done % 10000 == 0:
                 print('Extracted data for {} programs'.format(done), end='\n')
+                break
 
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts missed in training data for loop'.format(ignored_for_loop))

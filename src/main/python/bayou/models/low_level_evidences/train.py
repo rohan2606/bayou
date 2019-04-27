@@ -36,7 +36,7 @@ Config options should be given as a JSON file (see config.json for example):
 
 def train(clargs):
 
-    dataIsThere = False
+    dataIsThere = False #True
 
     if clargs.continue_from is not None:
         config_file = os.path.join(clargs.continue_from, 'config.json')
@@ -68,7 +68,7 @@ def train(clargs):
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
-    model = Model(config , iterator, bayou_mode=False)
+    model = Model(config , iterator, bayou_mode=True)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
@@ -145,7 +145,7 @@ if __name__ == '__main__':
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/OldDataWFilePtr/DATA-training-expanded-biased.json'])
      # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/NewerData/DATA-Sigmod-TOP.json'])
       # '/home/rm38/Research/Bayou_Code_Search/Corpus/SuttonCorpus/FinalExtracted/DATA-top.json'])
-    '/home/ubuntu/DATA-Licensed_test.json'])
+    '/home/rm38/Research/Bayou/Corpus/raw_synthesis_data/DATA-extracted-for-CACM-train.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')
