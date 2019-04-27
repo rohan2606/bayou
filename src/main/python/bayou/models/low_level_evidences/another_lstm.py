@@ -20,10 +20,10 @@ def while_loop_rnn(rnn_cell1 , rnn_cell2, nodes, edges, initial_state, emb):
         lambda a, b, c: a < time,
         compute,
         (0, initial_state, tf.TensorArray(tf.float32, time)), parallel_iterations=1)
-    
+
 
     print(out.stack())
 
 
-    return tf.transpose(out.stack(), [1, 0, 2]), cur_state
-    # return out.stack(), cur_state
+    # return tf.transpose(out.stack(), [1, 0, 2]), cur_state
+    return out.stack(), cur_state
