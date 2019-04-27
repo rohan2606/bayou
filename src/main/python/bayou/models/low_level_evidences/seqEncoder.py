@@ -15,38 +15,36 @@
 import tensorflow as tf
 
 class seqEncoder(object):
-    def __init__(self, num_layers, state_size, inputs, batch_size, emb, output_units):
+    def __init__(self, units, inputs, batch_size, output_units, emb):
 
-        with tf.variable_scope('GRU_Encoder'):
-            cell_list = []
-            for cell in range(num_layers) :
-                cell = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(state_size ) #both default behaviors
-                #cell = tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=0.8,input_keep_prob=0.8,state_keep_prob=0.8)
-                cell_list.append(cell)
-            cell = tf.contrib.rnn.MultiRNNCell(cell_list)
 
-            # inputs is BS * depth
-            inputs = tf.unstack(inputs, axis=1)
-            # after unstack it is depth * BS
+            inputs = tf.transpose(inputs)
+            cell = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(units ) #both default behaviors
 
-            curr_state = [tf.truncated_normal([batch_size, state_size] , stddev=0.001 ) ] * num_layers
-            curr_out = tf.zeros([batch_size , state_size])
+            initial_state = tf.truncated_normal([batch_size, units] , stddev=0.001 )
+            curr_out = tf.zeros([batch_size , units])
 
-            for i, inp in enumerate(inputs):
-                if i > 0:
-                    tf.get_variable_scope().reuse_variables()
-                emb_inp = tf.nn.embedding_lookup(emb, inp)
 
-                with tf.variable_scope('cell0'):  # handles CHILD_EDGE
-                    output, out_state = cell(emb_inp, curr_state)
 
-                curr_state = [tf.where(tf.not_equal(inp, 0), out_state[j], curr_state[j])
-                              for j in range(num_layers)]
-                curr_out = tf.where(tf.not_equal(inp, 0), output, curr_out)
+            def compute(i, cur_state, out):
+                emb_inp = tf.nn.embedding_lookup(emb, inputs[i])
+                output, cur_state = cell( emb_inp  , cur_state)
+                return i+1, cur_state, out.write(i, output)
 
-            #
-            # with tf.variable_scope("projections"):
-            #     projection_w = tf.get_variable('projection_w', [state_size, output_units])
-            #     projection_b = tf.get_variable('projection_b', [output_units])
 
-            self.output = curr_out #tf.nn.xw_plus_b(curr_out, projection_w, projection_b)
+            time = tf.shape(inputs)[0]
+
+
+            _, cur_state, out = tf.while_loop(
+                lambda a, b, c: a < time,
+                compute,
+                (0, initial_state, tf.TensorArray(tf.float32, time)), parallel_iterations=1)
+
+
+
+
+            with tf.variable_scope("projections"):
+                projection_w = tf.get_variable('projection_w', [units, output_units])
+                projection_b = tf.get_variable('projection_b', [output_units])
+
+                self.output = tf.nn.xw_plus_b(curr_out, projection_w, projection_b)

@@ -218,12 +218,7 @@ class Sequences(Evidence):
                 rand = tf.random_uniform( (config.batch_size, self.max_depth) )
                 inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
 
-            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size, self.emb, config.latent_size)
-            encoding = LSTM_Encoder.output
-
-            w = tf.get_variable('w', [self.units, config.latent_size ])
-            b = tf.get_variable('b', [config.latent_size])
-            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+            latent_encoding = seqEncoder(self.units, inputs, config.batch_size,  config.latent_size, self.emb).output
 
             zeros = tf.zeros([config.batch_size , config.latent_size])
             latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
@@ -496,12 +491,7 @@ class JavaDoc(Sequences):
                 inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
 
             BiGRU_Encoder = biRNN(self.num_layers, self.units, inputs, config.batch_size, self.emb, config.latent_size)
-            encoding = BiGRU_Encoder.output
-
-            w = tf.get_variable('w', [self.units, config.latent_size ])
-            b = tf.get_variable('b', [config.latent_size])
-            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
-
+            latent_encoding = BiGRU_Encoder.output
             zeros = tf.zeros([config.batch_size , config.latent_size])
             latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
 
@@ -569,7 +559,7 @@ class SetsOfSequences(Evidence):
                 inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
 
 
-            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size * self.max_nums, self.emb, config.latent_size)
+            LSTM_Encoder = seqEncoder(self.units, inputs, config.batch_size * self.max_nums,  config.latent_size, self.emb)
             encoding = LSTM_Encoder.output
 
             w = tf.get_variable('w', [self.units, config.latent_size ])

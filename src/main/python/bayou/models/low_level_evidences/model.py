@@ -42,17 +42,13 @@ class Model():
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
-            embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
-            embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
-            embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
-            self.reverse_encoder = BayesianReverseEncoder(config, embAPI, nodes, edges, ev_data[4], embRT, ev_data[5], embFS)
+            self.reverse_encoder = BayesianReverseEncoder(config, nodes, edges, ev_data[4], ev_data[5])
             samples_2 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
-
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
-            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
+
 
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
@@ -60,7 +56,7 @@ class Model():
                 initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
                 initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
-            self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges)
+            self.decoder = BayesianDecoder(config, initial_state, nodes, edges)
 
         with tf.variable_scope("RE_Decoder"):
             ## RE
@@ -76,11 +72,9 @@ class Model():
                 initial_state_RE = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
 
             input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(ev_data[4]), axis=[1]))
-            output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
-
-            projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
-            projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
-            logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
+            retDec = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
+            output = retDec.outputs[:,0,:]
+            logits_RE = tf.nn.xw_plus_b(output , retDec.projection_w, retDec.projection_b)
 
             labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
@@ -101,10 +95,10 @@ class Model():
                 initial_state_FS = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS")
 
             input_FS = tf.transpose(tf.reverse_v2(ev_data[5], axis=[1]))
-            self.decoder_FS = SimpleDecoder(config, emb_FS, initial_state_FS, input_FS, config.evidence[5])
-
-            output = tf.reshape(tf.concat(self.decoder_FS.outputs, 1), [-1, self.decoder_FS.cell1.output_size])
-            logits_FS = tf.matmul(output, self.decoder_FS.projection_w_FS) + self.decoder_FS.projection_b_FS
+            decoder_FS = SimpleDecoder(config, emb_FS, initial_state_FS, input_FS, config.evidence[5])
+            # output = tf.reshape(tf.concat(self.decoder_FS.outputs, 1), [-1, self.decoder_FS.cell1.output_size])
+            output = tf.reshape(decoder_FS.outputs, [-1, config.evidence[5].units]) # decoder_FS.outputs
+            logits_FS = tf.matmul(output, decoder_FS.projection_w) + decoder_FS.projection_b
 
 
             # logits_FS = output
@@ -124,7 +118,7 @@ class Model():
         # get the decoder outputs
         with tf.name_scope("Loss"):
             output = tf.reshape(tf.concat(self.decoder.outputs, 1),
-                                [-1, self.decoder.cell1.output_size])
+                                [-1, self.config.decoder.units])
             logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
             ln_probs = tf.nn.log_softmax(logits)
 

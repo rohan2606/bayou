@@ -18,57 +18,47 @@ class biRNN(object):
     def __init__(self, num_layers, state_size, inputs, batch_size, emb, output_units):
 
         with tf.variable_scope('GRU_Encoder'):
-            cell_list_fwd, cell_list_back = [],[]
-            for i in range(num_layers) :
-                    cell_fwd = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(state_size ) #both default behaviors
-                    cell_list_fwd.append(cell_fwd)
-                    cell_back = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(state_size ) #both default behaviors
-                    cell_list_back.append(cell_back)
 
-            multi_cell_fwd = tf.contrib.rnn.MultiRNNCell(cell_list_fwd)
-            multi_cell_back = tf.contrib.rnn.MultiRNNCell(cell_list_back)
+            cell_fwd = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(state_size )
+            cell_back = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(state_size )
 
             # inputs is BS * depth
-            inputs_fwd = tf.unstack(inputs, axis=1)
-            # after unstack it is depth * BS
-            inputs_back = inputs_fwd[::-1]
+            inputs = tf.transpose(inputs)
+            inputs_back = tf.transpose(tf.reverse_v2(inputs, axis=1))
 
-            curr_state_fwd = [tf.truncated_normal([batch_size, state_size] , stddev=0.001 ) ] * num_layers
-            curr_state_back = [tf.truncated_normal([batch_size, state_size] , stddev=0.001 ) ] * num_layers
+            init_state_fwd = tf.truncated_normal([batch_size, state_size] , stddev=0.001 )
+            init_state_back = tf.truncated_normal([batch_size, state_size] , stddev=0.001 )
 
-            curr_out_fwd = tf.zeros([batch_size , state_size])
-            curr_out_back = tf.zeros([batch_size , state_size])
 
-            for i, inp in enumerate(zip(inputs_fwd, inputs_back)):
-                #if i > 0:
-                #    tf.get_variable_scope().reuse_variables()
 
-                inp_fwd, inp_back = inp
-                emb_inp_fwd = tf.nn.embedding_lookup(emb, inp_fwd)
-                emb_inp_back = tf.nn.embedding_lookup(emb, inp_back)
+            def compute(i, cur_state, out):
+                emb_inp = tf.nn.embedding_lookup(emb, inputs[i])
+                output, cur_state = cell( emb_inp  , cur_state)
+                return i+1, cur_state, out.write(i, output)
 
-                with tf.variable_scope("forward", reuse=tf.AUTO_REUSE):
-                    output_fwd, out_state_fwd = multi_cell_fwd(emb_inp_fwd, curr_state_fwd)
-                with tf.variable_scope("backward", reuse=tf.AUTO_REUSE):
-                    output_back, out_state_back = multi_cell_back(emb_inp_back, curr_state_back)
 
-                curr_state_fwd = [tf.where(tf.not_equal(inp_fwd, 0), out_state_fwd[j], curr_state_fwd[j])
-                              for j in range(num_layers)]
+            time = tf.shape(inputs)[0]
 
-                curr_state_back = [tf.where(tf.not_equal(inp_back, 0), out_state_back[j], curr_state_back[j])
-                              for j in range(num_layers)]
 
-                curr_out_fwd = tf.where(tf.not_equal(inp_fwd, 0), output_fwd, curr_out_fwd)
-                curr_out_back = tf.where(tf.not_equal(inp_back, 0), output_back, curr_out_back)
+            _, cur_state_fwd, curr_out_fwd = tf.while_loop(
+                lambda a, b, c: a < time,
+                compute,
+                (0, init_state_fwd, tf.TensorArray(tf.float32, time)), parallel_iterations=1)
+
+
+            _, cur_state_back, curr_out_back = tf.while_loop(
+                lambda a, b, c: a < time,
+                compute,
+                (0, init_state_back, tf.TensorArray(tf.float32, time)), parallel_iterations=1)
 
 
             temp_out = tf.concat([curr_out_fwd, curr_out_back], axis=1)
             with tf.variable_scope(tf.get_variable_scope(), reuse=False):
                 curr_out = tf.layers.dense(temp_out, output_units, activation=tf.nn.tanh)
 
-            #
-            # with tf.variable_scope("projections"):
-            #     projection_w = tf.get_variable('projection_w', [state_size, output_units])
-            #     projection_b = tf.get_variable('projection_b', [output_units])
 
-            self.output = curr_out #tf.nn.xw_plus_b(curr_out, projection_w, projection_b)
+            with tf.variable_scope("projections"):
+                projection_w = tf.get_variable('projection_w', [state_size, output_units])
+                projection_b = tf.get_variable('projection_b', [output_units])
+
+            self.output = tf.nn.xw_plus_b(curr_out, projection_w, projection_b)
