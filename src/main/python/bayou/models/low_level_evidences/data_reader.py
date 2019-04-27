@@ -159,7 +159,7 @@ class Reader():
 
             if done % 10000 == 0:
                 print('Extracted data for {} programs'.format(done), end='\n')
-                break
+                #break
 
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts missed in training data for loop'.format(ignored_for_loop))

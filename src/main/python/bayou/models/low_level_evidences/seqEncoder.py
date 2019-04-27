@@ -47,4 +47,8 @@ class seqEncoder(object):
                 projection_w = tf.get_variable('projection_w', [units, output_units])
                 projection_b = tf.get_variable('projection_b', [output_units])
 
-                self.output = tf.nn.xw_plus_b(curr_out, projection_w, projection_b)
+
+
+
+            #self.last_output = tf.nn.xw_plus_b(out.stack()[-1], projection_w, projection_b)
+            self.output = tf.nn.xw_plus_b( out.stack()[-1] , projection_w, projection_b)
