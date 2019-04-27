@@ -25,5 +25,4 @@ def while_loop_rnn(rnn_cell1 , rnn_cell2, nodes, edges, initial_state, emb):
     print(out.stack())
 
 
-    # return tf.transpose(out.stack(), [1, 0, 2]), cur_state
-    return out.stack(), cur_state
+    return tf.transpose(out.stack(), [1, 0, 2]), cur_state
