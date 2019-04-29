@@ -21,6 +21,8 @@ import os
 import sys
 import simplejson as json
 import textwrap
+import gc
+from copy import deepcopy
 
 #import bayou.models.core.infer
 import bayou.models.low_level_evidences.infer
@@ -79,7 +81,7 @@ def index(clargs):
             prob_Y, a1,b1, a2, b2 = predictor.get_all_params_inago()
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
-                prog_json = jsp[   j * config.batch_size + i   ]
+                prog_json = deepcopy(jsp[   j * config.batch_size + i   ])
                 prog_json['a2'] =   "%.3f" % a2[i].item()
                 prog_json['b2'] =   [ "%.3f" % val.item() for val in b2[i]]
                 prog_json['ProbY'] = "%.3f" % prob_Y[i].item()
@@ -91,6 +93,11 @@ def index(clargs):
                 print('\nWriting to {}...'.format(fileName), end='')
                 with open(fileName, 'w') as f:
                      json.dump({'programs': programs}, fp=f, indent=2)
+
+                for item in programs:
+                    del item
+                del programs
+                gc.collect()
                 programs = []
 
 
