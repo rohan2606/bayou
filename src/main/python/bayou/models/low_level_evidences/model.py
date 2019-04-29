@@ -33,6 +33,13 @@ class Model():
         nodes = tf.transpose(nodes)
         edges = tf.transpose(edges)
 
+       
+
+        with tf.variable_scope("Embedding"):
+            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
+
+
+
         with tf.variable_scope("Encoder"):
 
             self.encoder = BayesianEncoder(config, ev_data, infer)
@@ -52,7 +59,6 @@ class Model():
 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
-            emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
 
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
@@ -169,7 +175,7 @@ class Model():
             #unused if MultiGPU is being used
             with tf.name_scope("train"):
                 if bayou_mode:
-                    train_ops = get_var_list()['bayou_vars']
+                    train_ops = get_var_list()['decoder_vars']
                 else:
                     train_ops = get_var_list()['rev_encoder_vars']
 

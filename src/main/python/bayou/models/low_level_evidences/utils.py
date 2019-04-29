@@ -43,15 +43,18 @@ def get_var_list():
     decoder_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='FS_Decoder')
 
     encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder')
+    emb_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Embedding')
 
+    decoder_vars += emb_vars
     rev_encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
 
     #javadoc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/mean/javadoc') + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/javadoc')
 
-    bayou_vars = decoder_vars + encoder_vars
+    bayou_vars = emb_vars + decoder_vars + encoder_vars
 
     var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
                 'encoder_vars':encoder_vars, 
+                'emb_vars':emb_vars, 
                 'bayou_vars':bayou_vars,
                 'rev_encoder_vars':rev_encoder_vars
                 }

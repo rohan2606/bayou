@@ -76,11 +76,10 @@ class Reader():
             raw_targets = raw_targets[:sz]
             js_programs = js_programs[:sz]
 
-        # setup input and target chars/vocab
-            if clargs.continue_from is None:
-                config.decoder.vocab, config.decoder.vocab_size = self.decoder_api_dict.get_call_dict()
-                # adding the same variables for reverse Encoder
-                config.reverse_encoder.vocab, config.reverse_encoder.vocab_size = self.decoder_api_dict.get_call_dict()
+            # setup input and target chars/vocab
+            config.decoder.vocab, config.decoder.vocab_size = self.decoder_api_dict.get_call_dict()
+            # adding the same variables for reverse Encoder
+            config.reverse_encoder.vocab, config.reverse_encoder.vocab_size = self.decoder_api_dict.get_call_dict()
 
             # wrangle the evidences and targets into numpy arrays
             self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
@@ -110,7 +109,7 @@ class Reader():
                 json.dump(jsconfig, fp=f, indent=2)
             with open('data/config.json', 'w') as f:
                 json.dump(jsconfig, fp=f, indent=2)
-
+            print("Saved")
 
 
     def read_data(self, filename, infer, save=None):

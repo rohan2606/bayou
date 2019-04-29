@@ -56,7 +56,7 @@ def index(clargs):
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
 
-    dataset = tf.data.Dataset.from_tensor_slices((prog_ids_placeholder, js_prog_ids_placeholder, nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices((nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
     jsp = reader.js_programs
@@ -64,7 +64,7 @@ def index(clargs):
 
 
     with tf.Session() as sess:
-        predictor = model(clargs.save, sess, config, iterator, bayou_mode = False) # goes to infer.BayesianPredictor
+        predictor = model(clargs.save, sess, config, iterator) # goes to infer.BayesianPredictor
         sess.run(iterator.initializer, feed_dict=feed_dict)
         infer_vars = {}
 
@@ -74,18 +74,20 @@ def index(clargs):
 
 
         programs = []
+        k = 0
         for j in range(config.num_batches):
             prob_Y, a1,b1, a2, b2 = predictor.get_all_params_inago()
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
+                prog_json = jsp[   j * config.batch_size + i   ]
                 prog_json['a2'] = a2[i].round(decimals=2) # "%.3f" %
                 prog_json['b2'] = b2[i].round(decimals=2)
                 prog_json['ProbY'] = prob_Y[i].round(decimals=2)
-                prog_json = jsp[   j * config.batch_size + i   ]
-
+                programs.append(prog_json)
 
             if (j+1) % 200 == 0 or (j+1) == config.num_batches:
-                fileName = "Program_output_" + str(j) + ".json"
+                fileName = "Program_output_" + str(k) + ".json"
+                k += 1
                 print('\nWriting to {}...'.format(fileName), end='')
                 with open(fileName, 'w') as f:
                      json.dump({'programs': programs}, fp=f, indent=2)
@@ -120,4 +122,4 @@ if __name__ == '__main__':
         '/home/ubuntu/DATA-Licensed_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
-    test(clargs)
+    index(clargs)
