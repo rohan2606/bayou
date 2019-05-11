@@ -29,9 +29,33 @@ from bayou.models.low_level_evidences.biRNN import biRNN
 from nltk.stem.wordnet import WordNetLemmatizer
 import wordninja
 
+
+from nltk.corpus import stopwords;
+
+
+
+ENG_STOPWORDS = set(stopwords.words("english"));
+JAVA_STOPWORDS = set([
+    'abstract',   'continue',   'for',          'new',         'switch',
+    'assert,'     'default',    'if',           'package',     'synchronized',
+    'boolean',    'do',         'goto',         'private',     'this',
+    'break',      'double',     'implements',   'protected',   'throw',
+    'byte',       'else',       'import',       'public',      'throws',
+    'case',       'enum',       'instanceof',   'return',      'transient',
+    'catch',      'extends',    'int',          'short',       'try',
+    'char',       'final',      'interface',    'static',      'void',
+    'class',      'finally',    'long',         'strictfp',    'volatile',
+    'const',      'float',      'native',       'super',       'while',
+    'fixme', 'todo', 'and', 'bitand', 'bitor', 'bool', 'decltype',
+    'template', 'typename', 'xor', 'import']);
+
+
 class Evidence(object):
 
     def init_config(self, evidence, chars_vocab):
+        if self.name == 'javadoc':
+            chars_vocab = False
+
         for attr in CONFIG_ENCODER + (CONFIG_INFER if chars_vocab else []):
             self.__setattr__(attr, evidence[attr])
 
@@ -77,7 +101,7 @@ class Evidence(object):
         output = []
         for word in listOfWords:
             if word not in self.vocab:
-                if not infer:
+                if (not infer) or self.name=='javadoc':
                     self.vocab[word] = self.vocab_size
                     self.vocab_size += 1
                     output.append(self.vocab[word])
@@ -428,14 +452,14 @@ class FormalParam(Sequences):
 
 
 # handle sequences as i/p
-class JavaDoc(Sequences):
+class JavaDoc(Sets):
 
     def __init__(self):
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
-        self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
-        self.n_Dims=300
+        #self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/root/GoogleNews-vectors-negative300.bin', binary=True)
+        #self.n_Dims=300
         self.lemmatizer = WordNetLemmatizer()
 
 
@@ -444,7 +468,7 @@ class JavaDoc(Sequences):
 
         string_sequence = program['javaDoc'] if ('javaDoc' in program and program['javaDoc'] is not None) else []
         if len(string_sequence) == 0:
-             return [[]]
+             return []
 
         javadoc_list = string_sequence.strip().split()
         # replace all non alphabetical char into underscore
@@ -463,13 +487,15 @@ class JavaDoc(Sequences):
 
             x = wordninja.split(x)
             for word in x:
-                y = self.lemmatizer.lemmatize(word, 'v')
-                y = self.lemmatizer.lemmatize(y, 'n')
-                if len(y) > 1:
-                    result_list.append(y)
+                if word not in ENG_STOPWORDS and word not in JAVA_STOPWORDS:
+                     y = self.lemmatizer.lemmatize(word, 'v')
+                     y = self.lemmatizer.lemmatize(y, 'n')
+                     if len(y) > 1 and y in program['body']:
+                          result_list.append(y)
 
-        return [self.word2num(result_list , infer)]
+        return self.word2num(result_list , infer)
 
+'''
     def init_sigma(self, config):
         with tf.variable_scope(self.name):
             #REPLACE BY WORD2VEC
@@ -485,8 +511,8 @@ class JavaDoc(Sequences):
         # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             #self.sigma = tf.Variable(0.10, name='sigma', trainable=True) #tf.get_variable('sigma', [])
             self.sigma = tf.get_variable('sigma', [])
-
-
+'''
+'''
     def encode(self, inputs, config, infer):
         with tf.variable_scope(self.name):
             # Drop some inputs
@@ -506,6 +532,8 @@ class JavaDoc(Sequences):
             latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
 
             return latent_encoding
+'''
+
 
 class sorrReturnType(Sets):
 
