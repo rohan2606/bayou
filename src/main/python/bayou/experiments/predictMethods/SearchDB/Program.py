@@ -5,8 +5,8 @@ import re
 class skinnyProgramInBatch():
 
     def __init__(self, programJson, index2ColDB, colDB, batch_size):
-        self.fileName = programJson['file']
-        self.methodName = programJson['method']
+        #self.fileName = programJson['file']
+        #self.methodName = programJson['method']
         self.body = self.stripJavaDoc(programJson['body'])
 
         self.batch_size = batch_size

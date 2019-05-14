@@ -11,7 +11,7 @@ backupDB = '../log/bayouSearchColDb_backup.pkl'
 class parallelReadJSON():
 
 
-    def __init__(self, folder, numThreads, dimension=256, batch_size=50, minJSONs = 1, maxJSONs = 70):
+    def __init__(self, folder, numThreads, dimension=256, batch_size=50, minJSONs = 0, maxJSONs = 70):
         self.folder = folder
         self.minJSONs = minJSONs
         self.maxJSONs = maxJSONs
@@ -24,8 +24,8 @@ class parallelReadJSON():
 
         if not os.path.exists(backupDB):
             FinalProgram_DB = self.readAllJSONs()
-            with open(backupDB , 'wb') as output:
-                pickle.dump(FinalProgram_DB, output)
+            #with open(backupDB , 'wb') as output:
+            #    pickle.dump(FinalProgram_DB, output)
         else:
             with open(backupDB, 'rb') as input:
                 FinalProgram_DB = pickle.load(input)

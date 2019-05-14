@@ -99,9 +99,9 @@ class Reader():
 
 
             with open('data/inputs.txt', 'wb') as f:
-                pickle.dump(self.inputs, f)
+                pickle.dump(self.inputs, f, protocol=4)
             with open('data/nodes_edges_targets.txt', 'wb') as f:
-                pickle.dump([self.nodes , self.edges, self.targets] , f)
+                pickle.dump([self.nodes , self.edges, self.targets] , f, protocol=4)
             with open('data/js_programs.json', 'w') as f:
                 json.dump({'programs': self.js_programs}, fp=f, indent=2)
             jsconfig = dump_config(config)

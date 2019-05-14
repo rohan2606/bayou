@@ -14,14 +14,15 @@ logdir = "../log"
 if __name__=="__main__":
 
     numThreads = 32
-    batch_size = 10
-    maxJSONs = 23
+    batch_size = 5
+    minJSONs = 0
+    maxJSONs = 69 #230
     dimension = 256
     topK = 10000
 
 
 
-    JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, maxJSONs=maxJSONs)
+    JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, minJSONs=minJSONs, maxJSONs=maxJSONs)
     listOfColDB = JSONReader.getSearchDatabase()
 
 
@@ -38,7 +39,7 @@ if __name__=="__main__":
 
         JSONList = []
         for kkk, embedding in enumerate(embIt.embList):
-            #scanner.addAColDB(embedding.js, dimension, batch_size)
+            scanner.addAColDB(embedding.js, dimension, batch_size)
             topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
 
 
@@ -47,6 +48,7 @@ if __name__=="__main__":
                 topProgramDict = dict()
 
                 desire = embedding.js[batch_id]['body']
+                desire_apis = embedding.js[batch_id]['testapicalls']
 
                 topProgramDict['desiredProg'] = desire
                 rank = topK + 1
@@ -54,12 +56,17 @@ if __name__=="__main__":
                 programList = list()
 
                 for j, prog in enumerate(topKProgs):
-                    if j < 100:
+                    if j < 10:
                         programList.append({j:prog.body})
-                        
-                    if desire in prog.body :
-                        if j < rank:
-                            rank = j
+                    
+                    jaccardMatch = True
+                    for desire in desire_apis :
+                        if desire not in prog.body:
+                           jaccardMatch = False
+                           break
+                    
+                    if jaccardMatch == True and j < rank:
+                        rank = j
 
                 topProgramDict['topPrograms'] = programList
                 count += 1
@@ -67,9 +74,10 @@ if __name__=="__main__":
 
                 JSONList.append(topProgramDict)
 
-            #scanner.deleteLastColDB()
+            scanner.deleteLastColDB()
             print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
                           (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
-        with open(logdir + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
-             json.dump({'topPrograms': JSONList}, fp=f, indent=2)
-             #break
+            if kkk % 9 == 0 and kkk > 0:
+                with open(logdir + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
+                     json.dump({'topPrograms': JSONList}, fp=f, indent=2)
+                break

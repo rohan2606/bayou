@@ -74,10 +74,9 @@ if __name__ == "__main__":
     queryFilesSampled = logdir + "/L1SampledQueryFileNamesfiles.txt"
     queryFilesInJson = logdir + '/L3JSONFiles.txt'
 
-    if not os.path.exists(queryFilesInJson):
-        cleanUp(logdir = logdir)
-        sampleFiles(queryFilesSampled, k=5000)
-        runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
+    #cleanUp(logdir = logdir)
+    #sampleFiles(queryFilesSampled, k=10000)
+    #runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
 
     EmbS = embedding_server()
     for expNumber in range(11):

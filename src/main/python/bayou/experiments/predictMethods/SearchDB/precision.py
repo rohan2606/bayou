@@ -22,9 +22,9 @@ def ListToFormattedString(alist, Type):
 
 if __name__=="__main__":
 
-    numThreads = 20
+    numThreads = 32
     batch_size = 10
-    maxJSONs = 70
+    maxJSONs = 69 #0
     dimension = 256
     topK = 10000
 
@@ -46,20 +46,26 @@ if __name__=="__main__":
 	    for kkk, embedding in enumerate(embIt.embList):
 	        start = time.time()
 	        #print (embedding.js)
-	        scanner.addAColDB(embedding.js, dimension, batch_size)
+	        #scanner.addAColDB(embedding.js, dimension, batch_size)
 	        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
 
 	        for batch_id , topKProgs in enumerate(topKProgsBatch):
 	            desire = embedding.js[batch_id]['body']
-	            desireAPIcalls = embedding.js[batch_id]['testwords']
+	            desireAPIcalls = embedding.js[batch_id]['testapicalls']
 	            desire = re.sub(r'\*\*(.*?)\*\/', '', desire)
 	            rank = topK + 1
 	            hitPtId = 0
 	            hit_counts = np.zeros(len(hit_points))
 	            for j, prog in enumerate(topKProgs):
                              
-                        if desire in prog.body :
-                            hit_counts[hitPtId] += 1
+
+                        count = 1
+                        for api in desireAPIcalls:
+                            if api not in prog.body :
+                               count = 0
+                               break
+
+                        hit_counts[hitPtId] += count
                          
 	                #hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
                         if (j+1)  == hit_points[hitPtId]:
@@ -68,7 +74,7 @@ if __name__=="__main__":
                                   hit_counts[hitPtId] += hit_counts[hitPtId-1]
 	            hit_counts_total += hit_counts         
 		     
-	        scanner.deleteLastColDB()
+	        #scanner.deleteLastColDB()
 	        prctg = np.zeros_like(hit_counts_total)
 	        for i in range(len(hit_counts_total)):
 	              prctg[i] = hit_counts_total[i] / float(hit_points[i] * batch_size * (kkk+1))

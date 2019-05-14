@@ -35,7 +35,7 @@ from bayou.models.low_level_evidences.data_reader import Reader
 
 def index(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
-    clargs.continue_from = True
+    clargs.continue_from = None
 
     model = bayou.models.low_level_evidences.infer.BayesianPredictor
 
@@ -76,7 +76,7 @@ def index(clargs):
 
 
         programs = []
-        k = 0
+        k = 69
         for j in range(config.num_batches):
             prob_Y, a1,b1, a2, b2 = predictor.get_all_params_inago()
             for i in range(config.batch_size):
@@ -125,7 +125,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save1',
+    clargs = parser.parse_args(['--save', '/home/ubuntu/savedSearchModel',
         '/home/ubuntu/DATA-Licensed_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
