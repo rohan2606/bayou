@@ -4,6 +4,21 @@ from Embedding import Embedding_iterator_WBatch
 import time
 import numpy as np
 import re
+import pickle
+
+
+def jaccard(setA, setB):
+   
+   for item in setA:
+      if item not in setB:
+         return False
+   for item in setB:
+      if item not in setA:
+         return False
+   return True
+
+
+
 def rank_statistic(_rank, total, prev_hits, cutoff):
     cutoff = np.array(cutoff)
     hits = prev_hits + (_rank < cutoff)
@@ -22,19 +37,29 @@ def ListToFormattedString(alist, Type):
 
 if __name__=="__main__":
 
-    numThreads = 32
+    numThreads = 35
     batch_size = 10
-    maxJSONs = 69 #0
+    maxJSONs = 69 #230 #0
     dimension = 256
     topK = 10000
 
     JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, maxJSONs=maxJSONs)
     listOfColDB = JSONReader.readAllJSONs()
 
+
+    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_test.pkl", "rb") as f:
+            dict_api_calls_test = pickle.load(f)
+    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_train.pkl", "rb") as f:
+            dict_api_calls_train = pickle.load(f)
+
+    dict_api_calls = dict_api_calls_test
+    dict_api_calls.update(dict_api_calls_train)
+
+
     print ("Initiate Scanner")
     scanner = searchFromDB(listOfColDB, topK, batch_size)
 
-    for expNumber in [0,1,2,3,4,5,6]:
+    for expNumber in [0, 1,2,3,4,5,6]:
 	    print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
 	    embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
 	    #print ("Searching Now!")
@@ -56,17 +81,21 @@ if __name__=="__main__":
 	            rank = topK + 1
 	            hitPtId = 0
 	            hit_counts = np.zeros(len(hit_points))
+  
+
 	            for j, prog in enumerate(topKProgs):
                              
-
-                        count = 1
+                        key = prog.fileName + "/" + prog.methodName
+                        '''count = 1
                         for api in desireAPIcalls:
-                            if api not in prog.body :
+                            if api not in dict_api_calls[key]: #prog.body :
                                count = 0
                                break
-
+                        
                         hit_counts[hitPtId] += count
-                         
+                        '''
+
+                        hit_counts[hitPtId] += int(jaccard( dict_api_calls[key] , desireAPIcalls )) 
 	                #hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
                         if (j+1)  == hit_points[hitPtId]:
                             hitPtId += 1

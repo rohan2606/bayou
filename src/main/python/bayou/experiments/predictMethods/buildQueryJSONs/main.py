@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     #cleanUp(logdir = logdir)
     #sampleFiles(queryFilesSampled, k=10000)
-    #runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
+    runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
 
     EmbS = embedding_server()
     for expNumber in range(11):

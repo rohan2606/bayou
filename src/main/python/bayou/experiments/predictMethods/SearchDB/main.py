@@ -15,13 +15,14 @@ if __name__=="__main__":
 
     numThreads = 32
     batch_size = 10
-    maxJSONs = 23
+    minJSONs = 73
+    maxJSONs = 79
     dimension = 256
     topK = 10000
 
 
 
-    JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, maxJSONs=maxJSONs)
+    JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, minJSONs=minJSONs ,maxJSONs=maxJSONs)
     listOfColDB = JSONReader.getSearchDatabase()
 
 
@@ -54,6 +55,8 @@ if __name__=="__main__":
                 programList = list()
 
                 for j, prog in enumerate(topKProgs):
+                    
+                    prog_key = prog.fileName + prog.methodName
                     if j < 100:
                         programList.append({j:prog.body})
                         
