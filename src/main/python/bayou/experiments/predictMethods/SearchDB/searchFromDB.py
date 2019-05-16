@@ -46,7 +46,7 @@ class searchFromDB():
         return progList
 
 
-    def searchAndTopKParallel(self, searchEmbedding,  numThreads = 32, printProgs='no'):
+    def searchAndTopKParallel(self, searchEmbedding,  numThreads = 32):
 
         #print("Starting parallel search")
 

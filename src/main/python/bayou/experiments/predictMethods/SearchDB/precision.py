@@ -37,8 +37,8 @@ def ListToFormattedString(alist, Type):
 
 if __name__=="__main__":
 
-    numThreads = 35
-    batch_size = 10
+    numThreads = 32
+    batch_size = 5
     maxJSONs = 69 #230 #0
     dimension = 256
     topK = 10000
@@ -72,7 +72,7 @@ if __name__=="__main__":
 	        start = time.time()
 	        #print (embedding.js)
 	        #scanner.addAColDB(embedding.js, dimension, batch_size)
-	        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads, printProgs='no')
+	        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads)
 
 	        for batch_id , topKProgs in enumerate(topKProgsBatch):
 	            desire = embedding.js[batch_id]['body']
@@ -82,18 +82,13 @@ if __name__=="__main__":
 	            hitPtId = 0
 	            hit_counts = np.zeros(len(hit_points))
   
-
+                    programList = list()
 	            for j, prog in enumerate(topKProgs):
-                             
+                       
                         key = prog.fileName + "/" + prog.methodName
-                        '''count = 1
-                        for api in desireAPIcalls:
-                            if api not in dict_api_calls[key]: #prog.body :
-                               count = 0
-                               break
-                        
-                        hit_counts[hitPtId] += count
-                        '''
+
+                        if j < 100:
+                            programList.append({j:prog.body})
 
                         hit_counts[hitPtId] += int(jaccard( dict_api_calls[key] , desireAPIcalls )) 
 	                #hit_counts, prctg = rank_statistic(rank, count, hit_counts, hit_points)
@@ -111,7 +106,6 @@ if __name__=="__main__":
 	        print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
                           (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 	        if kkk % 9 == 0 and kkk > 0:
-	              #print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
-		      #	  (count, ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 	              break
-		#print(  " Time Spent ::  " + str((end - start)/( batch_size)))
+            with open(logdir + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
+                 json.dump({'topPrograms': JSONList}, fp=f, indent=2)
