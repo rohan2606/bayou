@@ -29,7 +29,7 @@ import os
 max_ast_depth = 32
 
 
-def processJSONs(inFile, logdir, expNumber=1):
+def processJSONs(inFile, logdir, config, expNumber=1):
     random.seed(12)
     print("Processing JSONs ... ", end="")
     sys.stdout.flush()
@@ -40,12 +40,15 @@ def processJSONs(inFile, logdir, expNumber=1):
     with open(inFile) as f:
         jsonLines = f.readlines()
 
+
+
+
     programs = []
     count = 0
     for line in jsonLines:
         line = line.strip()
         if os.path.isfile(line):
-            js = processEachJSON(line, expNumber, logdir)
+            js = processEachJSON(line, expNumber, logdir, config)
 
             if js != {}:
                 programs.append(js)
@@ -57,10 +60,10 @@ def processJSONs(inFile, logdir, expNumber=1):
     return count
 
 
-def processEachJSON(fileName, expNumber, logdir):
+def processEachJSON(fileName, expNumber, logdir, config):
     js = extract_evidence(fileName, expNumber)
     js = json.JSONDecoder().decode(js)
-    js = modifyInputForExperiment(js, expNumber)
+    js = modifyInputForExperiment(js, expNumber, config)
 
 
     #writeFile = fileName.split("/")[-1]
@@ -74,12 +77,13 @@ def processEachJSON(fileName, expNumber, logdir):
 def stripJavaDoc(stringBody):
     return re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))
 
-def modifyInputForExperiment(sample, expNumber):
+def modifyInputForExperiment(sample, expNumber, config):
 
 
     if ( 'apicalls' not in sample ) or ('apicalls' in sample and len(sample['apicalls']) < 1):
          return {}
 
+    
 
     sample['testapicalls'] = sample['apicalls']
 
@@ -88,14 +92,22 @@ def modifyInputForExperiment(sample, expNumber):
     for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
         if ev not in sample:
             return {}
-        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 3 ):
+        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 1 ):
             return {}
-        if ev == 'sorrsequences' and len(sample[ev]) < 5:
+        if ev == 'sorrsequences' and len(sample[ev]) < 1:
             return {}
         if ev == 'sequences':
             for elem in sample[ev]:
                 if elem not in sample['apicalls']:
                     return {}
+
+        if ev == 'returnType' and sample[ev] not in config.evidence[4].vocab:
+             return {}
+
+        if ev == 'formalParam':
+           for elem in sample[ev]:
+               if elem not in config.evidence[5].vocab:
+                  return {}        
 
 
 
@@ -259,7 +271,7 @@ def extract_evidence(fileName, expNumber):
         sample['sequences'] = sequences[0]
 
         # Take in classTypes and sample a few
-        sample['classTypes'] = list(set(program['classTypes'])) if 'classTypes' in program else []
+        sample['classTypes'] = program['classTypes'] if 'classTypes' in program else []
         if len(sample['classTypes']) == 0:
             del sample['classTypes']
 
@@ -281,7 +293,7 @@ def extract_evidence(fileName, expNumber):
                 sample[evidence].append(choice)
 
         ## SORR RET
-        sample['sorrreturntype'] = list(set(sample['sorrreturntype']))
+        sample['sorrreturntype'] = sample['sorrreturntype']
         if len(sample['sorrreturntype']) == 0:
             del sample['sorrreturntype']
 
@@ -294,7 +306,7 @@ def extract_evidence(fileName, expNumber):
                 filteredSorrFP.append( tuple(temp) )
 
         filteredSorrFP.sort(key=len, reverse=True)
-        sample['sorrformalparam'] = list(set(filteredSorrFP))
+        sample['sorrformalparam'] = filteredSorrFP
         if len(sample['sorrformalparam']) == 0:
             del sample['sorrformalparam']
 
@@ -306,7 +318,7 @@ def extract_evidence(fileName, expNumber):
             if len(seq) > 0:
                 filteredSorrSeq.append(tuple(seq))
 
-        sample['sorrsequences'] = list(set(filteredSorrSeq))
+        sample['sorrsequences'] = filteredSorrSeq
         if len(sample['sorrsequences']) == 0:
             del sample['sorrsequences']
 

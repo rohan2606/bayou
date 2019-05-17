@@ -9,6 +9,8 @@ from processJSON import processJSONs
 from buildEmbeddings import embedding_server
 from cleanup import cleanUp
 
+from bayou.models.low_level_evidences.utils import read_config
+
 
 '''
 
@@ -31,11 +33,12 @@ def sampleFiles(queryFilesSampled, k):
     print("Sampling Files .... ", end="")
     sys.stdout.flush()
     # sample 10K random files
-    randomFiles = random.sample(list(open('javapath.txt', encoding = "ISO-8859-1").read().splitlines()) , k)
+    randomFiles = random.sample(list(open('/home/ubuntu/github-java-files-train.txt', encoding = "ISO-8859-1").read().splitlines()) , k)
 
     with open(queryFilesSampled, "a") as f:
         for randFile in randomFiles:
-            randFile = '/data/Corpus/' + randFile + '\n'
+            randFile = randFile[2:]
+            randFile = '/home/ubuntu/java_projects/' + randFile + '\n'
             f.write(randFile)
 
     print("Done")
@@ -76,11 +79,15 @@ if __name__ == "__main__":
 
     #cleanUp(logdir = logdir)
     #sampleFiles(queryFilesSampled, k=10000)
-    runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
+    #runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
+
+    with open('/home/ubuntu/savedSearchModel/config.json') as f:
+        config = read_config(json.load(f), chars_vocab=True)
+
 
     EmbS = embedding_server()
-    for expNumber in range(11):
+    for expNumber in range(7):
          exp_logdir = logdir + "/expNumber_" + str(expNumber)
-         count = processJSONs(queryFilesInJson,  exp_logdir, expNumber = expNumber)
+         count = processJSONs(queryFilesInJson,  exp_logdir, config, expNumber = expNumber)
          EmbS.getEmbeddings(exp_logdir)
          print("Number of programs processed for exp " + str(expNumber) + " is "  + str(count))
