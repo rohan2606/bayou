@@ -4,7 +4,7 @@ from Embedding import Embedding_iterator_WBatch
 import numpy as np
 import re
 import pickle
-
+import simplejson as json
 
 def jaccard(setA, setB):
    
@@ -35,9 +35,9 @@ def ListToFormattedString(alist, Type):
 
 if __name__=="__main__":
 
-    numThreads = 32
+    numThreads = 30
     batch_size = 5
-    maxJSONs = 69 #230 #0
+    maxJSONs = 230
     dimension = 256
     topK = 10000
 
@@ -65,7 +65,7 @@ if __name__=="__main__":
 	    hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
 	    hit_counts_total = np.zeros(len(hit_points))
 
-
+	    JSONList=[]
 	    for kkk, embedding in enumerate(embIt.embList):
 	        #print (embedding.js)
 	        #scanner.addAColDB(embedding.js, dimension, batch_size)
@@ -79,12 +79,12 @@ if __name__=="__main__":
 	            hitPtId = 0
 	            hit_counts = np.zeros(len(hit_points))
   
-                    programList = list()
+	            programList = list()
 	            for j, prog in enumerate(topKProgs):
                        
                         key = prog.fileName + "/" + prog.methodName
 
-                        if j < 100:
+                        if j < 10:
                             programList.append({j:prog.body})
 
                         hit_counts[hitPtId] += int(jaccard( dict_api_calls[key] , desireAPIcalls )) 
@@ -101,7 +101,7 @@ if __name__=="__main__":
 	              prctg[i] = hit_counts_total[i] / float(hit_points[i] * batch_size * (kkk+1))
 	        print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
                           (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
-	        if kkk % 9 == 0 and kkk > 0:
+	        if kkk % 19 == 0 and kkk > 0:
 	              break
-            with open(logdir + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
+	    with open("../log" + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
                  json.dump({'topPrograms': JSONList}, fp=f, indent=2)
