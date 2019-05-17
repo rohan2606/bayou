@@ -1,7 +1,6 @@
 from parallelReadJSON import parallelReadJSON
 from searchFromDB import searchFromDB
 from Embedding import Embedding_iterator_WBatch
-import time
 import numpy as np
 import re
 import pickle
@@ -16,7 +15,6 @@ def jaccard(setA, setB):
       if item not in setA:
          return False
    return True
-
 
 
 def rank_statistic(_rank, total, prev_hits, cutoff):
@@ -69,7 +67,6 @@ if __name__=="__main__":
 
 
 	    for kkk, embedding in enumerate(embIt.embList):
-	        start = time.time()
 	        #print (embedding.js)
 	        #scanner.addAColDB(embedding.js, dimension, batch_size)
 	        topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads)
@@ -102,7 +99,6 @@ if __name__=="__main__":
 	        prctg = np.zeros_like(hit_counts_total)
 	        for i in range(len(hit_counts_total)):
 	              prctg[i] = hit_counts_total[i] / float(hit_points[i] * batch_size * (kkk+1))
-	        end = time.time()
 	        print('Searched {} Hit_Points {} :: Percentage Hits {}'.format
                           (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
 	        if kkk % 9 == 0 and kkk > 0:
