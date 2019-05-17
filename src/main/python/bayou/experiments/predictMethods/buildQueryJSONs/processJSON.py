@@ -83,7 +83,7 @@ def modifyInputForExperiment(sample, expNumber, config):
     if ( 'apicalls' not in sample ) or ('apicalls' in sample and len(sample['apicalls']) < 1):
          return {}
 
-    
+
 
     sample['testapicalls'] = sample['apicalls']
 
@@ -107,7 +107,7 @@ def modifyInputForExperiment(sample, expNumber, config):
         if ev == 'formalParam':
            for elem in sample[ev]:
                if elem not in config.evidence[5].vocab:
-                  return {}        
+                  return {}
 
 
 
@@ -165,21 +165,28 @@ def modifyInputForExperiment(sample, expNumber, config):
         for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
+        sample['returnType'] = 'None'
+        sample['formalParam'] = ['None']
 
     elif expNumber == 8: ## keywords
         for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'sequences', 'apicalls', 'types']:
             if ev in sample:
                 del sample[ev]
+        sample['returnType'] = 'None'
+        sample['formalParam'] = ['None']
 
     elif expNumber == 9: ## apicalls
         for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'sequences', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
+        sample['returnType'] = 'None'
+        sample['formalParam'] = ['None']
 
     elif expNumber == 10: ## returnType
         for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'formalParam', 'sequences', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
+        sample['formalParam'] = ['None']
 
     return sample
 
@@ -268,6 +275,7 @@ def extract_evidence(fileName, expNumber):
         sequences = program['sequences']
         sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
         sequences.sort(key=len, reverse=True)
+        sample['testsequences'] = sequences
         sample['sequences'] = sequences[0]
 
         # Take in classTypes and sample a few
