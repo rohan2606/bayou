@@ -31,7 +31,10 @@ if __name__=="__main__":
         embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
 
         # for first hit
-        hit_counts_first_hit_total = np.zeros(len(hit_points))
+        hit_counts_first_hit_total_body = np.zeros(len(hit_points))
+        hit_counts_first_hit_total_ast = np.zeros(len(hit_points))
+        hit_counts_first_hit_total_seq = np.zeros(len(hit_points))
+        hit_counts_first_hit_total_api = np.zeros(len(hit_points))
         count = 0
 
         # for precision
@@ -50,7 +53,10 @@ if __name__=="__main__":
                 desiredBody, desireAPIcalls, desireSeq, desireAST = get_your_desires( embedding.js[batch_id] )
 
                 # for first hit
-                firstHitRank = topK + 1
+                firstHitRankBody = topK + 1
+                firstHitRankAst = topK + 1
+                firstHitRankSeq = topK + 1
+                firstHitRankApi = topK + 1
 
                 # for precision
                 hitPtId = 0
@@ -69,18 +75,33 @@ if __name__=="__main__":
 
                 for j, prog in enumerate(topKProgs):
 
+                    key = prog.fileName + "/" + prog.methodName
+
+
+                    #distance measures
+                    ifBodyMatches = exact_match( prog.body , desiredBody )
+                    ifASTMatches = exact_match_ast( dict_ast[key] , desireAST )
+                    ifSeqMatches = exact_match_sequence( dict_seq[key] , desireSeq )
+                    ifAPIMatches = jaccardSimAPI( dict_api_calls[key] , desireAPIcalls )
+
                     # for first hit
-                    if desiredBody in prog.body and j < firstHitRank:
-                        firstHitRank = j
+                    if ifBodyMatches and j < firstHitRankBody:
+                        firstHitRankBody = j
 
+                    if ifASTMatches and j < firstHitRankAst:
+                        firstHitRankAst = j
 
+                    if ifSeqMatches and j < firstHitRankSeq:
+                        firstHitRankSeq = j
+
+                    if ifAPIMatches and j < firstHitRankApi:
+                        firstHitRankApi = j
 
                     # for precision
-                    key = prog.fileName + "/" + prog.methodName
-                    hit_counts_jaccard_api[hitPtId] += int(jaccardSimAPI( dict_api_calls[key] , desireAPIcalls ))
-                    hit_counts_exact_match[hitPtId] += int(exact_match( prog.body , desiredBody ))
-                    hit_counts_ast[hitPtId] += int(exact_match_ast( dict_ast[key] , desireAST ))
-                    hit_counts_seq[hitPtId] += int(exact_match_sequence( dict_seq[key] , desireSeq ))
+                    hit_counts_jaccard_api[hitPtId] += int(ifAPIMatches)
+                    hit_counts_exact_match[hitPtId] += int(ifBodyMatches)
+                    hit_counts_ast[hitPtId] += int(ifASTMatches)
+                    hit_counts_seq[hitPtId] += int(ifSeqMatches)
 
                     ## For precision calculations
                     if (j+1)  == hit_points[hitPtId]:
@@ -91,13 +112,17 @@ if __name__=="__main__":
                             hit_counts_ast[hitPtId] += hit_counts_ast[hitPtId-1]
                             hit_counts_seq[hitPtId] += hit_counts_seq[hitPtId-1]
 
-                            ## For storage
+                    ## For storage
                     if j < 100:
                         programList.append({j:prog.body})
 
                 #for first hit
                 count += 1
-                hit_counts_first_hit_total, prctg_first_hit = rank_statistic(firstHitRank, count, hit_counts_first_hit_total, hit_points)
+                hit_counts_first_hit_total_body, prctg_first_hit_body = rank_statistic(firstHitRankBody, count, hit_counts_first_hit_total_body, hit_points)
+                hit_counts_first_hit_total_ast, prctg_first_hit_ast = rank_statistic(firstHitRankAst, count, hit_counts_first_hit_total_ast, hit_points)
+                hit_counts_first_hit_total_seq, prctg_first_hit_seq = rank_statistic(firstHitRankSeq, count, hit_counts_first_hit_total_seq, hit_points)
+                hit_counts_first_hit_total_api, prctg_first_hit_api = rank_statistic(firstHitRankApi, count, hit_counts_first_hit_total_api, hit_points)
+
 
                 # for precision
                 hit_count_jaccard_api_total += hit_counts_jaccard_api
@@ -107,7 +132,11 @@ if __name__=="__main__":
 
 
                 # for storage
-                topProgramDict['first_hit_rank'] = firstHitRank
+                topProgramDict['first_hit_rank_body'] = firstHitRankBody
+                topProgramDict['first_hit_rank_ast'] = firstHitRankAst
+                topProgramDict['first_hit_rank_seq'] = firstHitRankSeq
+                topProgramDict['first_hit_rank_api'] = firstHitRankApi
+
                 topProgramDict['topPrograms'] = programList
                 JSONList.append(topProgramDict)
 
@@ -123,19 +152,28 @@ if __name__=="__main__":
                 prctg_ast[i] = hit_counts_ast_total[i] / denom
                 prctg_seq[i] = hit_counts_seq_total[i] / denom
 
-            print('Srchd {} Hit_Pts {} :: Cumulv First Hit {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit, Type='float')))
-            print('Srchd {} Hit_Pts {} :: Prec API Jaccard {}'.format
+            print("First Hits")
+            print('Searched {} Hit_Pts {} :: API cdf  First Hit {}'.format
+            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_api, Type='float')))
+            print('Searched {} Hit_Pts {} :: Seq cdf  First Hit {}'.format
+            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_seq, Type='float')))
+            print('Searched {} Hit_Pts {} :: AST cdf  First Hit {}'.format
+            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_ast, Type='float')))
+            print('Searched {} Hit_Pts {} :: Body cdf First Hit {}'.format
+            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_body, Type='float')))
+
+            print("Precision")
+            print('Searched {} Hit_Pts {} :: Precsn API Jaccard {}'.format
             (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_jaccard_api, Type='float')))
-            print('Srchd {} Hit_Pts {} :: Prec  Seq  Match {}'.format
+            print('Searched {} Hit_Pts {} :: Precison Seq Match {}'.format
             (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_seq, Type='float')))
-            print('Srchd {} Hit_Pts {} :: Prec  AST  Match {}'.format
+            print('Searched {} Hit_Pts {} :: Precison AST Match {}'.format
             (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_ast, Type='float')))
-            print('Srchd {} Hit_Pts {} :: Prec Exact Match {}'.format
+            print('Searched {} Hit_Pts {} :: Precsn Exact Match {}'.format
             (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_exact_match, Type='float')))
             print()
 
-            if kkk % 9 == 0 and kkk > 0:
+            if kkk % 19 == 0 and kkk > 0:
                 with open("../log" + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
                     json.dump({'topPrograms': JSONList}, fp=f, indent=2)
                 break
