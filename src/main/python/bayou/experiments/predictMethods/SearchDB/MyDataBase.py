@@ -23,8 +23,9 @@ class MyColumnDatabaseWBatch():
         self.numpy_ProbY[index] = np.asarray(jsProgram['ProbY'] , dtype=np.float32)
         self.numpy_B[index] = np.asarray( [ item for item in jsProgram['b2'] ], dtype=np.float32)
         self.numpy_A[index] = np.asarray(jsProgram['a2'], dtype=np.float32)
-
         self.programs[index] = decProg
+        return
+
 
 
     def topKProgs(self, k=10):
@@ -33,7 +34,7 @@ class MyColumnDatabaseWBatch():
         modK = min(k, self.numItems)
         for item in range(self.batch_size):
             topKids = (-self.distance[item]).argsort()[:modK] # slow to get topK
-            topKProgs = [self.programs[_id] for _id in topKids]
+            topKProgs = [(self.programs[_id], self.distance[item][_id] ) for _id in topKids]
             topKforBatch.append(topKProgs)
 
         return topKforBatch
@@ -42,13 +43,6 @@ class MyColumnDatabaseWBatch():
 
 
     def measureDistance(self, embedding):
-
-        #a1 = embedding.A  # a1 is (batch_size)
-        #b1 = embedding.B  # b1 is shaped (batch_size, latent_size)
-
-        #a2 = self.numpy_A # [num_items]
-        #b2 = self.numpy_B # [num_items , latent_size]
-        #probY = self.numpy_ProbY # [num_items]
 
         latent_size = np.shape(embedding.B)[1]
 
@@ -62,5 +56,3 @@ class MyColumnDatabaseWBatch():
         cons = 0.5 * latent_size * np.log( 2*np.pi )
         self.distance = ab1[:,None] + ab2[None,:] - ab_star - cons + self.numpy_ProbY[None,:]
         return
-
-

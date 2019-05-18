@@ -1,4 +1,57 @@
 import numpy as np
+import pickle
+import re
+
+def jaccardSimAPI(setA, setB):
+
+   for item in setA:
+      if item not in setB:
+         return False
+   for item in setB:
+      if item not in setA:
+         return False
+   return True
+
+
+def exact_match(strA, strB):
+    if strB in strA:
+        return True
+    else:
+        return False
+
+
+def exact_match_ast(dictstrA, strB):
+
+    dictA = eval(dictstrA.replace("u'", "'"))
+    dictB = eval(strB)
+    if dictA == dictB:
+        return True
+    else:
+        return False
+
+def get_api_dict():
+    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_test.pkl", "rb") as f:
+            dict_api_calls_test = pickle.load(f)
+    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_train.pkl", "rb") as f:
+            dict_api_calls_train = pickle.load(f)
+
+    dict_api_calls = dict_api_calls_test
+    dict_api_calls.update(dict_api_calls_train)
+    return dict_api_calls
+
+def get_ast_dict():
+    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_ast_all_data.pkl", "rb") as f:
+        dict_ast = pickle.load(f)
+    return dict_ast
+
+def get_your_desires(js):
+    # get the desired valuess
+    desiredBody = js['body']
+    desiredBody = re.sub(r'\*\*(.*?)\*\/', '', desiredBody)
+    desireAPIcalls = js['testapicalls']
+    desireAST = str(js['ast'])
+    return desiredBody, desireAPIcalls, desireAST
+
 
 def rank_statistic(_rank, total, prev_hits, cutoff):
     cutoff = np.array(cutoff)
@@ -9,7 +62,7 @@ def rank_statistic(_rank, total, prev_hits, cutoff):
 def ListToFormattedString(alist, Type):
     # Each item is right-adjusted, width=3
     if Type == 'float':
-        formatted_list = ['{:.2f}' for item in alist]
+        formatted_list = ['{:.4f}' for item in alist]
         s = ','.join(formatted_list)
     elif Type == 'int':
         formatted_list = ['{:>3}' for item in alist]

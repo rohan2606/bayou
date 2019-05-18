@@ -81,7 +81,7 @@ class parallelReadJSON():
             Program_DB_j = MyColumnDatabaseWBatch( numItems , self.dimension, self.batch_size)
 
             for k, jsProgram in enumerate(js['programs']):
-                decodedProgram = skinnyProgramInBatch(jsProgram, k, Program_DB_j, self.batch_size)
+                decodedProgram = skinnyProgramInBatch(jsProgram, k, self.batch_size)
                 Program_DB_j.setValues(jsProgram, decodedProgram, k)
 
         # print("Read " + fileName)

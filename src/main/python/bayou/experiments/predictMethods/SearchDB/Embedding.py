@@ -35,7 +35,5 @@ class Embedding_iterator_WBatch():
                 if self.maxCount % batch_size == 0:
                     emb = EmbeddingBatch(batchProgram, self.batch_size, self.dimension)
                     self.embList.append(emb)
-                    #print("Length of batch prog is " + str(len(batchProgram)))
                     batchProgram = []
-        # self.iterator = 0 # Iter has to start from 1 since maxCount does not count from 0
         return

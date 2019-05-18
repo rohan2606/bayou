@@ -70,13 +70,8 @@ class searchFromDB():
 
         opTopProgramForBatch = []
         for j, topKProgs in enumerate(topProgramForBatch):
-            [prog.setDistance(j) for prog in topKProgs]
-            temp = sorted(topKProgs, key=lambda x: x.getDistance(j), reverse=True)[:self.topK]
-            opTopProgramForBatch.append(temp)
-            #print ("__-----____------_______------____")
-            #[print (prog.distance[j]) for prog in topKProgs]
-            #print ("+_++++___+++++____+++++____+++++")
-
+            # [prog.setDistance(j) for prog in topKProgs]
+            temp = sorted(topKProgs, key=lambda x: x[1])[::-1][:self.topK]
+            opTopProgramForBatch.append( [item[0] for item in temp] )
 
         return opTopProgramForBatch
-
