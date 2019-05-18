@@ -273,9 +273,9 @@ def extract_evidence(fileName, expNumber):
         method_name = program['method']
 
         sequences = program['sequences']
+        sample['testsequences'] = sequences
         sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
         sequences.sort(key=len, reverse=True)
-        sample['testsequences'] = sequences
         sample['sequences'] = sequences[0]
 
         # Take in classTypes and sample a few

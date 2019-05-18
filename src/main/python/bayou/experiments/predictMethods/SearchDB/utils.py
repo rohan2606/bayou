@@ -4,13 +4,17 @@ import re
 
 def jaccardSimAPI(setA, setB):
 
-   for item in setA:
-      if item not in setB:
+    if len(setA) != len(setB):
+        return False
+
+    for item in setA:
+        if item not in setB:
          return False
-   for item in setB:
-      if item not in setA:
+    for item in setB:
+        if item not in setA:
          return False
-   return True
+
+    return True
 
 
 def exact_match(strA, strB):
@@ -29,6 +33,26 @@ def exact_match_ast(dictstrA, strB):
     else:
         return False
 
+
+
+
+def exact_match_sequence(dictSeqA, seqB):
+
+    setA = [tuple(item['calls']) for item in eval(dictSeqA)]
+    setB = [tuple(item['calls']) for item in seqB]
+    if len(setA) != len(setB):
+        return False
+
+    for item in setA:
+      if item not in setB:
+         return False
+    for item in setB:
+      if item not in setA:
+         return False
+    return True
+
+
+
 def get_api_dict():
     with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_test.pkl", "rb") as f:
             dict_api_calls_test = pickle.load(f)
@@ -44,13 +68,22 @@ def get_ast_dict():
         dict_ast = pickle.load(f)
     return dict_ast
 
+
+
+def get_sequence_dict():
+    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_sequences_all_data.pkl", "rb") as f:
+        dict_sequence = pickle.load(f)
+    return dict_sequence
+
+
 def get_your_desires(js):
     # get the desired valuess
     desiredBody = js['body']
     desiredBody = re.sub(r'\*\*(.*?)\*\/', '', desiredBody)
     desireAPIcalls = js['testapicalls']
+    desireSeqs = js['testsequences']
     desireAST = str(js['ast'])
-    return desiredBody, desireAPIcalls, desireAST
+    return desiredBody, desireAPIcalls, desireSeqs, desireAST
 
 
 def rank_statistic(_rank, total, prev_hits, cutoff):

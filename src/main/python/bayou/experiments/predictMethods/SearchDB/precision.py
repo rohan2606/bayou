@@ -20,7 +20,7 @@ if __name__=="__main__":
     # dicts coming from outside
     dict_api_calls = get_api_dict()
     dict_ast = get_ast_dict()
-
+    dict_seq = get_sequence_dict()
 
     print ("Initiate Scanner")
     scanner = searchFromDB(listOfColDB, topK, batch_size)
@@ -47,7 +47,7 @@ if __name__=="__main__":
             topKProgsBatch = scanner.searchAndTopKParallel(embedding, numThreads = numThreads)
 
             for batch_id , topKProgs in enumerate(topKProgsBatch):
-                desiredBody, desireAPIcalls, desireAST = get_your_desires( embedding.js[batch_id] )
+                desiredBody, desireAPIcalls, desireSeq, desireAST = get_your_desires( embedding.js[batch_id] )
 
                 # for first hit
                 firstHitRank = topK + 1
@@ -80,7 +80,7 @@ if __name__=="__main__":
                     hit_counts_jaccard_api[hitPtId] += int(jaccardSimAPI( dict_api_calls[key] , desireAPIcalls ))
                     hit_counts_exact_match[hitPtId] += int(exact_match( prog.body , desiredBody ))
                     hit_counts_ast[hitPtId] += int(exact_match_ast( dict_ast[key] , desireAST ))
-                    hit_counts_seq[hitPtId] += 1 #int(exact_match_ast( dict_ast[key] , desireAST ))
+                    hit_counts_seq[hitPtId] += int(exact_match_sequence( dict_seq[key] , desireSeq ))
 
                     ## For precision calculations
                     if (j+1)  == hit_points[hitPtId]:
@@ -93,8 +93,7 @@ if __name__=="__main__":
 
                             ## For storage
                     if j < 100:
-                        # programList.append({j:prog.body})
-                        programList.append({j: dict_ast[key].replace("u'", "'") })
+                        programList.append({j:prog.body})
 
                 #for first hit
                 count += 1
@@ -128,12 +127,12 @@ if __name__=="__main__":
             (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit, Type='float')))
             print('Srchd {} Hit_Pts {} :: Prec API Jaccard {}'.format
             (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_jaccard_api, Type='float')))
-            print('Srchd {} Hit_Pts {} :: Prec Exact Match {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_exact_match, Type='float')))
-            print('Srchd {} Hit_Pts {} :: Prec  AST  Match {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_ast, Type='float')))
             print('Srchd {} Hit_Pts {} :: Prec  Seq  Match {}'.format
             (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_seq, Type='float')))
+            print('Srchd {} Hit_Pts {} :: Prec  AST  Match {}'.format
+            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_ast, Type='float')))
+            print('Srchd {} Hit_Pts {} :: Prec Exact Match {}'.format
+            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_exact_match, Type='float')))
             print()
 
             if kkk % 9 == 0 and kkk > 0:
