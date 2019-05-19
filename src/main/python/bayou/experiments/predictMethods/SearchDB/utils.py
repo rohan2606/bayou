@@ -6,6 +6,9 @@ import re
 
 def get_jaccard_distace_api(setA, setB):
 
+    if (len(setA) == 0) and (len(setB) == 0):
+        return 1
+
     setA = set(setA)
     setB = set(setB)
 

@@ -186,7 +186,7 @@ if __name__=="__main__":
                 avg_jaccard_seq_dist[i] = seq_jaccard_dist_total[i] / denom
 
 
-            if (kkk % 19 == 0 and kkk > 0) or (kkk == len(embIt.embList)):
+            if (kkk % 19 == 0 and kkk > 0) or (kkk == len(embIt.embList) - 1):
                 print("First Hits")
                 print('Searched {} Hit_Pts {} :: API cdf  First Hit {}'.format
                 (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_api, Type='float')))
