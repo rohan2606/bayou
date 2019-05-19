@@ -18,8 +18,11 @@ if __name__=="__main__":
     listOfColDB = JSONReader.readAllJSONs()
 
     # dicts coming from outside
+    print("Loading API Dictionary")
     dict_api_calls = get_api_dict()
+    print("Loading AST Dictionary")
     dict_ast = get_ast_dict()
+    print("Loading Seq Dictionary")
     dict_seq = get_sequence_dict()
 
     print ("Initiate Scanner")
@@ -43,6 +46,10 @@ if __name__=="__main__":
         hit_counts_ast_total = np.zeros(len(hit_points))
         hit_counts_seq_total = np.zeros(len(hit_points))
 
+        #for distance
+        api_jaccard_dist_total = np.zeros(len(hit_points))
+        seq_jaccard_dist_total = np.zeros(len(hit_points))
+
         # for storage
         JSONList=[]
 
@@ -65,6 +72,10 @@ if __name__=="__main__":
                 hit_counts_ast = np.zeros(len(hit_points))
                 hit_counts_seq = np.zeros(len(hit_points))
 
+                #for distance
+                api_jaccard_dist = np.zeros(len(hit_points))
+                seq_jaccard_dist = np.zeros(len(hit_points))
+
                 # for storage
                 topProgramDict = embedding.js[batch_id]
                 del topProgramDict['a2'],topProgramDict['b2'],topProgramDict['ProbY'], topProgramDict['ast'], topProgramDict['body'], topProgramDict['testapicalls']
@@ -82,7 +93,10 @@ if __name__=="__main__":
                     ifBodyMatches = exact_match( prog.body , desiredBody )
                     ifASTMatches = exact_match_ast( dict_ast[key] , desireAST )
                     ifSeqMatches = exact_match_sequence( dict_seq[key] , desireSeq )
-                    ifAPIMatches = jaccardSimAPI( dict_api_calls[key] , desireAPIcalls )
+                    ifAPIMatches = exact_match_api( dict_api_calls[key] , desireAPIcalls )
+
+                    jaccard_distace_api = get_jaccard_distace_api( dict_api_calls[key] , desireAPIcalls )
+                    jaccard_distace_sequence = get_jaccard_distace_seq( dict_seq[key] , desireSeq )
 
                     # for first hit
                     if ifBodyMatches and j < firstHitRankBody:
@@ -103,6 +117,11 @@ if __name__=="__main__":
                     hit_counts_ast[hitPtId] += int(ifASTMatches)
                     hit_counts_seq[hitPtId] += int(ifSeqMatches)
 
+                    # for distance
+                    api_jaccard_dist[hitPtId] += jaccard_distace_api
+                    seq_jaccard_dist[hitPtId] += jaccard_distace_sequence
+
+
                     ## For precision calculations
                     if (j+1)  == hit_points[hitPtId]:
                         hitPtId += 1
@@ -111,6 +130,9 @@ if __name__=="__main__":
                             hit_counts_exact_match[hitPtId] += hit_counts_exact_match[hitPtId-1]
                             hit_counts_ast[hitPtId] += hit_counts_ast[hitPtId-1]
                             hit_counts_seq[hitPtId] += hit_counts_seq[hitPtId-1]
+
+                            api_jaccard_dist[hitPtId] += api_jaccard_dist[hitPtId-1]
+                            seq_jaccard_dist[hitPtId] += seq_jaccard_dist[hitPtId-1]
 
                     ## For storage
                     if j < 100:
@@ -130,6 +152,9 @@ if __name__=="__main__":
                 hit_counts_ast_total += hit_counts_ast
                 hit_counts_seq_total += hit_counts_seq
 
+                #for distance
+                api_jaccard_dist_total += api_jaccard_dist
+                seq_jaccard_dist_total += seq_jaccard_dist
 
                 # for storage
                 topProgramDict['first_hit_rank_body'] = firstHitRankBody
@@ -145,6 +170,11 @@ if __name__=="__main__":
             prctg_exact_match = np.zeros_like(hit_counts_exact_match_total)
             prctg_ast = np.zeros_like(hit_counts_ast_total)
             prctg_seq = np.zeros_like(hit_counts_seq_total)
+
+            #for distance
+            avg_jaccard_api_dist = np.zeros_like(api_jaccard_dist_total)
+            avg_jaccard_seq_dist = np.zeros_like(seq_jaccard_dist_total)
+
             for i in range(len(hit_points)):
                 denom = float(hit_points[i] * batch_size * (kkk+1))
                 prctg_jaccard_api[i] = hit_count_jaccard_api_total[i] / denom
@@ -152,28 +182,37 @@ if __name__=="__main__":
                 prctg_ast[i] = hit_counts_ast_total[i] / denom
                 prctg_seq[i] = hit_counts_seq_total[i] / denom
 
-            print("First Hits")
-            print('Searched {} Hit_Pts {} :: API cdf  First Hit {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_api, Type='float')))
-            print('Searched {} Hit_Pts {} :: Seq cdf  First Hit {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_seq, Type='float')))
-            print('Searched {} Hit_Pts {} :: AST cdf  First Hit {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_ast, Type='float')))
-            print('Searched {} Hit_Pts {} :: Body cdf First Hit {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_body, Type='float')))
+                avg_jaccard_api_dist[i] = avg_jaccard_api_dist[i] / denom
+                avg_jaccard_seq_dist[i] = avg_jaccard_seq_dist[i] / denom
 
-            print("Precision")
-            print('Searched {} Hit_Pts {} :: Precsn API Jaccard {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_jaccard_api, Type='float')))
-            print('Searched {} Hit_Pts {} :: Precison Seq Match {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_seq, Type='float')))
-            print('Searched {} Hit_Pts {} :: Precison AST Match {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_ast, Type='float')))
-            print('Searched {} Hit_Pts {} :: Precsn Exact Match {}'.format
-            (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_exact_match, Type='float')))
-            print()
 
-            if kkk % 19 == 0 and kkk > 0:
+            if (kkk % 19 == 0 and kkk > 0) or (kkk == len(embIt.embList)):
+                print("First Hits")
+                print('Searched {} Hit_Pts {} :: API cdf  First Hit {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_api, Type='float')))
+                print('Searched {} Hit_Pts {} :: Seq cdf  First Hit {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_seq, Type='float')))
+                print('Searched {} Hit_Pts {} :: AST cdf  First Hit {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_ast, Type='float')))
+                print('Searched {} Hit_Pts {} :: Body cdf First Hit {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_first_hit_body, Type='float')))
+
+                print("Precision")
+                print('Searched {} Hit_Pts {} :: Precsn API Jaccard {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_jaccard_api, Type='float')))
+                print('Searched {} Hit_Pts {} :: Precison Seq Match {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_seq, Type='float')))
+                print('Searched {} Hit_Pts {} :: Precison AST Match {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_ast, Type='float')))
+                print('Searched {} Hit_Pts {} :: Precsn Exact Match {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg_exact_match, Type='float')))
+
+                print("Distance")
+                print('Searched {} Hit_Pts {} :: Distance API Jaccard {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(avg_jaccard_api_dist, Type='float')))
+                print('Searched {} Hit_Pts {} :: Distance Seq Match {}'.format
+                (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(avg_jaccard_seq_dist, Type='float')))
+                print()
                 with open("../log" + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
                     json.dump({'topPrograms': JSONList}, fp=f, indent=2)
                 break

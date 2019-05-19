@@ -2,7 +2,17 @@ import numpy as np
 import pickle
 import re
 
-def jaccardSimAPI(setA, setB):
+
+
+def get_jaccard_distace_api(setA, setB):
+
+    setA = set(setA)
+    setB = set(setB)
+
+    distance = len(setA and setB) / len(setA or setB)
+    return distance
+
+def exact_match_api(setA, setB):
 
     if len(setA) != len(setB):
         return False
@@ -34,7 +44,13 @@ def exact_match_ast(dictstrA, strB):
         return False
 
 
+def get_jaccard_distace_seq(dictSeqA, seqB):
 
+    setA = set([tuple(item['calls']) for item in eval(dictSeqA)])
+    setB = set([tuple(item['calls']) for item in seqB])
+
+    distance = len(setA and setB) / len(setA or setB)
+    return distance
 
 def exact_match_sequence(dictSeqA, seqB):
 
