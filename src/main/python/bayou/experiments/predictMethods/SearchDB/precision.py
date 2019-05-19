@@ -29,7 +29,7 @@ if __name__=="__main__":
     scanner = searchFromDB(listOfColDB, topK, batch_size)
     hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
 
-    for expNumber in [0,1,2,3,4,5,6]:
+    for expNumber in [3,4,5,6]:
         print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
         embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
 
@@ -182,8 +182,8 @@ if __name__=="__main__":
                 prctg_ast[i] = hit_counts_ast_total[i] / denom
                 prctg_seq[i] = hit_counts_seq_total[i] / denom
 
-                avg_jaccard_api_dist[i] = avg_jaccard_api_dist[i] / denom
-                avg_jaccard_seq_dist[i] = avg_jaccard_seq_dist[i] / denom
+                avg_jaccard_api_dist[i] = api_jaccard_dist_total[i] / denom
+                avg_jaccard_seq_dist[i] = seq_jaccard_dist_total[i] / denom
 
 
             if (kkk % 19 == 0 and kkk > 0) or (kkk == len(embIt.embList)):

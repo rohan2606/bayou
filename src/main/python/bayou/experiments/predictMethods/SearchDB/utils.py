@@ -9,8 +9,10 @@ def get_jaccard_distace_api(setA, setB):
     setA = set(setA)
     setB = set(setB)
 
-    distance = len(setA and setB) / len(setA or setB)
+    distance = len(setA & setB) / len(setA | setB)
     return distance
+
+
 
 def exact_match_api(setA, setB):
 
@@ -49,7 +51,7 @@ def get_jaccard_distace_seq(dictSeqA, seqB):
     setA = set([tuple(item['calls']) for item in eval(dictSeqA)])
     setB = set([tuple(item['calls']) for item in seqB])
 
-    distance = len(setA and setB) / len(setA or setB)
+    distance = len(setA & setB) / len(setA | setB)
     return distance
 
 def exact_match_sequence(dictSeqA, seqB):
