@@ -39,15 +39,18 @@ def plot(clargs):
         config = read_config(json.load(f), chars_vocab=True)
 
     # Plot for indicidual evidences
-    for ev in config.evidence:
+    '''for ev in config.evidence:
         print(ev.name)
         with open(clargs.input_file[0], 'rb') as f:
             deriveAndScatter(f, predictor, [ev])
-
+    '''
     # Plot with all Evidences
-    with open(clargs.input_file[0], 'rb') as f:
-        deriveAndScatter(f, predictor, [ev for ev in config.evidence])
+    '''with open(clargs.input_file[0], 'rb') as f:
+        deriveAndScatter(f, predictor, [ev for ev in config.evidence if (ev.name=='classtype' or ev.name=='sorrreturntype' or ev.name=='sorrformalparam' or ev.name=='sorrcallsequences')])
 
+    '''
+
+    print('Reverse Encoder Plot')
     with open(clargs.input_file[0], 'rb') as f:
         useAttributeAndScatter(f, 'b2')
 
@@ -86,10 +89,19 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
                 ev.name = "returnType"
             if ev.name == "formalparam":
                 ev.name = "formalParam"
+            if ev.name == "javadoc":
+                ev.name = "javaDoc"
+            if ev.name == "classtype":
+                ev.name = "classTypes"
+            if ev.name == "sorrcallsequences":
+                ev.name = "sorrsequences"
+
+            if ev.name not in program:
+                continue
             shortProgram[ev.name] = program[ev.name]
 
-        if len(evList) == 1 and len(program[evList[0].name]) == 0:
-            continue
+        # if len(evList) == 1 and len(program[evList[0].name]) == 0:
+        #     continue
 
         api_call = get_api(get_calls_from_ast(shortProgram['ast']['_nodes']))
         if api_call != 'N/A':
