@@ -279,7 +279,7 @@ def extract_evidence(fileName, expNumber):
         sample['sequences'] = sequences[0]
 
         # Take in classTypes and sample a few
-        sample['classTypes'] = program['classTypes'] if 'classTypes' in program else []
+        sample['classTypes'] = list(set(program['classTypes'])) if 'classTypes' in program else []
         if len(sample['classTypes']) == 0:
             del sample['classTypes']
 
@@ -301,7 +301,7 @@ def extract_evidence(fileName, expNumber):
                 sample[evidence].append(choice)
 
         ## SORR RET
-        sample['sorrreturntype'] = sample['sorrreturntype']
+        sample['sorrreturntype'] = list(set(sample['sorrreturntype']))
         if len(sample['sorrreturntype']) == 0:
             del sample['sorrreturntype']
 
@@ -314,7 +314,7 @@ def extract_evidence(fileName, expNumber):
                 filteredSorrFP.append( tuple(temp) )
 
         filteredSorrFP.sort(key=len, reverse=True)
-        sample['sorrformalparam'] = filteredSorrFP
+        sample['sorrformalparam'] = list(set(filteredSorrFP))
         if len(sample['sorrformalparam']) == 0:
             del sample['sorrformalparam']
 
@@ -326,7 +326,7 @@ def extract_evidence(fileName, expNumber):
             if len(seq) > 0:
                 filteredSorrSeq.append(tuple(seq))
 
-        sample['sorrsequences'] = filteredSorrSeq
+        sample['sorrsequences'] = list(set(filteredSorrSeq))
         if len(sample['sorrsequences']) == 0:
             del sample['sorrsequences']
 
