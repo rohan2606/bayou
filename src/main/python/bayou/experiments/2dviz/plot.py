@@ -39,20 +39,20 @@ def plot(clargs):
         config = read_config(json.load(f), chars_vocab=True)
 
     # Plot for indicidual evidences
-    '''for ev in config.evidence:
+    for ev in config.evidence:
         print(ev.name)
         with open(clargs.input_file[0], 'rb') as f:
             deriveAndScatter(f, predictor, [ev])
-    '''
+
     # Plot with all Evidences
-    '''with open(clargs.input_file[0], 'rb') as f:
+    with open(clargs.input_file[0], 'rb') as f:
         deriveAndScatter(f, predictor, [ev for ev in config.evidence if (ev.name=='classtype' or ev.name=='sorrreturntype' or ev.name=='sorrformalparam' or ev.name=='sorrcallsequences')])
 
-    '''
 
-    print('Reverse Encoder Plot')
-    with open(clargs.input_file[0], 'rb') as f:
-        useAttributeAndScatter(f, 'b2')
+
+    # print('Reverse Encoder Plot')
+    # with open(clargs.input_file[0], 'rb') as f:
+    #     useAttributeAndScatter(f, 'b2')
 
 
 def useAttributeAndScatter(f, att, max_nums=10000):

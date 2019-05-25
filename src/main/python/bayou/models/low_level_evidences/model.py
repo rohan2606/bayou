@@ -30,10 +30,10 @@ class Model():
         nodes, edges, targets = newBatch[:3]
         ev_data = newBatch[3:]
 
-        nodes = tf.transpose(nodes)
-        edges = tf.transpose(edges)
+        self.nodes = tf.transpose(nodes)
+        self.edges = tf.transpose(edges)
 
-       
+
 
         with tf.variable_scope("Embedding"):
             emb = tf.get_variable('emb', [config.decoder.vocab_size, config.decoder.units])
@@ -52,7 +52,7 @@ class Model():
             embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
             embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
             embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
-            self.reverse_encoder = BayesianReverseEncoder(config, embAPI, nodes, edges, ev_data[4], embRT, ev_data[5], embFS)
+            self.reverse_encoder = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges, ev_data[4], embRT, ev_data[5], embFS)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
 
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
@@ -66,7 +66,7 @@ class Model():
                 initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             else:
                 initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
-            self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges)
+            self.decoder = BayesianDecoder(config, emb, initial_state, self.nodes, self.edges)
 
         with tf.variable_scope("RE_Decoder"):
             ## RE

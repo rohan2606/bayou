@@ -22,7 +22,7 @@ import json
 from bayou.models.low_level_evidences.utils import get_var_list, read_config
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianReverseEncoder, BayesianDecoder, SimpleDecoder
 from tensorflow.contrib import legacy_seq2seq as seq2seq
-import scripts.ast_extractor as ast_extractor
+from bayou.models.low_level_evidences.node import Node, get_ast_from_json, CHILD_EDGE, SIBLING_EDGE, TooLongLoopingException, TooLongBranchingException
 
 class BayesianPredictor(object):
 
@@ -32,7 +32,7 @@ class BayesianPredictor(object):
             config = read_config(json.load(f), chars_vocab=True)
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
 
-        config.batch_size = 5
+        config.batch_size = 1
         self.config = config
         self.sess = sess
 
@@ -42,9 +42,9 @@ class BayesianPredictor(object):
         self.nodes = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
         self.edges = tf.placeholder(tf.bool, [config.batch_size, config.decoder.max_ast_depth])
 
-        
+
         targets  = tf.concat(  [self.nodes[:, 1:] , tf.zeros([config.batch_size , 1], dtype=tf.int32) ] ,axis=1 )  # shifted left by one
-        
+
         ev_data = self.inputs
         nodes = tf.transpose(self.nodes)
         edges = tf.transpose(self.edges)
@@ -152,39 +152,25 @@ class BayesianPredictor(object):
             self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
 
 
-        probY = -1 * self.loss + self.get_multinormal_lnprob(self.psi_reverse_encoder)  - self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
-        EncA, EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
-        RevEncA, RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
+        self.probY = -1 * self.loss + self.get_multinormal_lnprob(self.psi_reverse_encoder)  - self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
+        self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
+        self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
         ###############################
-
-        countValid = tf.cast( tf.count_nonzero(tf.not_equal(tf.reduce_sum(self.nodes, axis=1),0)), tf.float32)
-        cond = tf.not_equal( tf.reduce_sum(self.nodes , axis=1) , 0)
-        self.RevEncA = tf.reduce_sum(     tf.where(  cond  , RevEncA, tf.zeros_like(RevEncA) ),     axis=0, keepdims=True) / countValid
-        self.RevEncB = tf.reduce_sum(     tf.where(  cond  , RevEncB, tf.zeros_like(RevEncB) ),     axis=0, keepdims=True) / countValid
-        
-        self.EncA = tf.reduce_mean(EncA, axis=0, keepdims=True)
-        self.EncB = tf.reduce_mean(EncB, axis=0, keepdims=True)
-        
-        self.probY = tf.reduce_mean( probY, axis=0, keepdims=True)
 
 
 
         # restore the saved model
         tf.global_variables_initializer().run()
-        all_vars = tf.global_variables() 
+        all_vars = tf.global_variables()
         saver = tf.train.Saver(all_vars)
 
         ckpt = tf.train.get_checkpoint_state(save)
         saver.restore(self.sess, ckpt.model_checkpoint_path)
-        
+
         return
 
 
-    def calculate_ab(self, mu, Sigma):
-        a = -1 /(2*Sigma[:,0]) # slicing a so that a is now of shape (batch_size, 1)
-        b = mu / Sigma
-        return a, b
 
 
     def get_a1b1(self, evidences):
@@ -201,35 +187,30 @@ class BayesianPredictor(object):
         return EncA, EncB
 
 
-    def get_a1b1a2b2(self, evidences):
-        rdp = [ev.read_data_point(evidences, infer=True) for ev in self.config.evidence]
+    def get_a1b1a2b2(self, program):
+        rdp = [ev.read_data_point(program, infer=True) for ev in self.config.evidence]
         inputs = [ev.wrangle([ev_rdp for i in range(self.config.batch_size)]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
 
         nodes = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.int32)
         edges = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.bool)
 
-        ignored = False
-        try:
-            ast_node_graph, ast_paths = ast_extractor.get_ast_paths(evidences['ast']['_nodes'])
-            ast_extractor.validate_sketch_paths(evidences, ast_paths, self.config.decoder.max_ast_depth)
-            ast_path_sequences = []
-            for path in ast_paths:
-                path.insert(0, ('DSubTree', ast_extractor.CHILD_EDGE))
-                temp_arr = []
-                for val in path:
-                    nodeVal = val[0]
-                    edgeVal = val[1]
-                    if nodeVal in self.config.decoder.vocab:
-                        temp_arr.append((self.config.decoder.vocab[nodeVal] , edgeVal))
-                ast_path_sequences.append(temp_arr)
+        ast_node_graph = get_ast_from_json(program['ast']['_nodes'])
+        path = ast_node_graph.depth_first_search()
 
-            for i, path in enumerate(ast_path_sequences):
-                if (i < self.config.batch_size):
-                    nodes[i, :len(path)] = [p[0] for p in path]
-                    edges[i, :len(path)] = [p[1] for p in path]
+        # parsed_data_array = []
+        for i, (curr_node_val, parent_node_id, edge_type) in enumerate(path):
+            try: #curr_node_id or parent_call_id if None dictionary call will fail
+                curr_node_id = self.config.decoder.vocab[curr_node_val]
+                parent_call = path[parent_node_id][0]
+                parent_call_id = self.config.decoder.vocab[curr_node_val]
 
-        except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
-            ignored = True
+                if i > 0: # and not (curr_node_id is None or parent_call_id is None): # I = 0 denotes DSubtree ----sibling---> DSubTree
+                    nodes[0,i-1] = parent_call_id
+                    edges[0,i-1] = edge_type
+            except:
+                pass
+
+        ignored = True if np.sum(nodes)==0 else False
 
         feed = {}
         for j, ev in enumerate(self.config.evidence):
@@ -269,4 +250,3 @@ class BayesianPredictor(object):
         val = ln_nume - ln_deno
 
         return val
-
