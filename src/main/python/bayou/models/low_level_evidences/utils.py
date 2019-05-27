@@ -53,8 +53,8 @@ def get_var_list():
     bayou_vars = emb_vars + decoder_vars + encoder_vars
 
     var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
-                'encoder_vars':encoder_vars, 
-                'emb_vars':emb_vars, 
+                'encoder_vars':encoder_vars,
+                'emb_vars':emb_vars,
                 'bayou_vars':bayou_vars,
                 'rev_encoder_vars':rev_encoder_vars
                 }
@@ -160,6 +160,8 @@ def read_config(js, chars_vocab=False):
         config.__setattr__(attr, js[attr])
 
     config.evidence = bayou.models.low_level_evidences.evidence.Evidence.read_config(js['evidence'], chars_vocab)
+
+
     config.decoder = argparse.Namespace()
     for attr in CONFIG_DECODER:
         config.decoder.__setattr__(attr, js['decoder'][attr])

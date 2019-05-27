@@ -20,16 +20,18 @@ import json
 import nltk
 from itertools import chain
 from collections import Counter
-
 import gensim
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 from bayou.models.low_level_evidences.biRNN import biRNN
+from bayou.models.low_level_evidences.surrounding_evidence import SurroundingEvidence
 
 from nltk.stem.wordnet import WordNetLemmatizer
+lemmatizer = WordNetLemmatizer()
 import wordninja
 
 class Evidence(object):
+
 
     def init_config(self, evidence, chars_vocab):
         for attr in CONFIG_ENCODER + (CONFIG_INFER if chars_vocab else []):
@@ -54,18 +56,20 @@ class Evidence(object):
                 e = CallSequences()
             elif name == 'returntype':
                 e = ReturnType()
-            elif name == 'classtype':
-                e = ClassTypes()
             elif name == 'formalparam':
                 e = FormalParam()
             elif name == 'javadoc':
                 e = JavaDoc()
-            elif name == 'sorrreturntype':
-                e = sorrReturnType()
-            elif name == 'sorrformalparam':
-                e = sorrFormalParam()
-            elif name == 'sorrcallsequences':
-                e = sorrCallSequences()
+            elif name == 'classtype':
+                e = ClassTypes()
+            elif name == 'method_name':
+                e = MethodName()
+            elif name == 'class_name':
+                e = ClassName()
+            elif name == 'surrounding_evidence':
+                e = SurroundingEvidence()
+                e = e.read_config(js["surrounding_evidence"], chars_vocab)
+
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.name = name
@@ -110,10 +114,6 @@ class Evidence(object):
     def encode(self, inputs, config):
         raise NotImplementedError('encode() has not been implemented')
 
-    def count_occurence(self, data, f):
-        inv_map = {v: k for k, v in self.vocab.items()}
-        count = sum([1 if inv_map[val].lower() in f else 0 for arr in arrs for val in arr])
-        return count
 
 class Sets(Evidence):
 
@@ -174,6 +174,21 @@ class Sets(Evidence):
             latent_encoding = tf.where(condition, latent_encoding, zeros)
             latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding , [config.batch_size, self.max_nums, config.latent_size]), axis=1)
             return latent_encoding
+
+    def split_words_underscore_plus_camel(self, s):
+        s = re.sub('_', '#', s)
+        s = re.sub('(.)([A-Z][a-z]+)', r'\1#\2', s)  # UC followed by LC
+        s = re.sub('([a-z0-9])([A-Z])', r'\1#\2', s)  # LC followed by UC
+        vars = s.split('#')
+
+        final_vars = []
+        for var in vars:
+            var = var.lower()
+            w = lemmatizer.lemmatize(var, 'v')
+            w = lemmatizer.lemmatize(w, 'n')
+            if len(w) > 1:
+                final_vars.append(w)
+        return final_vars
 
 # handle sequences as i/p
 class Sequences(Evidence):
@@ -299,11 +314,24 @@ class Types(Sets):
 
         return list(set(types))
 
+
+
+class Variables(Sets):
+
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
+    def read_data_point(self, program, infer):
+        types = program['my_variables'] if 'my_variables' in program else []
+        return self.word2num(list(set(types)), infer)
+
+
+
 class Keywords(Sets):
 
     def __init__(self):
-        nltk.download('wordnet')
-        self.lemmatizer = WordNetLemmatizer()
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
@@ -332,8 +360,8 @@ class Keywords(Sets):
     }
 
     def lemmatize(self, word):
-        w = self.lemmatizer.lemmatize(word, 'v')
-        return self.lemmatizer.lemmatize(w, 'n')
+        w = lemmatizer.lemmatize(word, 'v')
+        return lemmatizer.lemmatize(w, 'n')
 
 
     def read_data_point(self, program, infer):
@@ -389,6 +417,45 @@ class ClassTypes(Sets):
         return self.word2num(list(set(classType)), infer)
 
 
+
+
+class MethodName(Sets):
+
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
+    def read_data_point(self, program, infer):
+        methodName = program['methodName'] if 'methodName' in program else []
+        methodName = methodName.split('@')[0]
+        method_name_tokens = self.split_words_underscore_plus_camel(methodName)
+        return self.word2num(list(set(method_name_tokens)), infer)
+
+
+
+
+
+
+class ClassName(Sets):
+
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
+    def read_data_point(self, program, infer):
+        className = program['file'] if 'file' in program else []
+        className = className.split('/')[-1]
+        className = className.split('.')[0]
+        class_name_tokens = self.split_words_underscore_plus_camel(className)
+        return self.word2num(list(set(class_name_tokens)), infer)
+
+
+
+
+
+
 # handle sequences as i/p
 class CallSequences(Sequences):
     def __init__(self):
@@ -436,7 +503,6 @@ class JavaDoc(Sequences):
         self.vocab_size = 1
         self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
         self.n_Dims=300
-        self.lemmatizer = WordNetLemmatizer()
 
 
 
@@ -463,8 +529,8 @@ class JavaDoc(Sequences):
 
             x = wordninja.split(x)
             for word in x:
-                y = self.lemmatizer.lemmatize(word, 'v')
-                y = self.lemmatizer.lemmatize(y, 'n')
+                y = lemmatizer.lemmatize(word, 'v')
+                y = lemmatizer.lemmatize(y, 'n')
                 if len(y) > 1:
                     result_list.append(y)
 
@@ -506,117 +572,3 @@ class JavaDoc(Sequences):
             latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
 
             return latent_encoding
-
-class sorrReturnType(Sets):
-
-    def __init__(self):
-        self.vocab = dict()
-        self.vocab['None'] = 0
-        self.vocab_size = 1
-
-    def read_data_point(self, program, infer):
-        sorrreturnType = program['sorrreturntype'] if 'sorrreturntype' in program else []
-        return self.word2num(sorrreturnType, infer)
-
-
-
-
-# handle sequences as i/p
-class SetsOfSequences(Evidence):
-
-
-    def placeholder(self, config):
-        # type: (object) -> object
-        return tf.placeholder(tf.int32, [config.batch_size, self.max_nums, self.max_depth])
-
-    def wrangle(self, data):
-        wrangled = np.zeros((len(data), self.max_nums, self.max_depth), dtype=np.int32)
-        for i, seqs in enumerate(data):
-            for j, seq in enumerate(seqs):
-                if j < self.max_nums:
-                    for pos,c in enumerate(seq):
-                        if pos < self.max_depth and c != 0:
-                            wrangled[i, j, self.max_depth - 1 - pos] = c
-        return wrangled
-
-    def exists(self, inputs, config, infer):
-        i = tf.expand_dims(tf.reduce_sum(inputs, axis=[1,2]),axis=1)
-        # Drop a few types of evidences during training
-        if not infer:
-            i_shaped_zeros = tf.zeros_like(i)
-            rand = tf.random_uniform( (config.batch_size,1) )
-            i = tf.where(tf.less(rand, self.ev_drop_prob) , i, i_shaped_zeros)
-        i = tf.reduce_sum(i, axis=1)
-
-        return tf.not_equal(i, 0)
-
-
-    def init_sigma(self, config):
-        with tf.variable_scope(self.name):
-            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-        # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
-            self.sigma = tf.get_variable('sigma', [])
-
-
-    def encode(self, inputs, config, infer):
-        with tf.variable_scope(self.name):
-            # Drop some inputs
-            inputs = tf.reshape(inputs, [config.batch_size * self.max_nums, self.max_depth])
-
-            if not infer:
-                inp_shaped_zeros = tf.zeros_like(inputs)
-                rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
-                inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
-
-
-            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size * self.max_nums, self.emb, config.latent_size)
-            encoding = LSTM_Encoder.output
-
-            w = tf.get_variable('w', [self.units, config.latent_size ])
-            b = tf.get_variable('b', [config.latent_size])
-            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
-
-            zeros = tf.zeros_like(latent_encoding)
-            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
-
-            latent_encoding = tf.reduce_sum( tf.reshape(latent_encoding, [config.batch_size ,self.max_nums, config.latent_size]) , axis=1)
-
-            return latent_encoding
-
-
-class sorrCallSequences(SetsOfSequences):
-
-    def __init__(self):
-        self.vocab = dict()
-        self.vocab['None'] = 0
-        self.vocab_size = 1
-
-    def read_data_point(self, program, infer):
-        json_sequences = program['sorrsequences'] if 'sorrsequences' in program else [[]]
-        list_seqs = [[]]
-        for json_seq in json_sequences:
-            list_seqs.append(self.word2num(json_seq, infer))
-        if len(list_seqs) > 1:
-            list_seqs.remove([])
-
-        return list_seqs
-
-
-# handle sequences as i/p
-class sorrFormalParam(SetsOfSequences):
-
-    def __init__(self):
-        self.vocab = dict()
-        self.vocab['None'] = 0
-        self.vocab_size = 1
-
-    def read_data_point(self, program, infer):
-        json_sequence = program['sorrformalparam'] if 'sorrformalparam' in program else [[]]
-        list_seqs = [[]]
-        for i, seqs in enumerate(json_sequence):
-            if i > self.max_nums or len(seqs) == 0 :
-                continue
-            list_seqs.append(self.word2num(seqs, infer))
-        if len(list_seqs) > 1:
-            list_seqs.remove([])
-        return list_seqs

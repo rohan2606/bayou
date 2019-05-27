@@ -83,39 +83,81 @@
             "num_layers": 1,
             "tile": 1,
             "max_depth": -1,
-            "max_nums": 10,
+            "max_nums": 16,
             "ev_drop_prob":0.9,
             "ev_call_drop_prob":0.8
         },
         {
-            "name": "sorrreturntype",
+            "name": "class_name",
             "units": 256,
             "num_layers": 1,
             "tile": 1,
-            "max_depth": 1,
+            "max_depth": -1,
             "max_nums": 8,
             "ev_drop_prob":0.8,
             "ev_call_drop_prob":0.8
         },
         {
-            "name": "sorrformalparam",
+            "name": "method_name",
             "units": 256,
             "num_layers": 1,
             "tile": 1,
-            "max_depth": 8,
-            "max_nums": 10,
+            "max_depth": -1,
+            "max_nums": 8,
             "ev_drop_prob":0.8,
             "ev_call_drop_prob":0.8
         },
         {
-            "name": "sorrcallsequences",
+            "name": "surrounding_evidence",
             "units": 256,
             "num_layers": 1,
             "tile": 1,
-            "max_depth": 8,
-            "max_nums": 10,
-            "ev_drop_prob":0.6,
-            "ev_call_drop_prob":0.6
+            "max_depth": -1,
+            "max_nums": 8,
+            "ev_drop_prob":0.8,
+            "ev_call_drop_prob":0.8,
+            "evidence": [
+                {
+                    "name": "apicalls",
+                    "units": 256,
+                    "num_layers": 1,
+                    "tile": 1,
+                    "max_depth": -1,
+                    "max_nums": 8,
+                    "ev_drop_prob":0.8,
+                    "ev_call_drop_prob":0.7
+                },
+                {
+                    "name": "types",
+                    "units": 256,
+                    "num_layers": 1,
+                    "tile": 1,
+                    "max_depth": -1,
+                    "max_nums": 8,
+                    "ev_drop_prob":0.8,
+                    "ev_call_drop_prob":0.7
+                },
+                {
+                    "name": "keywords",
+                    "units": 256,
+                    "num_layers": 1,
+                    "tile": 1,
+                    "max_depth": -1,
+                    "max_nums": 8,
+                    "ev_drop_prob":0.7,
+                    "ev_call_drop_prob":0.6
+                },
+                {
+                    "name": "variables",
+                    "units": 256,
+                    "num_layers": 1,
+                    "tile": 1,
+                    "max_depth": -1,
+                    "max_nums": 8,
+                    "ev_drop_prob":0.7,
+                    "ev_call_drop_prob":0.6
+                }
+          ]
         }
     ],
     "decoder": {
