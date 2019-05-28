@@ -18,10 +18,11 @@ from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 
 class BayesianEncoder(object):
-    def __init__(self, config, inputs, infer=False):
+    def __init__(self, config, inputs, surr_input, infer=False):
 
         # exists  = #ev * batch_size
-        exists = [ev.exists(i, config, infer) for ev, i in zip(config.evidence, inputs)]
+        exists = [ev.exists(i, config, infer) for ev, i in zip(config.evidence[:-1], inputs)]
+        exists.append(config.evidence[-1].exists(surr_input, config, infer))
         zeros = tf.zeros([config.batch_size, config.latent_size], dtype=tf.float32)
 
         # Compute the denominator used for mean and covariance
@@ -37,16 +38,18 @@ class BayesianEncoder(object):
         with tf.variable_scope('mean'):
             # 1. compute encoding
 
-            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence, inputs)]
+            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence[:-1], inputs)]
+            encodings.append(config.evidence[-1].encode(surr_input, config, infer))
+
             encodings = [encoding / tf.square(ev.sigma) for ev, encoding in
                          zip(config.evidence, encodings)]
 
             # 2. pick only encodings from valid inputs that exist, otherwise pick zero encoding
-            self.encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
+            encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
 
-            # 3. tile the encodings according to each evidence type
-            encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, self.encodings)]
-            encodings = tf.stack(list(chain.from_iterable(encodings)))
+            # # 3. tile the encodings according to each evidence type
+            # encodings = [[enc] * ev.tile for ev, enc in zip(config.evidence, self.encodings)]
+            # encodings = tf.stack(list(chain.from_iterable(encodings)))
 
             # 4. compute the mean of non-zero encodings
             self.psi_mean = tf.reduce_sum(encodings, axis=0) / denom

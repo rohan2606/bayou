@@ -37,6 +37,7 @@ class SurroundingEvidence(object):
 
     def wrangle(self, data):
         wrangled = [ev.wrangle(ev_data) for ev, ev_data in zip(self.internal_evidences , data )]
+
         return wrangled
 
     def placeholder(self, config):
@@ -46,7 +47,7 @@ class SurroundingEvidence(object):
 
     def exists(self, inputs, config, infer):
 
-        temp = [ev.exists(input, config, input) for input, ev in zip(inputs, config.surrounding_evidence)]
+        temp = [ev.exists(input, config, infer) for input, ev in zip(inputs, config.surrounding_evidence)]
         temp = tf.reduce_sum(tf.stack(temp, 0),0)
         return tf.not_equal(temp, 0)
 
@@ -166,7 +167,7 @@ class SetsOfSets():
             i = tf.where(tf.less(rand, self.ev_drop_prob) , i, i_shaped_zeros)
         i = tf.reduce_sum(i, axis=1)
 
-        return tf.not_equal(i, 0) # [batch_size]
+        return i #tf.not_equal(i, 0) # [batch_size]
 
 
     def init_sigma(self, config):

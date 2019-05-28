@@ -61,7 +61,7 @@ def train(clargs):
     # reset batches
 
     feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs[:-1])}
-    feed_dict={fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1])}
+    feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1])})
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
