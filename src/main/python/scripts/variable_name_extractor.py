@@ -23,6 +23,7 @@ def get_variables(body):
     lines = body.split("\n")
 
     variable_names = []
+    header_variable_names = []
 
     countLines = 0
     for line in lines:
@@ -60,7 +61,7 @@ def get_variables(body):
                         continue
                     else:
                         variable_name = variable_name[1]
-                        variable_names.append(variable_name)
+                        header_variable_names.append(variable_name)
 
         elif ('=' in line ):
 
@@ -98,4 +99,4 @@ def get_variables(body):
             split_vars = split_words_underscore_plus_camel(var)
             final_vars.extend(split_vars)
 
-    return list(set(final_vars))
+    return header_variable_names, list(set(final_vars)),

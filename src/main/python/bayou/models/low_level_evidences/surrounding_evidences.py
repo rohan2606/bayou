@@ -85,14 +85,14 @@ class SurroundingEvidence(object):
         evidences = []
         for evidence in js:
             name = evidence['name']
-            if name == 'apicalls':
-                e = SurrAPICalls()
-            elif name == 'types':
-                e = SurrTypes()
-            elif name == 'keywords':
-                e = SurrKeywords()
-            elif name == 'variables':
-                e = SurrVariables()
+            if name == 'surr_sequences':
+                e = surr_sequences()
+            elif name == 'surr_methodName':
+                e = surr_methodName()
+            elif name == 'surr_header_vars':
+                e = surr_header_vars()
+            elif name == 'surr_returnType':
+                e = surr_returnType()
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.name = name
@@ -119,7 +119,7 @@ class SurroundingEvidence(object):
 
 
 # handle sequences as i/p
-class SetsOfSets():
+class SetsOfSomething(object):
 
     def init_config(self, evidence, chars_vocab):
         for attr in CONFIG_ENCODER + (CONFIG_INFER if chars_vocab else []):
@@ -177,6 +177,11 @@ class SetsOfSets():
             self.sigma = tf.get_variable('sigma', [])
 
 
+
+
+
+class SetsOfSets(SetsOfSomething):
+
     def encode(self, inputs, config, infer):
         with tf.variable_scope(self.name):
             # Drop some inputs
@@ -208,7 +213,7 @@ class SetsOfSets():
             return latent_encoding
 
 
-class SurrAPICalls(SetsOfSets):
+class surr_returnType(SetsOfSets):
 
     def __init__(self):
         self.vocab = dict()
@@ -219,82 +224,98 @@ class SurrAPICalls(SetsOfSets):
     def read_data_point(self, list_of_programs, infer):
         read_programs = []
         for program in list_of_programs:
-            apicalls = program['apicalls'] if 'apicalls' in program else []
-            read_programs.append(self.word2num(list(set(apicalls)) , infer))
+            ret = program['surr_returnType'] if 'surr_returnType' in program else []
+            read_programs.append(self.word2num(list(set(ret)) , infer))
         return read_programs
 
 
 
-class SurrTypes(SetsOfSets):
+# handle sequences as i/p
+class SetsOfSequences(SetsOfSomething):
+
+    def encode(self, inputs, config, infer):
+        with tf.variable_scope(self.name):
+            # Drop some inputs
+            inputs = tf.reshape(inputs, [config.batch_size * self.max_nums, self.max_depth])
+
+            if not infer:
+                inp_shaped_zeros = tf.zeros_like(inputs)
+                rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
+                inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
+
+
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size * self.max_nums, self.emb, config.latent_size)
+            encoding = LSTM_Encoder.output
+
+            w = tf.get_variable('w', [self.units, config.latent_size ])
+            b = tf.get_variable('b', [config.latent_size])
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+
+            zeros = tf.zeros_like(latent_encoding)
+            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
+
+            latent_encoding = tf.reshape(latent_encoding, [config.batch_size ,self.max_nums, config.latent_size])
+
+            return latent_encoding
+
+
+class surr_sequences(SetsOfSequences):
 
     def __init__(self):
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, list_of_programs, infer):
+    def read_data_point(self, program, infer):
         read_programs = []
         for program in list_of_programs:
-            types = program['types'] if 'types' in program else []
-            read_programs.append(self.word2num(list(set(types)) , infer))
+            seq = program['surr_sequences'] if 'surr_sequences' in program else []
+            read_programs.append(self.word2num(list(set(seq)) , infer))
+        return read_programs
+
+
+class surr_methodName(SetsOfSequences):
+
+    def __init__(self):
+        self.vocab = dict()
+        self.vocab['None'] = 0
+        self.vocab_size = 1
+
+    def read_data_point(self, program, infer):
+        read_programs = []
+        for program in list_of_programs:
+            met = program['surr_methodName'] if 'surr_methodName' in program else []
+            read_programs.append(self.word2num(list(set(met)) , infer))
         return read_programs
 
 
 
-class SurrKeywords(SetsOfSets):
+class surr_formalParam(SetsOfSequences):
 
     def __init__(self):
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    STOP_WORDS = {  # CoreNLP English stop words
-        "'ll", "'s", "'m", "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
-        "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between",
-        "both", "but", "by", "can", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does",
-        "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had",
-        "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her",
-        "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll",
-        "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me",
-        "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only",
-        "or", "other", "ought", "our", "ours", "ourselves", "out", "over", "own", "same", "shan't", "she",
-        "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's",
-        "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they",
-        "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under",
-        "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't",
-        "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom",
-        "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've",
-        "your", "yours", "yourself", "yourselves", "return", "arent", "cant", "couldnt", "didnt", "doesnt",
-        "dont", "hadnt", "hasnt", "havent", "hes", "heres", "hows", "im", "isnt", "its", "lets", "mustnt",
-        "shant", "shes", "shouldnt", "thats", "theres", "theyll", "theyre", "theyve", "wasnt", "were",
-        "werent", "whats", "whens", "wheres", "whos", "whys", "wont", "wouldnt", "youd", "youll", "youre",
-        "youve"
-    }
-
-    def lemmatize(self, word):
-        w = lemmatizer.lemmatize(word, 'v')
-        return lemmatizer.lemmatize(w, 'n')
-
-
-    def read_data_point(self, list_of_programs, infer):
+    def read_data_point(self, program, infer):
         read_programs = []
         for program in list_of_programs:
-            keywords = program['keywords'] if 'keywords' in program else []
-            read_programs.append(self.word2num(list(set(keywords)) , infer))
+            fp = program['surr_formalParam'] if 'surr_formalParam' in program else []
+            read_programs.append(self.word2num(list(set(fp)) , infer))
         return read_programs
 
 
 
-class SurrVariables(SetsOfSets):
+class surr_header_vars(SetsOfSequences):
 
     def __init__(self):
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, list_of_programs, infer):
+    def read_data_point(self, program, infer):
         read_programs = []
         for program in list_of_programs:
-            variables = program['variables'] if 'variables' in program else []
-            read_programs.append(self.word2num(list(set(variables)) , infer))
+            met = program['surr_header_vars'] if 'surr_header_vars' in program else []
+            read_programs.append(self.word2num(list(set(met)) , infer))
         return read_programs

@@ -118,7 +118,7 @@
             "ev_call_drop_prob":0.8,
             "evidence": [
                 {
-                    "name": "apicalls",
+                    "name": "surr_returnType",
                     "units": 256,
                     "num_layers": 1,
                     "tile": 1,
@@ -128,7 +128,7 @@
                     "ev_call_drop_prob":0.7
                 },
                 {
-                    "name": "types",
+                    "name": "surr_sequences",
                     "units": 256,
                     "num_layers": 1,
                     "tile": 1,
@@ -138,7 +138,7 @@
                     "ev_call_drop_prob":0.7
                 },
                 {
-                    "name": "keywords",
+                    "name": "surr_methodName",
                     "units": 256,
                     "num_layers": 1,
                     "tile": 1,
@@ -148,7 +148,17 @@
                     "ev_call_drop_prob":0.6
                 },
                 {
-                    "name": "variables",
+                    "name": "surr_formalParam",
+                    "units": 256,
+                    "num_layers": 1,
+                    "tile": 1,
+                    "max_depth": 8,
+                    "max_nums": 8,
+                    "ev_drop_prob":0.7,
+                    "ev_call_drop_prob":0.6
+                },
+                {
+                    "name": "surr_header_vars",
                     "units": 256,
                     "num_layers": 1,
                     "tile": 1,

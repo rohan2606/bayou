@@ -23,7 +23,7 @@ import numpy as np
 from itertools import chain
 import re
 from variable_name_extractor import get_variables
-
+from collections import defaultdict
 
 import sys
 sys.path.append('/home/rm38/bayou/src/main/python/')
@@ -61,6 +61,8 @@ def extract_evidence(clargs):
     returnDict = dict()
     FP_Dict = dict()
 
+    types_set = set()
+
     valid = []
     #This part appends sorrounding evidences
     done = 0
@@ -92,15 +94,16 @@ def extract_evidence(clargs):
             keywords = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Keywords.from_call(call)
                                                     for call in calls])))
 
-            var_names = get_variables(program['body'])
+            header_variable_names, variable_names = get_variables(program['body'])
 
-            '''sequences = program['sequences']
+
+            sequences = program['sequences']
 
             sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
             # sequences = [[shorten(call) for call in json_seq] for json_seq in sequences]
             sequences.sort(key=len, reverse=True)
             sequences = sequences[0]
-            '''
+
 
             if 'returnType' not in program:
                 continue
@@ -118,16 +121,15 @@ def extract_evidence(clargs):
             formalParam = program['formalParam'] if 'formalParam' in program else []
 
             javaDoc = program['javaDoc']
+
             for type in formalParam:
                 if type not in FP_Dict:
                     FP_Dict[type] = 1
                 else:
                     FP_Dict[type] += 1
 
-            # if len(sequences) > clargs.max_seqs or (len(sequences) == 1 and len(sequences[0]['calls']) == 1) or \
-            #     any([len(sequence['calls']) > clargs.max_seq_length for sequence in sequences]):
-            #         raise ast_extractor.TooLongPathError
-
+            for type in types:
+                types_set.add(type)
 
             if file_name not in programs_dict:
                 programs_dict[file_name] = dict()
@@ -135,7 +137,7 @@ def extract_evidence(clargs):
             if method_name in programs_dict[file_name]:
                 print('Hit Found')
 
-            programs_dict[file_name][method_name] = [apicalls, types, keywords, method_name, var_names]
+            programs_dict[file_name][method_name] = [returnType, method_name, formalParam, header_variable_names, sequences]
 
 
         except (ast_extractor.TooLongPathError, ast_extractor.InvalidSketchError) as e:
@@ -161,6 +163,8 @@ def extract_evidence(clargs):
     topFPKeys = dict()
     for w in sorted(FP_Dict, key=FP_Dict.get, reverse=True)[:1000]:
         topFPKeys[w] = FP_Dict[w]
+
+
 
     f.close()
     f = open(clargs.input_file[0] , 'rb')
@@ -221,7 +225,7 @@ def extract_evidence(clargs):
 
 
 
-            '''calls = gather_calls(program['ast'])
+            calls = gather_calls(program['ast'])
             apicalls = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.APICalls.from_call(call)
                                                      for call in calls])))
             types = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Types.from_call(call)
@@ -230,18 +234,18 @@ def extract_evidence(clargs):
                                                     for call in calls])))
             random.shuffle(apicalls)
             random.shuffle(types)
-            random.shuffle(keywords)'''
+            random.shuffle(keywords)
 
-            sample['apicalls'] = programs_dict[file_name][method_name][0]
-            sample['types'] = programs_dict[file_name][method_name][1]
-            sample['keywords'] = programs_dict[file_name][method_name][2]
-            sample['my_variables'] = programs_dict[file_name][method_name][4]
+            # sample['apicalls'] = programs_dict[file_name][method_name][0]
+            # sample['types'] = programs_dict[file_name][method_name][1]
+            # sample['keywords'] = programs_dict[file_name][method_name][2]
+            # sample['my_variables'] = programs_dict[file_name][method_name][4]
 
             sample['returnType'] = returnType
             sample['formalParam'] = newFP
 
-            sample['classTypes'] = set(program['classTypes']) if 'classTypes' in program else []
-            sample['classTypes'] -= set(['byte', 'char', 'short', 'int', 'long', 'float', 'double', 'boolean', 'void' ])
+            sample['classTypes'] = set(program['classTypes']) & types_set if 'classTypes' in program else set()
+
             sample['classTypes'] = list(sample['classTypes'])
 
 
@@ -251,16 +255,16 @@ def extract_evidence(clargs):
 
             otherMethods = list(programs_dict[file_name].keys())
             random.shuffle(otherMethods)
-            
+
             maxMethods = 10
             for j, method in enumerate(otherMethods): # Each iterator is a method Name with @linenumber
                 # Ignore the current method from list of sorrounding methods
                 if method == method_name:
                     continue
                 methodEvidences={}
-                for choice, evidence in zip(programs_dict[file_name][method],['apicalls', 'types', 'keywords', 'methodName','variables']):
+                for choice, evidence in zip(programs_dict[file_name][method],['surr_returnType', 'surr_methodName', 'surr_formalParam', 'surr_header_vars', 'surr_sequences']):
                     methodEvidences[evidence] = choice
-                
+
                 sample['Surrounding_Evidences'].append(methodEvidences)
                 if j == maxMethods:
                     break
@@ -307,4 +311,3 @@ if __name__ == '__main__':
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
     extract_evidence(clargs)
-
