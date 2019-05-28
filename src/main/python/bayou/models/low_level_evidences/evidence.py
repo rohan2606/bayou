@@ -24,7 +24,7 @@ import gensim
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 from bayou.models.low_level_evidences.biRNN import biRNN
-from bayou.models.low_level_evidences.surrounding_evidence import SurroundingEvidence
+from bayou.models.low_level_evidences.surrounding_evidences import SurroundingEvidence
 
 from nltk.stem.wordnet import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
@@ -44,6 +44,7 @@ class Evidence(object):
     @staticmethod
     def read_config(js, chars_vocab):
         evidences = []
+        surrounding_evs = []
         for evidence in js:
             name = evidence['name']
             if name == 'apicalls':
@@ -68,14 +69,17 @@ class Evidence(object):
                 e = ClassName()
             elif name == 'surrounding_evidence':
                 e = SurroundingEvidence()
-                e = e.read_config(js["surrounding_evidence"], chars_vocab)
+                internal_evidences = e.read_config(evidence["evidence"], chars_vocab) # evidence is the json
 
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.name = name
             e.init_config(evidence, chars_vocab)
-            evidences.append(e)
-        return evidences
+            if name == 'surrounding_evidence':
+                surrounding_evs.extend(internal_evidences)
+            else:
+                evidences.append(e)
+        return surrounding_evs, evidences
 
     def word2num(self, listOfWords, infer):
         output = []

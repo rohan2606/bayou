@@ -48,7 +48,14 @@ def get_var_list():
     decoder_vars += emb_vars
     rev_encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Reverse_Encoder')
 
-    #javadoc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/mean/javadoc') + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/javadoc')
+    javadoc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/mean/javadoc') + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/javadoc')
+
+    surrounding_vars = []
+    for ev in ['classtype' , 'sorrreturntype' , 'sorrformalparam' , 'sorrcallsequences']:
+          mean = 'Encoder/mean/' + ev
+          sigma = 'Encoder/' + ev
+          surrounding_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope=mean) + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope=sigma)
+
 
     bayou_vars = emb_vars + decoder_vars + encoder_vars
 
@@ -56,6 +63,8 @@ def get_var_list():
                 'encoder_vars':encoder_vars,
                 'emb_vars':emb_vars,
                 'bayou_vars':bayou_vars,
+                'javadoc_vars':javadoc_vars,
+                'surrounding_vars':surrounding_vars,
                 'rev_encoder_vars':rev_encoder_vars
                 }
     return var_dict
@@ -159,7 +168,7 @@ def read_config(js, chars_vocab=False):
     for attr in CONFIG_GENERAL:
         config.__setattr__(attr, js[attr])
 
-    config.evidence = bayou.models.low_level_evidences.evidence.Evidence.read_config(js['evidence'], chars_vocab)
+    config.evidence, config.surrounding_evidence = bayou.models.low_level_evidences.evidence.Evidence.read_config(js['evidence'], chars_vocab)
 
 
     config.decoder = argparse.Namespace()
@@ -186,6 +195,8 @@ def dump_config(config):
         js[attr] = config.__getattribute__(attr)
 
     js['evidence'] = [ev.dump_config() for ev in config.evidence]
+    js['evidence']['surrounding_evidence'] = [ev.dump_config() for ev in config.surrounding_evidence]
+
     js['decoder'] = {attr: config.decoder.__getattribute__(attr) for attr in
                      CONFIG_DECODER + CONFIG_INFER}
     # added code for reverse encoder

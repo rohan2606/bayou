@@ -30,9 +30,8 @@ class SurroundingEvidence(object):
 
     def read_data_point(self, program, infer):
         list_of_programs = program['Surrounding_Evidences'] if 'Surrounding_Evidences' in program else []
-        data = [ev.read_data_point(program, infer) for ev in self.internal_evidences]
+        data = [ev.read_data_point(program, infer) for ev in self.internal_evidences] #self.config.surrounding_evidence]
         return data
-
 
 
     def wrangle(self, data):
@@ -41,12 +40,12 @@ class SurroundingEvidence(object):
 
     def placeholder(self, config):
         # type: (object) -> object
-        return [ev.placeholder(config) for ev in self.internal_evidences]
+        return [ev.placeholder(config) for ev in config.surrounding_evidence]
 
 
     def exists(self, inputs, config, infer):
 
-        temp = [ev.exists(input, config, input) for input, ev in zip(inputs, self.internal_evidences)]
+        temp = [ev.exists(input, config, input) for input, ev in zip(inputs, config.surrounding_evidence)]
         temp = tf.reduce_sum(tf.stack(temp, 0),0)
         return tf.not_equal(temp, 0)
 
@@ -55,12 +54,12 @@ class SurroundingEvidence(object):
             self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
         # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             self.sigma = tf.get_variable('sigma', [])
-            [ev.init_sigma(config) for ev in self.internal_evidences]
+            [ev.init_sigma(config) for ev in config.surrounding_evidence]
 
 
     def encode(self, inputs, config, infer):
         with tf.variable_scope(self.name):
-            encodings = [ev.encode(i, config, infer) for ev, i in zip(self.internal_evidences, inputs)]
+            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.surrounding_evidence, inputs)]
             #number_of_ev * batch_size * number_of_methods * latent_size
             encodings = tf.reduce_mean(tf.stack(encodings, axis=0), axis=0)
             #batch_size * number_of_methods * latent_size
@@ -77,8 +76,8 @@ class SurroundingEvidence(object):
         js = {attr: self.__getattribute__(attr) for attr in CONFIG_ENCODER + CONFIG_INFER}
         return js
 
-    @staticmethod
-    def read_config(js, chars_vocab):
+    # @staticmethod
+    def read_config(self, js, chars_vocab):
         evidences = []
         for evidence in js:
             name = evidence['name']
@@ -88,8 +87,8 @@ class SurroundingEvidence(object):
                 e = SurrTypes()
             elif name == 'keywords':
                 e = SurrKeywords()
-            elif name == 'method_name':
-                e = SurrMethodName()
+            elif name == 'variables':
+                e = SurrVariables()
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.name = name
@@ -138,7 +137,7 @@ class SurroundingEvidence(object):
 
 
 # handle sequences as i/p
-class SetsOfSets(Evidence):
+class SetsOfSets(SurroundingEvidence):
 
 
     def placeholder(self, config):

@@ -175,7 +175,7 @@ class Model():
             #unused if MultiGPU is being used
             with tf.name_scope("train"):
                 if bayou_mode:
-                    train_ops = get_var_list()['decoder_vars']
+                    train_ops = get_var_list()['all_vars']
                 else:
                     train_ops = get_var_list()['rev_encoder_vars']
 
