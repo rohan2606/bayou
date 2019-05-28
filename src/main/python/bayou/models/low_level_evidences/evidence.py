@@ -70,7 +70,6 @@ class Evidence(object):
             elif name == 'surrounding_evidence':
                 e = SurroundingEvidence()
                 internal_evidences = e.read_config(evidence["evidence"], chars_vocab) # evidence is the json
-
             else:
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.name = name
@@ -78,7 +77,8 @@ class Evidence(object):
             evidences.append(e)
             if name == 'surrounding_evidence':
                 surrounding_evs.extend(internal_evidences)
-            return evidences, surrounding_evs
+                
+        return evidences, surrounding_evs
 
     def word2num(self, listOfWords, infer):
         output = []

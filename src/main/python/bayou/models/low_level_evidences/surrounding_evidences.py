@@ -75,7 +75,7 @@ class SurroundingEvidence(object):
 
     def dump_config(self):
         js = {attr: self.__getattribute__(attr) for attr in CONFIG_ENCODER + CONFIG_INFER}
-        js['evidence'] = [ev.dump_config(config) for ev in self.internal_evidences]
+        js['evidence'] = [ev.dump_config() for ev in self.internal_evidences]
         return js
 
 

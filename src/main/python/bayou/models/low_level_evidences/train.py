@@ -56,10 +56,12 @@ def train(clargs):
     nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
     targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
-    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
+    evidence_placeholder.append([tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1]])
     # reset batches
 
-    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder[:-1], reader.inputs[:-1])}
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder[-1], reader.inputs[-1])}
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
@@ -142,7 +144,7 @@ if __name__ == '__main__':
     clargs = parser.parse_args(
      # ['--continue_from', 'save',
      ['--config','config.json',
-    '/home/ubuntu/DATA-Licensed_test.json'])
+    '/home/ubuntu/DATA-newSurrounding_wVariables_train-TOP.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

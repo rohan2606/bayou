@@ -170,7 +170,6 @@ def read_config(js, chars_vocab=False):
 
     config.evidence, config.surrounding_evidence = bayou.models.low_level_evidences.evidence.Evidence.read_config(js['evidence'], chars_vocab)
 
-
     config.decoder = argparse.Namespace()
     for attr in CONFIG_DECODER:
         config.decoder.__setattr__(attr, js['decoder'][attr])
