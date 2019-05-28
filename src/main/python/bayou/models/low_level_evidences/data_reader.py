@@ -18,7 +18,7 @@ import ijson.backends.yajl2_cffi as ijson
 import numpy as np
 import random
 import os
-import pickle
+import _pickle as pickle
 from collections import Counter
 import gc
 
@@ -40,10 +40,14 @@ class Reader():
         self.config = config
 
         if clargs.continue_from is not None or dataIsThere:
-            with open('data/inputs.txt', 'rb') as f:
-                self.inputs = pickle.load(f)
-            with open('data/nodes_edges_targets.txt', 'rb') as f:
-                [self.nodes , self.edges, self.targets] = pickle.load(f)
+            print('Loading Data')
+            # with open(, 'rb') as f:
+            self.inputs = np.load('data/inputs.npy')
+            # with open(, 'rb') as f:
+            self.nodes = np.load('data/nodes.npy')
+            self.edges = np.load('data/edges.npy')
+            self.targets = np.load('data/targets.npy')
+
 
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
@@ -55,13 +59,13 @@ class Reader():
                     for program in ijson.items(f, 'programs.item'):
                         self.js_programs.append(program)
             config.num_batches = int(len(self.nodes) / config.batch_size)
+            print('Done')
 
         else:
             random.seed(12)
             # read the raw evidences and targets
             print('Reading data file...')
             raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
-            print('Done!')
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in
                              enumerate(config.evidence)]
             raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # is
@@ -102,18 +106,28 @@ class Reader():
 
             self.js_programs = js_programs
 
+            print('Done!')
+            del raw_evidences
+            del raw_targets
+            gc.collect()
 
-            with open('data/inputs.txt', 'wb') as f:
-                pickle.dump(self.inputs, f, protocol=4)
-            with open('data/nodes_edges_targets.txt', 'wb') as f:
-                pickle.dump([self.nodes , self.edges, self.targets] , f, protocol=4)
+            print('Saving...')
+            # with open(, 'wb') as f:
+            np.save('data/inputs', self.inputs)
+            # with open(', 'wb') as f:
+            np.save('data/nodes', self.nodes)
+            np.save('data/edges', self.edges)
+            np.save('data/targets', self.targets)
+
             with open('data/js_programs.json', 'w') as f:
                 json.dump({'programs': self.js_programs}, fp=f, indent=2)
+
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
                 json.dump(jsconfig, fp=f, indent=2)
             with open('data/config.json', 'w') as f:
                 json.dump(jsconfig, fp=f, indent=2)
+
             print("Saved")
 
 
