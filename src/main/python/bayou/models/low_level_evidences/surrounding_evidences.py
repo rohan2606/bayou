@@ -75,7 +75,9 @@ class SurroundingEvidence(object):
 
     def dump_config(self):
         js = {attr: self.__getattribute__(attr) for attr in CONFIG_ENCODER + CONFIG_INFER}
+        js['evidence'] = [ev.dump_config(config) for ev in self.internal_evidences]
         return js
+
 
     # @staticmethod
     def read_config(self, js, chars_vocab):
@@ -114,28 +116,6 @@ class SurroundingEvidence(object):
 
         return output
 
-    def read_data_point(self, program, infer):
-        raise NotImplementedError('read_data() has not been implemented')
-
-    def set_chars_vocab(self, data):
-        raise NotImplementedError('set_chars_vocab() has not been implemented')
-
-    def wrangle(self, data):
-        raise NotImplementedError('wrangle() has not been implemented')
-
-    def placeholder(self, config):
-        # type: (object) -> object
-        raise NotImplementedError('placeholder() has not been implemented')
-
-    def exists(self, inputs, config, infer):
-        raise NotImplementedError('exists() has not been implemented')
-
-    def init_sigma(self, config):
-        raise NotImplementedError('init_sigma() has not been implemented')
-
-    def encode(self, inputs, config):
-        raise NotImplementedError('encode() has not been implemented')
-
 
 # handle sequences as i/p
 class SetsOfSets():
@@ -172,8 +152,8 @@ class SetsOfSets():
         for i, method in enumerate(data):
             for j, keyword in enumerate(method):
                 if j < self.max_nums:
-                    for  k,call in enumerate(keyword):
-                        if pos < self.max_depth:
+                    for k,call in enumerate(keyword):
+                        if k < self.max_depth:
                             wrangled[i, j, k] = call
         return wrangled
 

@@ -75,12 +75,10 @@ class Evidence(object):
                 raise TypeError('Invalid evidence name: {}'.format(name))
             e.name = name
             e.init_config(evidence, chars_vocab)
+            evidences.append(e)
             if name == 'surrounding_evidence':
                 surrounding_evs.extend(internal_evidences)
-                evidence.append(e)
-            else:
-                evidences.append(e)
-        return evidences, surrounding_evs
+            return evidences, surrounding_evs
 
     def word2num(self, listOfWords, infer):
         output = []
@@ -432,7 +430,7 @@ class MethodName(Sets):
         self.vocab_size = 1
 
     def read_data_point(self, program, infer):
-        methodName = program['methodName'] if 'methodName' in program else []
+        methodName = program['method'] if 'method' in program else ''
         methodName = methodName.split('@')[0]
         method_name_tokens = self.split_words_underscore_plus_camel(methodName)
         return self.word2num(list(set(method_name_tokens)), infer)
@@ -450,7 +448,7 @@ class ClassName(Sets):
         self.vocab_size = 1
 
     def read_data_point(self, program, infer):
-        className = program['file'] if 'file' in program else []
+        className = program['file'] if 'file' in program else ''
         className = className.split('/')[-1]
         className = className.split('.')[0]
         class_name_tokens = self.split_words_underscore_plus_camel(className)

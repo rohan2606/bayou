@@ -122,7 +122,7 @@
                     "units": 256,
                     "num_layers": 1,
                     "tile": 1,
-                    "max_depth": -1,
+                    "max_depth": 8,
                     "max_nums": 8,
                     "ev_drop_prob":0.8,
                     "ev_call_drop_prob":0.7
@@ -132,7 +132,7 @@
                     "units": 256,
                     "num_layers": 1,
                     "tile": 1,
-                    "max_depth": -1,
+                    "max_depth": 8,
                     "max_nums": 8,
                     "ev_drop_prob":0.8,
                     "ev_call_drop_prob":0.7
@@ -142,7 +142,7 @@
                     "units": 256,
                     "num_layers": 1,
                     "tile": 1,
-                    "max_depth": -1,
+                    "max_depth": 8,
                     "max_nums": 8,
                     "ev_drop_prob":0.7,
                     "ev_call_drop_prob":0.6
@@ -152,7 +152,7 @@
                     "units": 256,
                     "num_layers": 1,
                     "tile": 1,
-                    "max_depth": -1,
+                    "max_depth": 8,
                     "max_nums": 8,
                     "ev_drop_prob":0.7,
                     "ev_call_drop_prob":0.6

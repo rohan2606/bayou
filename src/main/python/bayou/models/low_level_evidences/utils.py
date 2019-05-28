@@ -195,7 +195,8 @@ def dump_config(config):
         js[attr] = config.__getattribute__(attr)
 
     js['evidence'] = [ev.dump_config() for ev in config.evidence]
-    js['evidence']['surrounding_evidence'] = [ev.dump_config() for ev in config.surrounding_evidence]
+
+    # js['evidence']['surrounding_evidence'] = [ev.dump_config() for ev in config.surrounding_evidence]
 
     js['decoder'] = {attr: config.decoder.__getattribute__(attr) for attr in
                      CONFIG_DECODER + CONFIG_INFER}
