@@ -57,16 +57,16 @@ def train(clargs):
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
     targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
-    evidence_placeholder.append([tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1]])
+    surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1]]
     # reset batches
 
-    feed_dict={fp: f for fp, f in zip(evidence_placeholder[:-1], reader.inputs[:-1])}
-    feed_dict={fp: f for fp, f in zip(evidence_placeholder[-1], reader.inputs[-1])}
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs[:-1])}
+    feed_dict={fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1])}
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
 
-    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder, *surr_evidence_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 

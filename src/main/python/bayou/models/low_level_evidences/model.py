@@ -28,7 +28,11 @@ class Model():
 
         newBatch = iterator.get_next()
         nodes, edges, targets = newBatch[:3]
-        ev_data = newBatch[3:]
+        ev_data = newBatch[3:13]
+        surr_input = newBatch[13:]
+
+        ev_data.append(surr_input)
+
 
         self.nodes = tf.transpose(nodes)
         self.edges = tf.transpose(edges)
