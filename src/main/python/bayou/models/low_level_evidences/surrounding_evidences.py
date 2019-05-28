@@ -30,7 +30,8 @@ class SurroundingEvidence(object):
 
     def read_data_point(self, program, infer):
         list_of_programs = program['Surrounding_Evidences'] if 'Surrounding_Evidences' in program else []
-        data = [ev.read_data_point(program, infer) for ev in self.internal_evidences] #self.config.surrounding_evidence]
+        # print(list_of_programs)
+        data = [ev.read_data_point(list_of_programs, infer) for ev in self.internal_evidences] #self.config.surrounding_evidence]
         return data
 
 
@@ -137,8 +138,30 @@ class SurroundingEvidence(object):
 
 
 # handle sequences as i/p
-class SetsOfSets(SurroundingEvidence):
+class SetsOfSets():
 
+    def init_config(self, evidence, chars_vocab):
+        for attr in CONFIG_ENCODER + (CONFIG_INFER if chars_vocab else []):
+            self.__setattr__(attr, evidence[attr])
+
+    def dump_config(self):
+        js = {attr: self.__getattribute__(attr) for attr in CONFIG_ENCODER + CONFIG_INFER}
+        return js
+
+    def word2num(self, listOfWords, infer):
+        output = []
+        for word in listOfWords:
+            if word not in self.vocab:
+                if not infer:
+                    self.vocab[word] = self.vocab_size
+                    self.vocab_size += 1
+                    output.append(self.vocab[word])
+            else:
+                output.append(self.vocab[word])
+                # with open("/home/ubuntu/evidences_used.txt", "a") as f:
+                #      f.write('Evidence Type :: ' + self.name + " , " + "Evidence Value :: " + word + "\n")
+
+        return output
 
     def placeholder(self, config):
         # type: (object) -> object

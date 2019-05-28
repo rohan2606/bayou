@@ -77,9 +77,10 @@ class Evidence(object):
             e.init_config(evidence, chars_vocab)
             if name == 'surrounding_evidence':
                 surrounding_evs.extend(internal_evidences)
+                evidence.append(e)
             else:
                 evidences.append(e)
-        return surrounding_evs, evidences
+        return evidences, surrounding_evs
 
     def word2num(self, listOfWords, infer):
         output = []
