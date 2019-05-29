@@ -236,9 +236,9 @@ def extract_evidence(clargs):
             random.shuffle(types)
             random.shuffle(keywords)
 
-            # sample['apicalls'] = programs_dict[file_name][method_name][0]
-            # sample['types'] = programs_dict[file_name][method_name][1]
-            # sample['keywords'] = programs_dict[file_name][method_name][2]
+            sample['apicalls'] = apicalls #programs_dict[file_name][method_name][0]
+            sample['types'] = types #programs_dict[file_name][method_name][1]
+            sample['keywords'] = keywords #programs_dict[file_name][method_name][2]
             # sample['my_variables'] = programs_dict[file_name][method_name][4]
 
             sample['returnType'] = returnType
@@ -263,7 +263,22 @@ def extract_evidence(clargs):
                     continue
                 methodEvidences={}
                 for choice, evidence in zip(programs_dict[file_name][method],['surr_returnType', 'surr_methodName', 'surr_formalParam', 'surr_header_vars', 'surr_sequences']):
-                    methodEvidences[evidence] = choice
+                    if evidence == "surr_returnType":
+                        if choice in types_set:
+                            methodEvidences[evidence] = choice
+                        else:
+                            methodEvidences[evidence] = 'None'
+                    elif evidence == "surr_formalParam":
+                        methodEvidences[evidence] = []
+                        for c in choice:
+                            if c in types_set:
+                                methodEvidences[evidence].append(c)
+                            else:
+                                methodEvidences[evidence].append('None')
+                    else:
+                        methodEvidences[evidence] = choice
+
+
 
                 sample['Surrounding_Evidences'].append(methodEvidences)
                 if j == maxMethods:

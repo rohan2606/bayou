@@ -107,9 +107,9 @@ class Reader():
             self.js_programs = js_programs
 
             print('Done!')
-            del raw_evidences
-            del raw_targets
-            gc.collect()
+            # del raw_evidences
+            # del raw_targets
+            # gc.collect()
 
             print('Saving...')
             # with open(, 'wb') as f:

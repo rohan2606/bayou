@@ -16,107 +16,11 @@ import tensorflow as tf
 import numpy as np
 import os
 import json
-
+import re
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER
-
+from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 from nltk.stem.wordnet import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
-
-class SurroundingEvidence(object):
-
-    def __init__(self):
-        self.vocab = None
-        self.vocab_size = 0
-
-    def read_data_point(self, program, infer):
-        list_of_programs = program['Surrounding_Evidences'] if 'Surrounding_Evidences' in program else []
-        # print(list_of_programs)
-        data = [ev.read_data_point(list_of_programs, infer) for ev in self.internal_evidences] #self.config.surrounding_evidence]
-        return data
-
-
-    def wrangle(self, data):
-        wrangled = [ev.wrangle(ev_data) for ev, ev_data in zip(self.internal_evidences , data )]
-
-        return wrangled
-
-    def placeholder(self, config):
-        # type: (object) -> object
-        return [ev.placeholder(config) for ev in config.surrounding_evidence]
-
-
-    def exists(self, inputs, config, infer):
-
-        temp = [ev.exists(input, config, infer) for input, ev in zip(inputs, config.surrounding_evidence)]
-        temp = tf.reduce_sum(tf.stack(temp, 0),0)
-        return tf.not_equal(temp, 0)
-
-    def init_sigma(self, config):
-        with tf.variable_scope(self.name):
-            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-        # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
-            self.sigma = tf.get_variable('sigma', [])
-            [ev.init_sigma(config) for ev in config.surrounding_evidence]
-
-
-    def encode(self, inputs, config, infer):
-        with tf.variable_scope(self.name):
-            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.surrounding_evidence, inputs)]
-            #number_of_ev * batch_size * number_of_methods * latent_size
-            encodings = tf.reduce_mean(tf.stack(encodings, axis=0), axis=0)
-            #batch_size * number_of_methods * latent_size
-            encodings = tf.reduce_sum(encodings, axis=1)
-        return encodings
-
-
-
-    def init_config(self, evidence, chars_vocab):
-        for attr in CONFIG_ENCODER + (CONFIG_INFER if chars_vocab else []):
-            self.__setattr__(attr, evidence[attr])
-
-    def dump_config(self):
-        js = {attr: self.__getattribute__(attr) for attr in CONFIG_ENCODER + CONFIG_INFER}
-        js['evidence'] = [ev.dump_config() for ev in self.internal_evidences]
-        return js
-
-
-    # @staticmethod
-    def read_config(self, js, chars_vocab):
-        evidences = []
-        for evidence in js:
-            name = evidence['name']
-            if name == 'surr_sequences':
-                e = surr_sequences()
-            elif name == 'surr_methodName':
-                e = surr_methodName()
-            elif name == 'surr_header_vars':
-                e = surr_header_vars()
-            elif name == 'surr_returnType':
-                e = surr_returnType()
-            else:
-                raise TypeError('Invalid evidence name: {}'.format(name))
-            e.name = name
-            e.init_config(evidence, chars_vocab)
-            evidences.append(e)
-        self.internal_evidences = evidences
-
-        return evidences
-
-    def word2num(self, listOfWords, infer):
-        output = []
-        for word in listOfWords:
-            if word not in self.vocab:
-                if not infer:
-                    self.vocab[word] = self.vocab_size
-                    self.vocab_size += 1
-                    output.append(self.vocab[word])
-            else:
-                output.append(self.vocab[word])
-                # with open("/home/ubuntu/evidences_used.txt", "a") as f:
-                #      f.write('Evidence Type :: ' + self.name + " , " + "Evidence Value :: " + word + "\n")
-
-        return output
-
 
 # handle sequences as i/p
 class SetsOfSomething(object):
@@ -144,6 +48,29 @@ class SetsOfSomething(object):
 
         return output
 
+
+    def init_sigma(self, config):
+        with tf.variable_scope(self.name):
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
+            # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+            self.sigma = tf.get_variable('sigma', [])
+
+
+    def split_words_underscore_plus_camel(self, s):
+        s = re.sub('_', '#', s)
+        s = re.sub('(.)([A-Z][a-z]+)', r'\1#\2', s)  # UC followed by LC
+        s = re.sub('([a-z0-9])([A-Z])', r'\1#\2', s)  # LC followed by UC
+        vars = s.split('#')
+
+        final_vars = []
+        for var in vars:
+            var = var.lower()
+            w = lemmatizer.lemmatize(var, 'v')
+            w = lemmatizer.lemmatize(w, 'n')
+            if len(w) > 1:
+                final_vars.append(w)
+        return final_vars
+
     def placeholder(self, config):
         # type: (object) -> object
         return tf.placeholder(tf.int32, [config.batch_size, self.max_nums, self.max_depth])
@@ -158,6 +85,7 @@ class SetsOfSomething(object):
                             wrangled[i, j, k] = call
         return wrangled
 
+
     def exists(self, inputs, config, infer):
         i = tf.expand_dims(tf.reduce_sum(inputs, axis=[1,2]),axis=1)
         # Drop a few types of evidences during training
@@ -168,15 +96,6 @@ class SetsOfSomething(object):
         i = tf.reduce_sum(i, axis=1)
 
         return i #tf.not_equal(i, 0) # [batch_size]
-
-
-    def init_sigma(self, config):
-        with tf.variable_scope(self.name):
-            self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
-        # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
-            self.sigma = tf.get_variable('sigma', [])
-
-
 
 
 
@@ -266,11 +185,11 @@ class surr_sequences(SetsOfSequences):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program, infer):
+    def read_data_point(self, list_of_programs, infer):
         read_programs = []
         for program in list_of_programs:
             seq = program['surr_sequences'] if 'surr_sequences' in program else []
-            read_programs.append(self.word2num(list(set(seq)) , infer))
+            read_programs.append(self.word2num(seq , infer))
         return read_programs
 
 
@@ -281,11 +200,13 @@ class surr_methodName(SetsOfSequences):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program, infer):
+    def read_data_point(self, list_of_programs, infer):
         read_programs = []
         for program in list_of_programs:
-            met = program['surr_methodName'] if 'surr_methodName' in program else []
-            read_programs.append(self.word2num(list(set(met)) , infer))
+            methodName = program['surr_methodName'] if 'surr_methodName' in program else []
+            tokens = self.split_words_underscore_plus_camel(methodName)
+            read_programs.append(self.word2num(tokens , infer))
+
         return read_programs
 
 
@@ -297,11 +218,11 @@ class surr_formalParam(SetsOfSequences):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program, infer):
+    def read_data_point(self, list_of_programs, infer):
         read_programs = []
         for program in list_of_programs:
             fp = program['surr_formalParam'] if 'surr_formalParam' in program else []
-            read_programs.append(self.word2num(list(set(fp)) , infer))
+            read_programs.append(self.word2num(fp , infer))
         return read_programs
 
 
@@ -313,9 +234,11 @@ class surr_header_vars(SetsOfSequences):
         self.vocab['None'] = 0
         self.vocab_size = 1
 
-    def read_data_point(self, program, infer):
+    def read_data_point(self, list_of_programs, infer):
         read_programs = []
         for program in list_of_programs:
-            met = program['surr_header_vars'] if 'surr_header_vars' in program else []
-            read_programs.append(self.word2num(list(set(met)) , infer))
+            varName = program['surr_header_vars'] if 'surr_header_vars' in program else []
+            # for token in tokens:
+            read_programs.append(self.word2num(varName , infer))
+
         return read_programs

@@ -24,7 +24,7 @@ import gensim
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 from bayou.models.low_level_evidences.biRNN import biRNN
-from bayou.models.low_level_evidences.surrounding_evidences import SurroundingEvidence
+from bayou.models.low_level_evidences.surrounding_evidences import *
 
 from nltk.stem.wordnet import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
@@ -77,7 +77,7 @@ class Evidence(object):
             evidences.append(e)
             if name == 'surrounding_evidence':
                 surrounding_evs.extend(internal_evidences)
-                
+
         return evidences, surrounding_evs
 
     def word2num(self, listOfWords, infer):
@@ -117,6 +117,20 @@ class Evidence(object):
     def encode(self, inputs, config):
         raise NotImplementedError('encode() has not been implemented')
 
+    def split_words_underscore_plus_camel(self, s):
+        s = re.sub('_', '#', s)
+        s = re.sub('(.)([A-Z][a-z]+)', r'\1#\2', s)  # UC followed by LC
+        s = re.sub('([a-z0-9])([A-Z])', r'\1#\2', s)  # LC followed by UC
+        vars = s.split('#')
+
+        final_vars = []
+        for var in vars:
+            var = var.lower()
+            w = lemmatizer.lemmatize(var, 'v')
+            w = lemmatizer.lemmatize(w, 'n')
+            if len(w) > 1:
+                final_vars.append(w)
+        return final_vars
 
 class Sets(Evidence):
 
@@ -178,20 +192,7 @@ class Sets(Evidence):
             latent_encoding = tf.reduce_sum(tf.reshape(latent_encoding , [config.batch_size, self.max_nums, config.latent_size]), axis=1)
             return latent_encoding
 
-    def split_words_underscore_plus_camel(self, s):
-        s = re.sub('_', '#', s)
-        s = re.sub('(.)([A-Z][a-z]+)', r'\1#\2', s)  # UC followed by LC
-        s = re.sub('([a-z0-9])([A-Z])', r'\1#\2', s)  # LC followed by UC
-        vars = s.split('#')
 
-        final_vars = []
-        for var in vars:
-            var = var.lower()
-            w = lemmatizer.lemmatize(var, 'v')
-            w = lemmatizer.lemmatize(w, 'n')
-            if len(w) > 1:
-                final_vars.append(w)
-        return final_vars
 
 # handle sequences as i/p
 class Sequences(Evidence):
@@ -327,8 +328,8 @@ class Variables(Sets):
         self.vocab_size = 1
 
     def read_data_point(self, program, infer):
-        types = program['my_variables'] if 'my_variables' in program else []
-        return self.word2num(list(set(types)), infer)
+        variables = program['my_variables'] if 'my_variables' in program else []
+        return self.word2num(list(set(variables)), infer)
 
 
 
@@ -405,7 +406,6 @@ class ReturnType(Sets):
 
     def read_data_point(self, program, infer):
         returnType = [program['returnType'] if 'returnType' in program else '__Constructor__']
-
         return self.word2num(returnType , infer)
 
 class ClassTypes(Sets):
@@ -417,12 +417,12 @@ class ClassTypes(Sets):
 
     def read_data_point(self, program, infer):
         classType = program['classTypes'] if 'classTypes' in program else []
-        return self.word2num(list(set(classType)), infer)
+        return self.word2num(classType, infer)
 
 
 
 
-class MethodName(Sets):
+class MethodName(Sequences):
 
     def __init__(self):
         self.vocab = dict()
@@ -433,14 +433,14 @@ class MethodName(Sets):
         methodName = program['method'] if 'method' in program else ''
         methodName = methodName.split('@')[0]
         method_name_tokens = self.split_words_underscore_plus_camel(methodName)
-        return self.word2num(list(set(method_name_tokens)), infer)
+        return [self.word2num(method_name_tokens, infer)]
 
 
 
 
 
 
-class ClassName(Sets):
+class ClassName(Sequences):
 
     def __init__(self):
         self.vocab = dict()
@@ -452,7 +452,7 @@ class ClassName(Sets):
         className = className.split('/')[-1]
         className = className.split('.')[0]
         class_name_tokens = self.split_words_underscore_plus_camel(className)
-        return self.word2num(list(set(class_name_tokens)), infer)
+        return [self.word2num(class_name_tokens, infer)]
 
 
 
@@ -575,3 +575,84 @@ class JavaDoc(Sequences):
             latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
 
             return latent_encoding
+
+
+class SurroundingEvidence(Evidence):
+
+    def __init__(self):
+        self.vocab = None
+        self.vocab_size = 0
+
+    def read_data_point(self, program, infer):
+        list_of_programs = program['Surrounding_Evidences'] if 'Surrounding_Evidences' in program else []
+        # print(list_of_programs)
+        data = [ev.read_data_point(list_of_programs, infer) for ev in self.internal_evidences] #self.config.surrounding_evidence]
+        return data
+
+
+    def wrangle(self, data):
+        wrangled = [ev.wrangle(ev_data) for ev, ev_data in zip(self.internal_evidences , data )]
+
+        return wrangled
+
+    def placeholder(self, config):
+        # type: (object) -> object
+        return [ev.placeholder(config) for ev in config.surrounding_evidence]
+
+
+    def exists(self, inputs, config, infer):
+
+        temp = [ev.exists(input, config, infer) for input, ev in zip(inputs, config.surrounding_evidence)]
+        temp = tf.reduce_sum(tf.stack(temp, 0),0)
+        return tf.not_equal(temp, 0)
+
+    def init_sigma(self, config):
+        with tf.variable_scope(self.name):
+            # self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
+        # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
+            self.sigma = tf.get_variable('sigma', [])
+            [ev.init_sigma(config) for ev in config.surrounding_evidence]
+
+    def dump_config(self):
+        js = {attr: self.__getattribute__(attr) for attr in CONFIG_ENCODER + CONFIG_INFER}
+        js['evidence'] = [ev.dump_config() for ev in self.internal_evidences]
+        return js
+
+
+    # @staticmethod
+    def read_config(self, js, chars_vocab):
+        evidences = []
+        for evidence in js:
+            name = evidence['name']
+            if name == 'surr_sequences':
+                e = surr_sequences()
+            elif name == 'surr_methodName':
+                e = surr_methodName()
+            elif name == 'surr_header_vars':
+                e = surr_header_vars()
+            elif name == 'surr_returnType':
+                e = surr_returnType()
+            elif name == 'surr_formalParam':
+                e = surr_formalParam()
+            else:
+                raise TypeError('Invalid evidence name: {}'.format(name))
+            e.name = name
+            e.init_config(evidence, chars_vocab)
+            evidences.append(e)
+        self.internal_evidences = evidences
+
+        return evidences
+
+
+
+    def encode(self, inputs, config, infer):
+        with tf.variable_scope(self.name):
+            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.surrounding_evidence, inputs)]
+            # list of number_of_ev :: batch_size * number_of_methods * latent_size
+            encodings = tf.stack(encodings, axis=3)
+            # batch_size * number_of_methods * latent_size * list_of_number_of_ev
+            encodings = tf.layers.dense( tf.reshape(encodings, [config.batch_size, self.max_nums, -1]), config.latent_size, activation=tf.nn.tanh)
+            encodings = tf.layers.dense(encodings, config.latent_size)
+            #batch_size * number_of_methods * latent_size
+            encodings = tf.reduce_sum(encodings, axis=1)
+        return encodings
