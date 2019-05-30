@@ -29,7 +29,8 @@ class Model():
         newBatch = iterator.get_next()
         nodes, edges, targets = newBatch[:3]
         ev_data = newBatch[3:13]
-        surr_input = newBatch[13:]
+        surr_input = newBatch[13:15]
+        surr_input_fp = newBatch[15:]
 
 
 
@@ -178,7 +179,7 @@ class Model():
             #unused if MultiGPU is being used
             with tf.name_scope("train"):
                 if bayou_mode:
-                    train_ops = get_var_list()['all_vars']
+                    train_ops = get_var_list()['bayou_vars']
                 else:
                     train_ops = get_var_list()['rev_encoder_vars']
 

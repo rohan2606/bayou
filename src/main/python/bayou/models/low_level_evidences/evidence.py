@@ -118,7 +118,14 @@ class Evidence(object):
         raise NotImplementedError('encode() has not been implemented')
 
     def split_words_underscore_plus_camel(self, s):
-        s = re.sub('_', '#', s)
+
+        # remove unicode
+        s = s.encode('ascii', 'ignore').decode('unicode_escape')
+        #remove numbers
+        s = re.sub(r'\d+', '', s)
+        #substitute all non alphabets by # to be splitted later
+        s = re.sub("[^a-zA-Z]+", "#", s)
+        #camel case split
         s = re.sub('(.)([A-Z][a-z]+)', r'\1#\2', s)  # UC followed by LC
         s = re.sub('([a-z0-9])([A-Z])', r'\1#\2', s)  # LC followed by UC
         vars = s.split('#')
@@ -128,7 +135,8 @@ class Evidence(object):
             var = var.lower()
             w = lemmatizer.lemmatize(var, 'v')
             w = lemmatizer.lemmatize(w, 'n')
-            if len(w) > 1:
+            len_w = len(w)
+            if len_w > 1 and len_w < 10 :
                 final_vars.append(w)
         return final_vars
 
