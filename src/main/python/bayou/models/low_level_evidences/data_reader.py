@@ -41,8 +41,8 @@ class Reader():
 
         if clargs.continue_from is not None or dataIsThere:
             print('Loading Data')
-            # with open(, 'rb') as f:
-            self.inputs = np.load('data/inputs.npy')
+            with open('data/inputs.npy', 'rb') as f:
+                self.inputs = pickle.load(f)
             # with open(, 'rb') as f:
             self.nodes = np.load('data/nodes.npy')
             self.edges = np.load('data/edges.npy')
@@ -118,8 +118,8 @@ class Reader():
             # gc.collect()
 
             print('Saving...')
-            # with open(, 'wb') as f:
-            np.save('data/inputs', self.inputs)
+            with open('data/inputs', 'wb') as f:
+                pickle.dump(self.inputs, f, protocol=pickle.HIGHEST_PROTOCOL)
             # with open(', 'wb') as f:
             np.save('data/nodes', self.nodes)
             np.save('data/edges', self.edges)
