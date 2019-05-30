@@ -84,7 +84,6 @@ class SetsOfSomething(object):
         return tf.placeholder(tf.int32, [config.batch_size, self.max_nums, self.max_depth])
 
     def wrangle(self, data):
-        print(self.name)
         wrangled = np.zeros((len(data), self.max_nums, self.max_depth), dtype=np.int32)
         for i, method in enumerate(data):
             for j, keyword in enumerate(method):
@@ -111,6 +110,7 @@ class SetsOfSomething(object):
 class SetsOfSets(SetsOfSomething):
 
     def encode(self, inputs, config, infer):
+
         with tf.variable_scope(self.name):
             # Drop some inputs
             inputs = tf.reshape(inputs, [config.batch_size * self.max_nums, self.max_depth])
@@ -312,6 +312,7 @@ class surr_formalParam(SetsOfSomething):
 
     def encode(self, inputs, config, infer):
         with tf.variable_scope(self.name):
+
             # Drop some inputs
             inputs = inputs[0]
             inputs = tf.reshape(inputs, [config.batch_size * self.max_nums, self.max_depth])
@@ -322,7 +323,7 @@ class surr_formalParam(SetsOfSomething):
                 inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
 
 
-            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size * self.max_nums, self.emb, config.latent_size)
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size * self.max_nums, self.emb[0], config.latent_size)
             encoding = LSTM_Encoder.output
 
             w = tf.get_variable('w', [self.units, config.latent_size ])

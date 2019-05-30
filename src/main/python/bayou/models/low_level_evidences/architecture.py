@@ -18,11 +18,18 @@ from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 
 class BayesianEncoder(object):
-    def __init__(self, config, inputs, surr_input, infer=False):
+    def __init__(self, config, inputs, surr_input, surr_input_fp, infer=False):
 
         # exists  = #ev * batch_size
         exists = [ev.exists(i, config, infer) for ev, i in zip(config.evidence[:-1], inputs)]
-        exists.append(config.evidence[-1].exists(surr_input, config, infer))
+
+        surr_input = list(surr_input)
+        surr_input.append(surr_input_fp)
+
+        surr_input_new = tuple(surr_input)
+
+
+        exists.append(config.evidence[-1].exists(surr_input_new, config, infer))
         zeros = tf.zeros([config.batch_size, config.latent_size], dtype=tf.float32)
 
         # Compute the denominator used for mean and covariance
@@ -39,7 +46,7 @@ class BayesianEncoder(object):
             # 1. compute encoding
 
             encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence[:-1], inputs)]
-            encodings.append(config.evidence[-1].encode(surr_input, config, infer))
+            encodings.append(config.evidence[-1].encode(surr_input_new, config, infer))
 
             encodings = [encoding / tf.square(ev.sigma) for ev, encoding in
                          zip(config.evidence, encodings)]

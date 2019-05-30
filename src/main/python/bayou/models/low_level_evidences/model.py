@@ -29,8 +29,8 @@ class Model():
         newBatch = iterator.get_next()
         nodes, edges, targets = newBatch[:3]
         ev_data = newBatch[3:13]
-        surr_input = newBatch[13:15]
-        surr_input_fp = newBatch[15:]
+        surr_input = newBatch[13:16]
+        surr_input_fp = newBatch[16:]
 
 
 
@@ -46,7 +46,7 @@ class Model():
 
         with tf.variable_scope("Encoder"):
 
-            self.encoder = BayesianEncoder(config, ev_data, surr_input, infer)
+            self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
 
             self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
