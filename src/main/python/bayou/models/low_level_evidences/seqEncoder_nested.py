@@ -15,7 +15,7 @@
 import tensorflow as tf
 
 class seqEncoder_nested(object):
-    def __init__(self, num_layers, state_size, inputs, batch_size, emb, latent_encoding_variables_intermediate):
+    def __init__(self, num_layers, state_size, inputs, batch_size, emb, latent_encoding_variables_intermediate, input_vars_mod_cond):
 
         with tf.variable_scope('GRU_Encoder_nested'):
             cell_list = []
@@ -28,6 +28,7 @@ class seqEncoder_nested(object):
             # inputs is BS * depth
             inputs = tf.unstack(inputs, axis=1)
             # after unstack it is depth * BS
+            input_vars_mod_cond = tf.transpose(input_vars_mod_cond, [1,0]) # depth * BS
 
             #latent is (modified_batch_size * depth * latent_size)
             latent_encoding_variables_intermediate = tf.transpose(latent_encoding_variables_intermediate, [1,0,2])
@@ -40,17 +41,16 @@ class seqEncoder_nested(object):
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
                 emb_inp = tf.nn.embedding_lookup(emb, inp) # should be batch * latent_size
-                latent_at_time_i = latent_encoding_variables_intermediate[i] # thi is now batch*latent_size
-                emb_inp = tf.concat([emb_inp, latent_at_time_i], axis=1 ) # now this is batch_size * (2*latent_size)
+                # latent_at_time_i is now batch*latent_size
+                emb_inp = tf.concat([emb_inp, latent_encoding_variables_intermediate[i]], axis=1 ) # now this is batch_size * (2*latent_size)
 
                 with tf.variable_scope('cell_complex'):  # handles CHILD_EDGE
                     output, out_state = cell(emb_inp, curr_state)
 
 
 
-                # BUG - since variable can also effect, should not be 0
-                curr_state = [tf.where(tf.not_equal(inp, 0), out_state[j], curr_state[j])
-                              for j in range(num_layers)]
+                cond = tf.logical_and(tf.equal(inp, 0) , tf.equal(input_vars_mod_cond[i], 0) ) #& tf.not_equal(input_vars_mod_cond, 0)
+                curr_state = [tf.where(cond, curr_state[j], out_state[j]) for j in range(num_layers)]
                 curr_out = tf.where(tf.not_equal(inp, 0), output, curr_out)
 
             #
