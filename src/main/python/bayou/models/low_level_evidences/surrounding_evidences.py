@@ -19,6 +19,7 @@ import json
 import re
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
+from bayou.models.low_level_evidences.seqEncoder_nested import seqEncoder_nested
 from nltk.stem.wordnet import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
 
@@ -314,24 +315,35 @@ class surr_formalParam(SetsOfSomething):
         with tf.variable_scope(self.name):
 
             # Drop some inputs
-            inputs = inputs[0]
-            inputs = tf.reshape(inputs, [config.batch_size * self.max_nums, self.max_depth])
+            inputs_0 = tf.reshape(inputs[0], [config.batch_size * self.max_nums, self.max_depth])
+            inputs_1 = tf.reshape(inputs[1], [config.batch_size * self.max_nums * self.max_depth, 3])
 
-            if not infer:
-                inp_shaped_zeros = tf.zeros_like(inputs)
-                rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
-                inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
+            # if not infer:
+            #     inp_shaped_zeros = tf.zeros_like(inputs[0])
+            #     rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
+            #     inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
 
 
-            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs, config.batch_size * self.max_nums, self.emb[0], config.latent_size)
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs_1, config.batch_size * self.max_nums * self.max_depth, self.emb[1], config.latent_size)
             encoding = LSTM_Encoder.output
 
-            w = tf.get_variable('w', [self.units, config.latent_size ])
-            b = tf.get_variable('b', [config.latent_size])
+            w = tf.get_variable('w0', [self.units, config.latent_size ])
+            b = tf.get_variable('b0', [config.latent_size])
+            latent_encoding_variables_intermediate = tf.nn.xw_plus_b(encoding, w, b)
+
+            zeros = tf.zeros_like(latent_encoding_variables_intermediate)
+            latent_encoding_variables_intermediate = tf.where( tf.not_equal(tf.reduce_sum(inputs_1, axis=1),0),latent_encoding_variables_intermediate, zeros)
+            latent_encoding_variables_intermediate = tf.reshape(latent_encoding_variables_intermediate, [config.batch_size * self.max_nums, self.max_depth, -1])
+
+            LSTM_Encoder = seqEncoder_nested(self.num_layers, self.units, inputs_0, config.batch_size * self.max_nums, self.emb[0], latent_encoding_variables_intermediate)
+            encoding = LSTM_Encoder.output
+
+            w = tf.get_variable('w1', [self.units, config.latent_size ])
+            b = tf.get_variable('b1', [config.latent_size])
             latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
 
             zeros = tf.zeros_like(latent_encoding)
-            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs, axis=1),0),latent_encoding, zeros)
+            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs_0, axis=1), 0),latent_encoding, zeros)
 
             latent_encoding = tf.reshape(latent_encoding, [config.batch_size ,self.max_nums, config.latent_size])
 
