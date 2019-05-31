@@ -51,7 +51,7 @@ class seqEncoder_nested(object):
 
                 cond = tf.logical_and(tf.equal(inp, 0) , tf.equal(input_vars_mod_cond[i], 0) ) #& tf.not_equal(input_vars_mod_cond, 0)
                 curr_state = [tf.where(cond, curr_state[j], out_state[j]) for j in range(num_layers)]
-                curr_out = tf.where(tf.not_equal(inp, 0), output, curr_out)
+                curr_out = tf.where(cond, curr_out, output)
 
             #
             # with tf.variable_scope("projections"):
