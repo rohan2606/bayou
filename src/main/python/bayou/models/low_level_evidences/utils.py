@@ -57,7 +57,16 @@ def get_var_list():
           surrounding_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope=mean) + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope=sigma)
 
 
-    bayou_vars = emb_vars + decoder_vars + encoder_vars
+    bayou_vars = decoder_vars + encoder_vars
+
+
+    old_model_vars = decoder_vars +   rev_encoder_vars
+    for ev in ['apicalls' , 'types' , 'keywords' , 'callsequences', 'returntype', 'formalparam', 'javadoc']:
+          mean = 'Encoder/mean/' + ev
+          sigma = 'Encoder/' + ev
+          old_model_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope=mean) + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope=sigma)
+
+   
 
     var_dict = {'all_vars':all_vars, 'decoder_vars':decoder_vars,
                 'encoder_vars':encoder_vars,
@@ -65,7 +74,8 @@ def get_var_list():
                 'bayou_vars':bayou_vars,
                 'javadoc_vars':javadoc_vars,
                 'surrounding_vars':surrounding_vars,
-                'rev_encoder_vars':rev_encoder_vars
+                'rev_encoder_vars':rev_encoder_vars,
+                'old_model_vars':old_model_vars
                 }
     return var_dict
 
