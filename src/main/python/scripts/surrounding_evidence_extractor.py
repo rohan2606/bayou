@@ -164,7 +164,7 @@ def extract_evidence(clargs):
     for w in sorted(FP_Dict, key=FP_Dict.get, reverse=True)[:1000]:
         topFPKeys[w] = FP_Dict[w]
 
-
+    setOfGoodTypes = types_set | set(topRetKeys.keys()) | set(topFPKeys.keys())
 
     f.close()
     f = open(clargs.input_file[0] , 'rb')
@@ -244,7 +244,7 @@ def extract_evidence(clargs):
             sample['returnType'] = returnType
             sample['formalParam'] = newFP
 
-            sample['classTypes'] = set(program['classTypes']) & types_set if 'classTypes' in program else set()
+            sample['classTypes'] = set(program['classTypes']) & setOfGoodTypes if 'classTypes' in program else set()
 
             sample['classTypes'] = list(sample['classTypes'])
 
@@ -264,14 +264,14 @@ def extract_evidence(clargs):
                 methodEvidences={}
                 for choice, evidence in zip(programs_dict[file_name][method],['surr_returnType', 'surr_methodName', 'surr_formalParam', 'surr_header_vars', 'surr_sequences']):
                     if evidence == "surr_returnType":
-                        if choice in types_set:
+                        if (choice in setOfGoodTypes):
                             methodEvidences[evidence] = choice
                         else:
                             methodEvidences[evidence] = 'None'
                     elif evidence == "surr_formalParam":
                         methodEvidences[evidence] = []
                         for c in choice:
-                            if c in types_set:
+                            if (c in setOfGoodTypes):
                                 methodEvidences[evidence].append(c)
                             else:
                                 methodEvidences[evidence].append('None')
