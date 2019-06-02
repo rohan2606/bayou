@@ -87,7 +87,8 @@ def modifyInputForExperiment(sample, expNumber, config):
 
 
     sample['testapicalls'] = sample['apicalls']
-
+    sample['method_name_not_ev'] = sample['method']
+    sample['file_name_not_ev'] = sample['file']
 
     ## You need to have all sorrounding infos
     for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
@@ -114,7 +115,7 @@ def modifyInputForExperiment(sample, expNumber, config):
 
     if expNumber == 0: # onlyJavaDoc
 
-        for ev in [ 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+        for ev in [ 'method' , 'file', 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
@@ -123,30 +124,28 @@ def modifyInputForExperiment(sample, expNumber, config):
 
     if expNumber == 1: #only sorrounding infos
 
-        for ev in ['javaDoc', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+        for ev in ['javaDoc', 'method' ,  'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
 
     elif expNumber == 2: # sorrounding plus javadoc
-
-
-        for ev in [  'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+        for ev in [ 'method' , 'returnType', 'formalParam', 'apicalls', 'types', 'keywords', 'sequences']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
 
 
-    elif expNumber == 3: ##  sorrounding , ret, fp , jD
+    elif expNumber == 3: ##  till method header
         for ev in ['sequences', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
 
 
 
-    elif expNumber == 4: ## sorrounding plus jD and ret and fp and keywords
+    elif expNumber == 4: ## just use in method keywords
         for ev in ['sequences', 'apicalls', 'types']:
             if ev in sample:
                 del sample[ev]
