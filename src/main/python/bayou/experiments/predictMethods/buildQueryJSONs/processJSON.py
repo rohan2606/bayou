@@ -89,13 +89,13 @@ def modifyInputForExperiment(sample, expNumber, config):
     sample['testapicalls'] = sample['apicalls']
 
 
-    ## You need to have all sorrounding infos bros
-    for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+    ## You need to have all sorrounding infos
+    for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
         if ev not in sample:
             return {}
         if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 1 ):
             return {}
-        if ev == 'sorrsequences' and len(sample[ev]) < 1:
+        if ev == 'Surrounding_Evidences' and len(sample[ev]) < 1:
             return {}
         if ev == 'sequences':
             for elem in sample[ev]:
@@ -114,7 +114,7 @@ def modifyInputForExperiment(sample, expNumber, config):
 
     if expNumber == 0: # onlyJavaDoc
 
-        for ev in [ 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+        for ev in [ 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
@@ -163,28 +163,28 @@ def modifyInputForExperiment(sample, expNumber, config):
                 del sample[ev]
 
     elif expNumber == 7: ## sequences
-        for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+        for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
 
     elif expNumber == 8: ## keywords
-        for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'sequences', 'apicalls', 'types']:
+        for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'sequences', 'apicalls', 'types']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
 
     elif expNumber == 9: ## apicalls
-        for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'returnType', 'formalParam', 'sequences', 'types', 'keywords']:
+        for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'sequences', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
 
     elif expNumber == 10: ## returnType
-        for ev in ['javaDoc', 'sorrsequences' , 'sorrformalparam', 'sorrreturntype', 'classTypes', 'formalParam', 'sequences', 'apicalls', 'types', 'keywords']:
+        for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'formalParam', 'sequences', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['formalParam'] = ['None']

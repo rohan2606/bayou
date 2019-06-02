@@ -45,7 +45,10 @@ class BayesianPredictor(object):
 
         targets  = tf.concat(  [self.nodes[:, 1:] , tf.zeros([config.batch_size , 1], dtype=tf.int32) ] ,axis=1 )  # shifted left by one
 
-        ev_data = self.inputs
+        ev_data = self.inputs[:-1]
+        surr_input = self.inputs[-1][:-1]
+        surr_input_fp = self.inputs[-1][-1]
+
         nodes = tf.transpose(self.nodes)
         edges = tf.transpose(self.edges)
 
@@ -55,7 +58,7 @@ class BayesianPredictor(object):
 
         with tf.variable_scope("Encoder"):
 
-            self.encoder = BayesianEncoder(config, ev_data, infer)
+            self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
 
             self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
@@ -177,7 +180,6 @@ class BayesianPredictor(object):
 
         rdp = [ev.read_data_point(evidences, infer=True) for ev in self.config.evidence]
         inputs = [ev.wrangle([ev_rdp]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
-
         feed = {}
         for j, ev in enumerate(self.config.evidence):
             feed[self.inputs[j].name] = inputs[j]
@@ -189,8 +191,16 @@ class BayesianPredictor(object):
 
     def get_a1b1a2b2(self, program):
         rdp = [ev.read_data_point(program, infer=True) for ev in self.config.evidence]
-        inputs = [ev.wrangle([ev_rdp for i in range(self.config.batch_size)]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
 
+        config = self.config
+        raw_evidences = [rdp for j in range(self.config.batch_size)]
+        raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
+        raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
+        raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
+        rdp = raw_evidences
+
+        # inputs = [ev.wrangle([ev_rdp for i in range(self.config.batch_size)]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
+        inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, rdp)]
         nodes = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.int32)
         edges = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.bool)
 
@@ -213,8 +223,15 @@ class BayesianPredictor(object):
         ignored = True if np.sum(nodes)==0 else False
 
         feed = {}
-        for j, ev in enumerate(self.config.evidence):
+        for j, _ in enumerate(self.config.evidence[:-1]):
             feed[self.inputs[j].name] = inputs[j]
+
+        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
+            feed[self.inputs[-1][j].name] = inputs[-1][j]
+
+        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
+            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
+
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
 
