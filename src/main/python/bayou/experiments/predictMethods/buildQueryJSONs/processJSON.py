@@ -24,6 +24,7 @@ import bayou.models.low_level_evidences.evidence
 from bayou.models.low_level_evidences.utils import gather_calls
 from scripts.evidence_extractor import shorten
 import scripts.ast_extractor as ast_extractor
+from scripts.variable_name_extractor import get_variables
 import os
 
 max_ast_depth = 32
@@ -224,9 +225,11 @@ def extract_evidence(fileName, expNumber):
             sequences = program['sequences']
             sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
             sequences.sort(key=len, reverse=True)
+            sequences = sequences[0]
 
+            header_variable_names, variable_names = get_variables(program['body'])
 
-            programs_dict[method_name] = [returnType, formalParam, sequences[0]]
+            programs_dict[method_name] = [returnType, method_name, formalParam, header_variable_names, sequences]
             valid.append(1)
 
 
@@ -264,6 +267,10 @@ def extract_evidence(fileName, expNumber):
                                                 for call in calls])))
 
         sample = dict(program)
+
+        # file_name = program['file']
+        # method_name = program['method']
+
         sample['apicalls'] = apicalls
         sample['types'] = types
         sample['keywords'] = keywords
@@ -279,16 +286,13 @@ def extract_evidence(fileName, expNumber):
         sample['sequences'] = sequences[0]
 
         # Take in classTypes and sample a few
-        sample['classTypes'] = list(set(program['classTypes'])) if 'classTypes' in program else []
-        if len(sample['classTypes']) == 0:
-            del sample['classTypes']
+        sample['classTypes'] = set(program['classTypes']) if 'classTypes' in program else set()
+        sample['classTypes'] = list(sample['classTypes'])
 
-        sample['sorrreturntype'] = []
-        sample['sorrformalparam'] = []
-        sample['sorrsequences'] = []
-
+        sample['Surrounding_Evidences']=[]
         #    (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
         otherMethods = list(programs_dict.keys())
+        random.shuffle(otherMethods)
 
         for method in otherMethods: # Each iterator is a method Name with @linenumber
 
@@ -297,38 +301,20 @@ def extract_evidence(fileName, expNumber):
                 continue
             # Keep a count on number of sorrounding methods, if it exceeds the random choice, break
 
-            for choice, evidence in zip(programs_dict[method],['sorrreturntype', 'sorrformalparam', 'sorrsequences']):
-                sample[evidence].append(choice)
+            methodEvidences={}
+            for choice, evidence in zip(programs_dict[method],['surr_returnType', 'surr_methodName', 'surr_formalParam', 'surr_header_vars', 'surr_sequences']):
+                if evidence == "surr_returnType":
+                    methodEvidences[evidence] = choice
+                elif evidence == "surr_formalParam":
+                    methodEvidences[evidence] = []
+                    for c in choice:
+                        methodEvidences[evidence].append('None')
+                else:
+                    methodEvidences[evidence] = choice
 
-        ## SORR RET
-        sample['sorrreturntype'] = list(set(sample['sorrreturntype']))
-        if len(sample['sorrreturntype']) == 0:
-            del sample['sorrreturntype']
+            sample['Surrounding_Evidences'].append(methodEvidences)
 
-        ## SORR FP
-        oldSorrFP = sample['sorrformalparam']
-        filteredSorrFP = []
-        for FP in oldSorrFP:
-            temp = FP
-            if len(temp) > 0:
-                filteredSorrFP.append( tuple(temp) )
 
-        filteredSorrFP.sort(key=len, reverse=True)
-        sample['sorrformalparam'] = list(set(filteredSorrFP))
-        if len(sample['sorrformalparam']) == 0:
-            del sample['sorrformalparam']
-
-        ## SORR SEQ
-        oldSorrSeq = sample['sorrsequences']
-        oldSorrSeq.sort(key=len, reverse=True)
-        filteredSorrSeq = []
-        for seq in oldSorrSeq:
-            if len(seq) > 0:
-                filteredSorrSeq.append(tuple(seq))
-
-        sample['sorrsequences'] = list(set(filteredSorrSeq))
-        if len(sample['sorrsequences']) == 0:
-            del sample['sorrsequences']
 
         done += 1
         # print('Extracted evidence for {} programs'.format(done), end='\n')
