@@ -324,7 +324,7 @@ class surr_formalParam(SetsOfSomething):
                 inputs_0 = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs_0, inp_shaped_zeros)
 
                 inp_shaped_zeros = tf.zeros_like(inputs_1)
-                rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
+                rand = tf.random_uniform( (config.batch_size * self.max_nums * self.max_depth, 3  ) )
                 inputs_1 = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs_1, inp_shaped_zeros)
 
 
