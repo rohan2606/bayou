@@ -612,12 +612,14 @@ class SurroundingEvidence(Evidence):
 
         temp = [ev.exists(input, config, infer) for input, ev in zip(inputs, config.surrounding_evidence)]
         i = tf.reduce_sum(tf.stack(temp, 0),0)
+        i = tf.expand_dims(i,1)
         if not infer:
             i_shaped_zeros = tf.zeros_like(i)
-            rand = tf.random_uniform( (config.batch_size,1) )
+            rand = tf.random_uniform( (config.batch_size, 1) )
             i = tf.where(tf.less(rand, self.ev_drop_prob) , i, i_shaped_zeros)
 
-        return tf.not_equal(temp, 0)
+        i = tf.reduce_sum(i, axis=1)
+        return tf.not_equal(i, 0)
 
     def init_sigma(self, config):
         with tf.variable_scope(self.name):
@@ -674,8 +676,12 @@ class SurroundingEvidence(Evidence):
             #done
 
             #zero check in method level
-            zeros = tf.zeros_like(encodings)
-            encodings_flat = tf.where(tf.not_equal(tf.reduce_sum(encodings, axis=2)) , encodings , zeros)
+            zeros = tf.zeros_like(encodings_flat)
+            cond = tf.not_equal(tf.reduce_sum(encodings, axis=2), 0)
+            cond = tf.tile(tf.expand_dims(cond, axis=2),[1,1,config.latent_size])
+            
+            encodings_flat = tf.where( cond, encodings_flat , zeros)
+
             #batch_size * number_of_methods * latent_size
             encodings_flat = tf.reduce_sum(encodings_flat, axis=1)
         return encodings_flat

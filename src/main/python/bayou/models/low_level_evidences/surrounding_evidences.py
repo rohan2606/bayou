@@ -295,7 +295,9 @@ class surr_formalParam(SetsOfSomething):
 
 
     def exists(self, inputs, config, infer):
-        i = tf.expand_dims(tf.reduce_sum(inputs[0], axis=[1,2]),axis=1)
+        ii = tf.expand_dims(tf.reduce_sum(inputs[0], axis=[1,2]),axis=1)
+        ij = tf.expand_dims(tf.reduce_sum(inputs[1], axis=[1,2,3]),axis=1)
+        i = ii + ij
         # Drop a few types of evidences during training
         if not infer:
             i_shaped_zeros = tf.zeros_like(i)
