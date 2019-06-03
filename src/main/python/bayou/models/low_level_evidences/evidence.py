@@ -611,7 +611,12 @@ class SurroundingEvidence(Evidence):
     def exists(self, inputs, config, infer):
 
         temp = [ev.exists(input, config, infer) for input, ev in zip(inputs, config.surrounding_evidence)]
-        temp = tf.reduce_sum(tf.stack(temp, 0),0)
+        i = tf.reduce_sum(tf.stack(temp, 0),0)
+        if not infer:
+            i_shaped_zeros = tf.zeros_like(i)
+            rand = tf.random_uniform( (config.batch_size,1) )
+            i = tf.where(tf.less(rand, self.ev_drop_prob) , i, i_shaped_zeros)
+
         return tf.not_equal(temp, 0)
 
     def init_sigma(self, config):
@@ -659,8 +664,18 @@ class SurroundingEvidence(Evidence):
             # list of number_of_ev :: batch_size * number_of_methods * latent_size
             encodings = tf.stack(encodings, axis=3)
             # batch_size * number_of_methods * latent_size * list_of_number_of_ev
-            encodings = tf.layers.dense( tf.reshape(encodings, [config.batch_size, self.max_nums, -1]), config.latent_size, activation=tf.nn.tanh)
-            encodings = tf.layers.dense(encodings, config.latent_size)
+            encodings = tf.reshape(encodings, [config.batch_size, self.max_nums, -1])
+            # batch_size * number_of_methods * (latent_size * list_of_number_of_ev)
+
+            #Now run neural neural_network
+            encodings_flat = tf.layers.dense( encodings , config.latent_size, activation=tf.nn.tanh)
+            encodings_flat = tf.layers.dense(encodings_flat, config.latent_size, activation=tf.nn.tanh)
+            encodings_flat = tf.layers.dense(encodings_flat, config.latent_size)
+            #done
+
+            #zero check in method level
+            zeros = tf.zeros_like(encodings)
+            encodings_flat = tf.where(tf.not_equal(tf.reduce_sum(encodings, axis=2)) , encodings , zeros)
             #batch_size * number_of_methods * latent_size
-            encodings = tf.reduce_sum(encodings, axis=1)
-        return encodings
+            encodings_flat = tf.reduce_sum(encodings_flat, axis=1)
+        return encodings_flat

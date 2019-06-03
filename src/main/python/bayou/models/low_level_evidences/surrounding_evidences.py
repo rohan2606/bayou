@@ -350,7 +350,11 @@ class surr_formalParam(SetsOfSomething):
             latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
 
             zeros = tf.zeros_like(latent_encoding)
-            latent_encoding = tf.where( tf.not_equal(tf.reduce_sum(inputs_0, axis=1), 0),latent_encoding, zeros)
+            cond_0 = tf.equal(tf.reduce_sum(inputs_0, axis=1), 0)
+            cond_1 = tf.equal(tf.reduce_sum(input_vars_mod_cond, axis=1), 0)
+            cond = tf.logical_and(cond_0 , cond_1)
+
+            latent_encoding = tf.where( cond, zeros, latent_encoding)
 
             latent_encoding = tf.reshape(latent_encoding, [config.batch_size ,self.max_nums, config.latent_size])
 
