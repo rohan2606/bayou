@@ -318,10 +318,14 @@ class surr_formalParam(SetsOfSomething):
             inputs_0 = tf.reshape(inputs[0], [config.batch_size * self.max_nums, self.max_depth])
             inputs_1 = tf.reshape(inputs[1], [config.batch_size * self.max_nums * self.max_depth, 3])
 
-            # if not infer:
-            #     inp_shaped_zeros = tf.zeros_like(inputs[0])
-            #     rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
-            #     inputs = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs, inp_shaped_zeros)
+            if not infer:
+                inp_shaped_zeros = tf.zeros_like(inputs_0)
+                rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
+                inputs_0 = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs_0, inp_shaped_zeros)
+
+                inp_shaped_zeros = tf.zeros_like(inputs_1)
+                rand = tf.random_uniform( (config.batch_size * self.max_nums, self.max_depth  ) )
+                inputs_1 = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs_1, inp_shaped_zeros)
 
 
             LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs_1, config.batch_size * self.max_nums * self.max_depth, self.emb[1], config.latent_size)
@@ -336,7 +340,7 @@ class surr_formalParam(SetsOfSomething):
             latent_encoding_variables_intermediate = tf.reshape(latent_encoding_variables_intermediate, [config.batch_size * self.max_nums, self.max_depth, -1])
 
 
-            input_vars_mod_cond = tf.reduce_sum(tf.reshape(inputs[1] , [config.batch_size * self.max_nums , self.max_depth, 3]), axis=2)
+            input_vars_mod_cond = tf.reduce_sum(tf.reshape(inputs_1 , [config.batch_size * self.max_nums , self.max_depth, 3]), axis=2)
 
             LSTM_Encoder = seqEncoder_nested(self.num_layers, self.units, inputs_0, config.batch_size * self.max_nums, self.emb[0], latent_encoding_variables_intermediate, input_vars_mod_cond)
             encoding = LSTM_Encoder.output
