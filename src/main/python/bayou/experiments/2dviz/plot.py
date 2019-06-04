@@ -26,6 +26,7 @@ import re
 import numpy as np
 import tensorflow as tf
 from sklearn.manifold import TSNE
+from sklearn import decomposition
 
 from scripts.ast_extractor import get_ast_paths
 from bayou.models.low_level_evidences.predict import BayesianPredictor
@@ -34,20 +35,22 @@ from bayou.models.low_level_evidences.utils import read_config
 def plot(clargs):
     sess = tf.InteractiveSession()
     predictor = BayesianPredictor(clargs.save, sess)
-
+    print("model loaded")
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
-
+    print("config read")
     # Plot for indicidual evidences
     for ev in config.evidence:
+        if not (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name' or ev.name=='apicalls' ):
+            continue
         print(ev.name)
         with open(clargs.input_file[0], 'rb') as f:
             deriveAndScatter(f, predictor, [ev])
 
-    # Plot with all Evidences
-    with open(clargs.input_file[0], 'rb') as f:
-        deriveAndScatter(f, predictor, [ev for ev in config.evidence if (ev.name=='classtype' or ev.name=='sorrreturntype' or ev.name=='sorrformalparam' or ev.name=='sorrcallsequences')])
-
+    # # Plot with all Evidences
+    # with open(clargs.input_file[0], 'rb') as f:
+    #     deriveAndScatter(f, predictor, [ev for ev in config.evidence if (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name')])
+    #
 
 
     # print('Reverse Encoder Plot')
@@ -55,7 +58,7 @@ def plot(clargs):
     #     useAttributeAndScatter(f, 'b2')
 
 
-def useAttributeAndScatter(f, att, max_nums=10000):
+def useAttributeAndScatter(f, att, max_nums=1000):
     psis = []
     labels = []
     item_num = 0
@@ -93,9 +96,12 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
                 ev.name = "javaDoc"
             if ev.name == "classtype":
                 ev.name = "classTypes"
-            if ev.name == "sorrcallsequences":
-                ev.name = "sorrsequences"
-
+            if ev.name == "class_name":
+                ev.name = "file"
+            if ev.name == "method_name":
+                ev.name = "method"
+            if ev.name == "surrounding_evidence":
+                ev.name = "Surrounding_Evidences"
             if ev.name not in program:
                 continue
             shortProgram[ev.name] = program[ev.name]
@@ -118,6 +124,11 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
 def fitTSEandplot(psis, labels, name):
     model = TSNE(n_components=2, init='random')
     psis_2d = model.fit_transform(psis)
+
+    # pca = decomposition.PCA(n_components=2)
+    # pca.fit(psis)
+    # psis_2d = pca.transform(psis_2d)
+
     assert len(psis_2d) == len(labels)
     scatter(clargs, zip(psis_2d, labels), name)
 

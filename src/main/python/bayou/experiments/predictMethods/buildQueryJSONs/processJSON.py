@@ -307,7 +307,7 @@ def extract_evidence(fileName, expNumber):
                 elif evidence == "surr_formalParam":
                     methodEvidences[evidence] = []
                     for c in choice:
-                        methodEvidences[evidence].append('None')
+                        methodEvidences[evidence].append(c)
                 else:
                     methodEvidences[evidence] = choice
 

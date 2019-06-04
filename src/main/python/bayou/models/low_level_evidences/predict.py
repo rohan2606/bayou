@@ -179,10 +179,27 @@ class BayesianPredictor(object):
     def get_a1b1(self, evidences):
 
         rdp = [ev.read_data_point(evidences, infer=True) for ev in self.config.evidence]
-        inputs = [ev.wrangle([ev_rdp]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
+
+        config = self.config
+        raw_evidences = [rdp for j in range(self.config.batch_size)]
+        raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
+        raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
+        raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
+        rdp = raw_evidences
+
+
+        inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, rdp)]
+
+
         feed = {}
-        for j, ev in enumerate(self.config.evidence):
+        for j, _ in enumerate(self.config.evidence[:-1]):
             feed[self.inputs[j].name] = inputs[j]
+
+        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
+            feed[self.inputs[-1][j].name] = inputs[-1][j]
+
+        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
+            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
 
 
         [EncA, EncB] = self.sess.run( [ self.EncA, self.EncB ] , feed )
