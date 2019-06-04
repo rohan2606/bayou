@@ -122,12 +122,12 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
     fitTSEandplot(psis, labels, name)
 
 def fitTSEandplot(psis, labels, name):
-    model = TSNE(n_components=2, init='random')
-    psis_2d = model.fit_transform(psis)
+    # model = TSNE(n_components=2, init='random')
+    # psis_2d = model.fit_transform(psis)
 
-    # pca = decomposition.PCA(n_components=2)
-    # pca.fit(psis)
-    # psis_2d = pca.transform(psis_2d)
+    pca = decomposition.PCA(n_components=2)
+    pca.fit(psis)
+    psis_2d = pca.transform(psis)
 
     assert len(psis_2d) == len(labels)
     scatter(clargs, zip(psis_2d, labels), name)
