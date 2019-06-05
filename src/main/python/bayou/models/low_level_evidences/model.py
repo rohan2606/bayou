@@ -173,6 +173,9 @@ class Model():
                                             - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
                 self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
                 self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
+                
+                ## not required
+                self.probYgivenX =  -1 * self.loss
 
 
             self.allEvSigmas = [ ev.sigma for ev in self.config.evidence ]

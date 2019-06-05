@@ -159,6 +159,8 @@ class BayesianPredictor(object):
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
         self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
+        ## not required
+        self.probYgivenX =  -1 * self.loss
         ###############################
 
 
@@ -178,17 +180,9 @@ class BayesianPredictor(object):
 
     def get_a1b1(self, evidences):
 
-        rdp = [ev.read_data_point(evidences, infer=True) for ev in self.config.evidence]
-
-        config = self.config
-        raw_evidences = [rdp for j in range(self.config.batch_size)]
-        raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
-        raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
-        raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
-        rdp = raw_evidences
 
 
-        inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, rdp)]
+        inputs = self.wrange_inputs(program)
 
 
         feed = {}
@@ -206,7 +200,8 @@ class BayesianPredictor(object):
         return EncA, EncB
 
 
-    def get_a1b1a2b2(self, program):
+    def wrange_inputs(self, program):
+
         rdp = [ev.read_data_point(program, infer=True) for ev in self.config.evidence]
 
         config = self.config
@@ -218,6 +213,14 @@ class BayesianPredictor(object):
 
         # inputs = [ev.wrangle([ev_rdp for i in range(self.config.batch_size)]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
         inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, rdp)]
+
+        return inputs
+
+
+    def wrangle_data(self, program):
+
+        inputs = self.wrange_inputs(program)
+
         nodes = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.int32)
         edges = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.bool)
 
@@ -226,17 +229,19 @@ class BayesianPredictor(object):
 
         # parsed_data_array = []
         for i, (curr_node_val, parent_node_id, edge_type) in enumerate(path):
-            try: #curr_node_id or parent_call_id if None dictionary call will fail
-                curr_node_id = self.config.decoder.vocab[curr_node_val]
-                parent_call = path[parent_node_id][0]
-                parent_call_id = self.config.decoder.vocab[curr_node_val]
+            curr_node_id = self.config.decoder.vocab[curr_node_val]
+            parent_call = path[parent_node_id][0]
+            parent_call_id = self.config.decoder.vocab[curr_node_val]
 
-                if i > 0: # and not (curr_node_id is None or parent_call_id is None): # I = 0 denotes DSubtree ----sibling---> DSubTree
-                    nodes[0,i-1] = parent_call_id
-                    edges[0,i-1] = edge_type
-            except:
-                pass
+            if i > 0: # and not (curr_node_id is None or parent_call_id is None): # I = 0 denotes DSubtree ----sibling---> DSubTree
+                nodes[0,i-1] = parent_call_id
+                edges[0,i-1] = edge_type
 
+        return nodes, edges, inputs
+
+    def get_a1b1a2b2(self, program):
+
+        nodes, edges, inputs = self.wrangle_data(program)
         ignored = True if np.sum(nodes)==0 else False
 
         feed = {}
@@ -254,6 +259,28 @@ class BayesianPredictor(object):
 
         [EncA, EncB, RevEncA, RevEncB, probY] = self.sess.run( [  self.EncA, self.EncB , self.RevEncA, self.RevEncB , self.probY ] , feed )
         return EncA, EncB, RevEncA, RevEncB, probY, ignored
+
+
+
+    def get_probYgivenX(self, nodes, edges, inputs):
+
+        feed = {}
+        for j, _ in enumerate(self.config.evidence[:-1]):
+            feed[self.inputs[j].name] = inputs[j]
+
+        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
+            feed[self.inputs[-1][j].name] = inputs[-1][j]
+
+        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
+            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
+
+        feed[self.nodes.name] = nodes
+        feed[self.edges.name] = edges
+
+        [probYgivenX] = self.sess.run( [ self.probYgivenX ], feed)
+        return  probYgivenX
+
+
 
     def get_ev_sigma(self, evidences):
         # setup initial states and feed
