@@ -54,11 +54,11 @@ class embedding_server():
 
     def get_ProbYs_given_X(self, program, monteCarloIterations = 1000):
 
-        nodes, edges, inputs = self.predictor.wrangle_data(program)
+        nodes, edges, targets,  inputs = self.predictor.wrangle_data(program)
         probYs = []
         for count in range(monteCarloIterations):
             # print(count)
-            probYgivenX = self.predictor.get_probYgivenX(nodes, edges, inputs)
+            probYgivenX = self.predictor.get_probYgivenX(nodes, edges, targets, inputs)
             probYs.append(probYgivenX)
 
         # idealProbY = np.mean(np.asarray(probYs))

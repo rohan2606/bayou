@@ -41,9 +41,10 @@ class BayesianPredictor(object):
         self.inputs = [ev.placeholder(config) for ev in self.config.evidence]
         self.nodes = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
         self.edges = tf.placeholder(tf.bool, [config.batch_size, config.decoder.max_ast_depth])
+        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
 
 
-        targets  = tf.concat(  [self.nodes[:, 1:] , tf.zeros([config.batch_size , 1], dtype=tf.int32) ] ,axis=1 )  # shifted left by one
+        # targets  = tf.concat(  [self.nodes[:, 1:] , tf.zeros([config.batch_size , 1], dtype=tf.int32) ] ,axis=1 )  # shifted left by one
 
         ev_data = self.inputs[:-1]
         surr_input = self.inputs[-1][:-1]
@@ -147,7 +148,7 @@ class BayesianPredictor(object):
             cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
 
-            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(targets, [-1])], [cond])
+            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])], [cond])
 
 
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
@@ -223,6 +224,7 @@ class BayesianPredictor(object):
 
         nodes = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.int32)
         edges = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.bool)
+        targets = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.bool)
 
         ast_node_graph = get_ast_from_json(program['ast']['_nodes'])
         path = ast_node_graph.depth_first_search()
@@ -231,17 +233,18 @@ class BayesianPredictor(object):
         for i, (curr_node_val, parent_node_id, edge_type) in enumerate(path):
             curr_node_id = self.config.decoder.vocab[curr_node_val]
             parent_call = path[parent_node_id][0]
-            parent_call_id = self.config.decoder.vocab[curr_node_val]
+            parent_call_id = self.config.decoder.vocab[parent_call]
 
             if i > 0: # and not (curr_node_id is None or parent_call_id is None): # I = 0 denotes DSubtree ----sibling---> DSubTree
                 nodes[0,i-1] = parent_call_id
                 edges[0,i-1] = edge_type
+                targets[0,i-1] = curr_node_id
 
-        return nodes, edges, inputs
+        return nodes, edges, targets, inputs
 
     def get_a1b1a2b2(self, program):
 
-        nodes, edges, inputs = self.wrangle_data(program)
+        nodes, edges, targets, inputs = self.wrangle_data(program)
         ignored = True if np.sum(nodes)==0 else False
 
         feed = {}
@@ -256,13 +259,14 @@ class BayesianPredictor(object):
 
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
+        feed[self.targets.name] = targets
 
         [EncA, EncB, RevEncA, RevEncB, probY] = self.sess.run( [  self.EncA, self.EncB , self.RevEncA, self.RevEncB , self.probY ] , feed )
         return EncA, EncB, RevEncA, RevEncB, probY, ignored
 
 
 
-    def get_probYgivenX(self, nodes, edges, inputs):
+    def get_probYgivenX(self, nodes, edges, targets, inputs):
 
         feed = {}
         for j, _ in enumerate(self.config.evidence[:-1]):
@@ -276,6 +280,7 @@ class BayesianPredictor(object):
 
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
+        feed[self.targets.name] = targets
 
         [probYgivenX] = self.sess.run( [ self.probYgivenX ], feed)
         return  probYgivenX
