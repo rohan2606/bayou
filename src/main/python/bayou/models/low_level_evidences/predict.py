@@ -156,12 +156,16 @@ class BayesianPredictor(object):
             self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
 
 
-        self.probY = -1 * self.loss + self.get_multinormal_lnprob(self.psi_reverse_encoder)  - self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
+        self.probY =  -1 * self.loss*32 + \
+                             self.get_multinormal_lnprob(self.psi_reverse_encoder) - \
+                             self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
         self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
         ## not required
-        self.probYgivenX =  -1 * self.loss
+        self.probYgivenX =  -1 * self.loss*32 \
+                    + self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance) \
+                    - self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
         ###############################
 
 
@@ -181,9 +185,7 @@ class BayesianPredictor(object):
 
     def get_a1b1(self, evidences):
 
-
-
-        inputs = self.wrange_inputs(program)
+        inputs = self.wrange_inputs(evidences)
 
 
         feed = {}
@@ -231,14 +233,17 @@ class BayesianPredictor(object):
 
         # parsed_data_array = []
         for i, (curr_node_val, parent_node_id, edge_type) in enumerate(path):
-            curr_node_id = self.config.decoder.vocab[curr_node_val]
-            parent_call = path[parent_node_id][0]
-            parent_call_id = self.config.decoder.vocab[parent_call]
+            try:
+                curr_node_id = self.config.decoder.vocab[curr_node_val]
+                parent_call = path[parent_node_id][0]
+                parent_call_id = self.config.decoder.vocab[parent_call]
 
-            if i > 0: # and not (curr_node_id is None or parent_call_id is None): # I = 0 denotes DSubtree ----sibling---> DSubTree
-                nodes[0,i-1] = parent_call_id
-                edges[0,i-1] = edge_type
-                targets[0,i-1] = curr_node_id
+                if i > 0: # and not (curr_node_id is None or parent_call_id is None): # I = 0 denotes DSubtree ----sibling---> DSubTree
+                    nodes[0,i-1] = parent_call_id
+                    edges[0,i-1] = edge_type
+                    targets[0,i-1] = curr_node_id
+            except:
+                pass
 
         return nodes, edges, targets, inputs
 

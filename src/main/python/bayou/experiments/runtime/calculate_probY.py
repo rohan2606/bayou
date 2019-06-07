@@ -69,10 +69,14 @@ class embedding_server():
 
         EncA, EncB, RevEncA, RevEncB, probY, ignored= self.predictor.get_a1b1a2b2(program)
         # idealProbY = np.mean(np.asarray(probYs))
-        prob_Y_given_X = get_c_minus_cstar(EncA, EncB, RevEncA, RevEncB, probY, self.predictor.config.latent_size)
+
+        prob_Y_given_X = get_c_minus_cstar(EncA[0], EncB[0], RevEncA[0:1], RevEncB[0:1], probY[0:1], self.predictor.config.latent_size)
         return prob_Y_given_X
 
-    def get_running_error(self, probYs):
+
+
+    def get_running_mean(self, probYs):
+
 
         running_mean = []
         curr_sum = 0
@@ -81,8 +85,11 @@ class embedding_server():
             curr_mean = curr_sum/(count+1)
             running_mean.append(curr_mean)
 
-        ideal_val = running_mean[-1]
+        ideal_val = min(running_mean) #running_mean[-1]
+        return running_mean, ideal_val
 
+
+    def get_running_error(self, probYs):
         running_std_errors = []
         for val in running_mean:
             std_error = np.sqrt( np.square(ideal_val - val) )
@@ -112,12 +119,14 @@ if __name__ == "__main__":
     std_errors = []
     for j, program in enumerate(programs):
         print("Working with program no :: " + str(j))
-        probYs = EmbS.get_ProbYs_given_X(program)
-        running_std_errors = EmbS.get_running_error(probYs)
-        std_errors.append(running_std_errors)
         probY_model = EmbS.get_ProbYs_given_X_from_Bayou(program)
+
+        probYs = EmbS.get_ProbYs_given_X(program)
+        running_mean, ideal_val = EmbS.get_running_mean(probYs)
+        # running_std_errors = EmbS.get_running_error(probYs)
+        # std_errors.append(running_std_errors)
+        print(ideal_val)
         print(probY_model)
-        print(probYs[-1])
 
     final_error_graph = np.mean(np.stack(std_errors, axis=0), axis=0)
 
