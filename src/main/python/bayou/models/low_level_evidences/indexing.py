@@ -47,20 +47,29 @@ def index(clargs):
     reader = Reader(clargs, config, infer=True)
 
 	# Placeholders for tf data
+    
+
+    # Placeholders for tf data
     nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
     targets_placeholder = tf.placeholder(reader.targets.dtype, reader.targets.shape)
-    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
+    surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
+    surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
 
-    # reset batches
-    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs[:-1])}
+    feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
+    feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
+
+
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({targets_placeholder: reader.targets})
 
-    dataset = tf.data.Dataset.from_tensor_slices((nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder, targets_placeholder, *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
+
     jsp = reader.js_programs
 
 
@@ -76,7 +85,7 @@ def index(clargs):
 
 
         programs = []
-        k = 69
+        k = 0
         for j in range(config.num_batches):
             prob_Y, a1,b1, a2, b2 = predictor.get_all_params_inago()
             for i in range(config.batch_size):
@@ -125,7 +134,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', '/home/ubuntu/savedSearchModel',
+    clargs = parser.parse_args(['--save', 'save_vldb_v5_RE',
         '/home/ubuntu/DATA-Licensed_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
