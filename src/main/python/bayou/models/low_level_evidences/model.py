@@ -97,7 +97,7 @@ class Model():
 
             self.loss_RE_enc = loss_RE_enc
             self.loss_RE_rev_enc = loss_RE_rev_enc
-             
+
 
         with tf.variable_scope("FS_Decoder", reuse=tf.AUTO_REUSE):
             #FS
@@ -114,7 +114,7 @@ class Model():
 
             output_Enc = tf.reshape(tf.concat(self.decoder_FS_enc.outputs, 1), [-1, self.decoder_FS_enc.cell1.output_size])
             output_RevEnc = tf.reshape(tf.concat(self.decoder_FS_rev_enc.outputs, 1), [-1, self.decoder_FS_rev_enc.cell1.output_size])
-            
+
             logits_FS_Enc = tf.matmul(output_Enc, self.decoder_FS_enc.projection_w_FS) + self.decoder_FS_enc.projection_b_FS
             logits_FS_RevEnc = tf.matmul(output_RevEnc, self.decoder_FS_rev_enc.projection_w_FS) + self.decoder_FS_rev_enc.projection_b_FS
 
@@ -156,29 +156,42 @@ class Model():
             self.gen_loss_rev_enc = seq2seq.sequence_loss([logits_rev_enc], [tf.reshape(targets, [-1])], [cond]) #[tf.ones_like(tf.reshape(targets, [-1]))])
 
               # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
-            KL_loss = 0.5 * tf.reduce_mean( -1 * tf.log(self.reverse_encoder.psi_covariance)
-              - 1 + self.reverse_encoder.psi_covariance
-              + tf.square( self.reverse_encoder.psi_mean)
+            KL_loss = 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
+              - 1 + self.reverse_encoder.psi_covariance / self.encoder.psi_covariance
+              + tf.square(self.encoder.psi_mean - self.reverse_encoder.psi_mean)/self.encoder.psi_covariance
+              , axis=1)
+
+              # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
+            KL_loss += 0.5 * tf.reduce_mean( tf.log(self.reverse_encoder.psi_covariance) - tf.log(self.encoder.psi_covariance)
+              - 1 + self.encoder.psi_covariance / self.reverse_encoder.psi_covariance
+              + tf.square(self.reverse_encoder.psi_mean - self.encoder.psi_mean)/self.reverse_encoder.psi_covariance
+              , axis=1)
+
+              # 3. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
+            KL_loss += 0.5 * tf.reduce_mean( - tf.log(self.encoder.psi_covariance)
+              - 1 + self.encoder.psi_covariance
+              + tf.square( -self.encoder.psi_mean)
               , axis=1)
 
 
 
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
             self.KL_loss = KL_loss #tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
-                
+
             self.loss_enc = self.gen_loss_enc + 1/32 * self.loss_RE_enc  + 8/32 * self.gen_loss_FS_Enc
-            self.loss_rev_enc = self.gen_loss_rev_enc + 1/32 * self.loss_RE_rev_enc  + 8/32 * self.gen_loss_FS_RevEnc
-            
-            self.loss = tf.log( self.loss_rev_enc * 32 +  self.KL_loss * 256) + (self.loss_enc * 32)  - ( self.get_multinormal_lnprob(self.psi_encoder) - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance))
+            # self.loss_rev_enc = self.gen_loss_rev_enc + 1/32 * self.loss_RE_rev_enc  + 8/32 * self.gen_loss_FS_RevEnc
+
+            self.loss = self.loss_enc + 0.1*self.KL_loss
+            #tf.log( self.loss_rev_enc * 32 +  self.KL_loss * 256) + (self.loss_enc * 32)  - ( self.get_multinormal_lnprob(self.psi_encoder) - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance))
 
 				# P(Y) = int_Z P(YZ) = int_Z P(Y|Z)P(Z) = int_Z P(Y|Z)P(Z|X)P(Z)/P(Z|X) = sum_Z P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
                 # last step by importace_sampling
                 # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
 				# P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
-            #self.probY = -1 * self.loss + self.get_multinormal_lnprob(self.psi_encoder) \
-            #                          - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
-            #self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
-            #self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
+            self.probY = -1 * self.loss + self.get_multinormal_lnprob(self.psi_encoder) \
+                                      - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
+            self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
+            self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
 
             self.allEvSigmas = [ ev.sigma for ev in self.config.evidence ]
