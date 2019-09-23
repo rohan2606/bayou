@@ -85,12 +85,13 @@ def index(clargs):
 
 
         programs = []
-        start = 8
-        k = start + 0
-        end = 16 #config.num_batches
+        step=200
+        start = 0*step
+        end = 16*step
+        end = min(end , config.num_batches)
         print(f'Running from {start} to {end}')
         for j in range(end):
-            if j < skip_k:
+            if j < start:
                  new_batch = iterator.next()
                  continue
             prob_Y, a1,b1, a2, b2 = predictor.get_all_params_inago()
@@ -104,9 +105,9 @@ def index(clargs):
                 prog_json['ProbY'] = "%.3f" % prob_Y[i].item()
                 programs.append(prog_json)
 
-            if (j+1) % 200 == 0 or (j+1) == config.num_batches:
+            if (j+1) % step == 0 or (j+1) == config.num_batches:
+                k = (j+1)//step
                 fileName = "Program_output_" + str(k) + ".json"
-                k += 1
                 print('\nWriting to {}...'.format(fileName), end='')
                 with open(fileName, 'w') as f:
                      json.dump({'programs': programs}, fp=f, indent=2)
