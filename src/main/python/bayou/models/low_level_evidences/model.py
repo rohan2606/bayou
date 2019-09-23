@@ -168,7 +168,7 @@ class Model():
               , axis=1)
 
               # 3. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
-            KL_loss += 0.5 * tf.reduce_mean( - tf.log(self.encoder.psi_covariance)
+            regu_KL_loss = 0.5 * tf.reduce_mean( - tf.log(self.encoder.psi_covariance)
               - 1 + self.encoder.psi_covariance
               + tf.square( -self.encoder.psi_mean)
               , axis=1)
@@ -178,10 +178,12 @@ class Model():
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
             self.KL_loss = KL_loss #tf.reduce_mean( tf.where( KL_cond  , KL_loss, tf.zeros_like(KL_loss)) , axis = 0 )
 
+            regularizor = tf.reduce_sum([ tf.square(ev.sigma) for ev in self.config.evidence ])
+            
             self.loss_enc = self.gen_loss_enc + 1/32 * self.loss_RE_enc  + 8/32 * self.gen_loss_FS_Enc
             # self.loss_rev_enc = self.gen_loss_rev_enc + 1/32 * self.loss_RE_rev_enc  + 8/32 * self.gen_loss_FS_RevEnc
 
-            self.loss = self.loss_enc + 0.001*self.KL_loss
+            self.loss = self.loss_enc + 0.001*self.KL_loss + 0.1*regu_KL_loss + 0.1*regularizor
             #tf.log( self.loss_rev_enc * 32 +  self.KL_loss * 256) + (self.loss_enc * 32)  - ( self.get_multinormal_lnprob(self.psi_encoder) - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance))
 
 				# P(Y) = int_Z P(YZ) = int_Z P(Y|Z)P(Z) = int_Z P(Y|Z)P(Z|X)P(Z)/P(Z|X) = sum_Z P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
