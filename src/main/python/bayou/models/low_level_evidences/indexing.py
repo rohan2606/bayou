@@ -85,8 +85,14 @@ def index(clargs):
 
 
         programs = []
-        k = 0
-        for j in range(config.num_batches):
+        start = 8
+        k = start + 0
+        end = 16 #config.num_batches
+        print(f'Running from {start} to {end}')
+        for j in range(end):
+            if j < skip_k:
+                 new_batch = iterator.next()
+                 continue
             prob_Y, a1,b1, a2, b2 = predictor.get_all_params_inago()
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
@@ -136,7 +142,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save',
+    clargs = parser.parse_args(['--save', 'save_scratch',
         '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
