@@ -14,8 +14,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.8,
-            "ev_call_drop_prob":0.7
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "types",
@@ -24,8 +24,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.8,
-            "ev_call_drop_prob":0.7
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "keywords",
@@ -34,8 +34,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.7,
-            "ev_call_drop_prob":0.6
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "callsequences",
@@ -44,8 +44,8 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":0.5,
-            "ev_call_drop_prob":0.6
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "returntype",
@@ -54,7 +54,7 @@
             "tile": 1,
             "max_depth": 1,
             "max_nums": 1,
-            "ev_drop_prob":0.8,
+            "ev_drop_prob":1.0,
             "ev_call_drop_prob":1.00
         },
         {
@@ -64,8 +64,8 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":0.8,
-            "ev_call_drop_prob":0.9
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
           "name": "javadoc",
@@ -74,8 +74,8 @@
           "tile": 1,
           "max_depth": 32,
           "max_nums": 1,
-          "ev_drop_prob":0.7,
-          "ev_call_drop_prob":0.8
+          "ev_drop_prob":1.0,
+          "ev_call_drop_prob":1.0
         },
         {
             "name": "classtype",
@@ -84,8 +84,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 16,
-            "ev_drop_prob":0.9,
-            "ev_call_drop_prob":0.8
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "class_name",
@@ -94,8 +94,8 @@
             "tile": 1,
             "max_depth": 4,
             "max_nums": 1,
-            "ev_drop_prob":0.8,
-            "ev_call_drop_prob":0.8
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "method_name",
@@ -104,8 +104,8 @@
             "tile": 1,
             "max_depth": 4,
             "max_nums": 1,
-            "ev_drop_prob":0.8,
-            "ev_call_drop_prob":0.8
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "surrounding_evidence",
@@ -114,8 +114,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.8,
-            "ev_call_drop_prob":0.8,
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0,
             "evidence": [
                 {
                     "name": "surr_returnType",
@@ -124,8 +124,8 @@
                     "tile": 1,
                     "max_depth": 1,
                     "max_nums": 8,
-                    "ev_drop_prob":0.8,
-                    "ev_call_drop_prob":0.7
+                    "ev_drop_prob":1.0,
+                    "ev_call_drop_prob":1.0
                 },
                 {
                     "name": "surr_sequences",
@@ -134,8 +134,8 @@
                     "tile": 1,
                     "max_depth": 8,
                     "max_nums": 8,
-                    "ev_drop_prob":0.8,
-                    "ev_call_drop_prob":0.7
+                    "ev_drop_prob":1.0,
+                    "ev_call_drop_prob":1.0
                 },
                 {
                     "name": "surr_methodName",
@@ -144,8 +144,8 @@
                     "tile": 1,
                     "max_depth": 4,
                     "max_nums": 8,
-                    "ev_drop_prob":0.7,
-                    "ev_call_drop_prob":0.6
+                    "ev_drop_prob":1.0,
+                    "ev_call_drop_prob":1.0
                 },
                 {
                     "name": "surr_formalParam",
@@ -154,8 +154,8 @@
                     "tile": 1,
                     "max_depth": 8,
                     "max_nums": 8,
-                    "ev_drop_prob":0.7,
-                    "ev_call_drop_prob":0.6
+                    "ev_drop_prob":1.0,
+                    "ev_call_drop_prob":1.0
                 }
           ]
         }

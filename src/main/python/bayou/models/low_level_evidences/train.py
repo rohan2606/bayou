@@ -101,7 +101,6 @@ def train(clargs):
                 loss, KL_loss, gen_loss_enc , RE_loss_enc, FS_loss_enc , gen_loss_rev_enc, RE_loss_rev_enc , FS_loss_rev_enc , _, allEvSigmas = sess.run([model.loss, model.KL_loss, model.gen_loss_enc, model.loss_RE_enc, model.gen_loss_FS_Enc,model.gen_loss_rev_enc , model.loss_RE_rev_enc , model.gen_loss_FS_RevEnc , model.train_op, model.allEvSigmas])
 
 
-                end = time.time()
                 avg_loss += np.mean(loss)
                 avg_gen_loss_enc += np.mean(gen_loss_enc)
                 avg_gen_loss_rev_enc += np.mean(gen_loss_rev_enc)
@@ -117,13 +116,13 @@ def train(clargs):
                     print('{}/{} (epoch {}) '
                           'loss: {:.3f}, Encoder :: gen_loss: {:.3f}, Ret_loss {:.3f}, FS_loss {:.3f}, RevEncoder gen_loss: {:.3f}, Ret_loss {:.3f}, FS_loss {:.3f}, KL_loss: {:.3f}, \n\t'.format(step, config.num_epochs * config.num_batches, i + 1 ,(avg_loss)/(b+1), (avg_gen_loss_enc)/(b+1), (avg_RE_loss_enc)/(b+1), (avg_FS_loss_enc)/(b+1), (avg_gen_loss_rev_enc)/(b+1), (avg_RE_loss_rev_enc)/(b+1), (avg_FS_loss_rev_enc)/(b+1), (avg_KL_loss)/(b+1)))
                     print (allEvSigmas)
-                if step % 30000 == 0:
-                    checkpoint_dir = os.path.join(clargs.save, 'model_temp_new{}.ckpt'.format(step))
-                    saver.save(sess, checkpoint_dir)
+                #if step % 30000 == 0:
+                #    checkpoint_dir = os.path.join(clargs.save, 'model_temp_new{}.ckpt'.format(step))
+                #    saver.save(sess, checkpoint_dir)
 
             #epocLoss.append(avg_loss / config.num_batches), epocGenL.append(avg_gen_loss / config.num_batches), epocKlLoss.append(avg_KL_loss / config.num_batches)
             if (i+1) % config.checkpoint_step == 0:
-                checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i+20))
+                checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i))
                 saver.save(sess, checkpoint_dir)
 
                 print('Model checkpointed: {}. Average for epoch , '
@@ -139,7 +138,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save',
+    parser.add_argument('--save', type=str, default='save_scratch_2',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -147,7 +146,7 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     #['--continue_from', 'save_vldb_v5_RE',
+     #['--continue_from', 'save',
      ['--config','config.json',
     '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json']) #DATA-newSurrounding_methodHeaders_train.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
