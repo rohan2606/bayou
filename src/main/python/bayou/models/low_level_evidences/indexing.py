@@ -87,12 +87,12 @@ def index(clargs):
         programs = []
         step=200
         start = 0*step
-        end = 16*step
+        end = 18*step
         end = min(end , config.num_batches)
         print(f'Running from {start} to {end}')
         for j in range(end):
             if j < start:
-                 new_batch = iterator.next()
+                 new_batch = iterator.get_next()
                  continue
             prob_Y, a1,b1, a2, b2 = predictor.get_all_params_inago()
             for i in range(config.batch_size):
@@ -100,8 +100,8 @@ def index(clargs):
                 prog_json = deepcopy(jsp[   j * config.batch_size + i   ])
                 prog_json['a2'] =   "%.3f" % a2[i].item()
                 prog_json['b2'] =   [ "%.3f" % val.item() for val in b2[i]]
-                prog_json['a1'] =   "%.3f" % a1[i].item()
-                prog_json['b1'] =   [ "%.3f" % val.item() for val in b1[i]]
+                #prog_json['a1'] =   "%.3f" % a1[i].item()
+                #prog_json['b1'] =   [ "%.3f" % val.item() for val in b1[i]]
                 prog_json['ProbY'] = "%.3f" % prob_Y[i].item()
                 programs.append(prog_json)
 
