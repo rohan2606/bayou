@@ -94,9 +94,9 @@ def modifyInputForExperiment(sample, expNumber, config):
     for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
         if ev not in sample:
             return {}
-        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 1 ):
+        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 5 ):
             return {}
-        if ev == 'Surrounding_Evidences' and len(sample[ev]) < 1:
+        if ev == 'Surrounding_Evidences' and len(sample[ev]) < 5:
             return {}
         if ev == 'sequences':
             for elem in sample[ev]:
