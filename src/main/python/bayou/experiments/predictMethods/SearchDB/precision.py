@@ -9,10 +9,10 @@ if __name__=="__main__":
 
     numThreads = 30
     batch_size = 5
-    minJSONs = 0
-    maxJSONs = 3 #230
+    minJSONs = 1
+    maxJSONs = 69
     dimension = 256
-    topK = 10000
+    topK = 11 #0000
 
     JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, minJSONs=minJSONs , maxJSONs=maxJSONs)
     listOfColDB = JSONReader.readAllJSONs()
@@ -27,9 +27,9 @@ if __name__=="__main__":
 
     print ("Initiate Scanner")
     scanner = searchFromDB(listOfColDB, topK, batch_size)
-    hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
+    hit_points = [1,2,3,4,5,6,7,8,9,10,11]
 
-    for expNumber in [3,4,5,6]:
+    for expNumber in [0,1,2,3,4,5,6]:
         print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
         embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
 
