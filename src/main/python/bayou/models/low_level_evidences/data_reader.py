@@ -118,7 +118,7 @@ class Reader():
             # gc.collect()
 
             print('Saving...')
-            with open('data/inputs', 'wb') as f:
+            with open('data/inputs.npy', 'wb') as f:
                 pickle.dump(self.inputs, f, protocol=4) #pickle.HIGHEST_PROTOCOL)
             # with open(', 'wb') as f:
             np.save('data/nodes', self.nodes)
@@ -183,7 +183,7 @@ class Reader():
 
             if done % 100000 == 0:
                 print('Extracted data for {} programs'.format(done), end='\n')
-                break
+                # break
 
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts missed in training data for loop'.format(ignored_for_loop))
