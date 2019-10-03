@@ -75,13 +75,15 @@ def exact_match_sequence(dictSeqA, seqB):
 
 
 def get_api_dict():
-    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_test.pkl", "rb") as f:
-            dict_api_calls_test = pickle.load(f)
-    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_train.pkl", "rb") as f:
-            dict_api_calls_train = pickle.load(f)
+    #with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_test.pkl", "rb") as f:
+    #        dict_api_calls_test = pickle.load(f)
+    #with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_calls_train.pkl", "rb") as f:
+    #        dict_api_calls_train = pickle.load(f)
 
-    dict_api_calls = dict_api_calls_test
-    dict_api_calls.update(dict_api_calls_train)
+    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_api_all_data.pkl", "rb") as f:
+            dict_api_calls = pickle.load(f)
+    #dict_api_calls = dict_api_calls_test
+    #dict_api_calls.update(dict_api_calls_train)
     return dict_api_calls
 
 def get_ast_dict():
