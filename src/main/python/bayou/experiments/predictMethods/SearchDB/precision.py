@@ -10,7 +10,7 @@ if __name__=="__main__":
     numThreads = 30
     batch_size = 5
     minJSONs = 0
-    maxJSONs = 1 #259
+    maxJSONs = 259
     dimension = 256
     topK = 10
 

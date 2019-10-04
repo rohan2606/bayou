@@ -156,14 +156,14 @@ class BayesianPredictor(object):
             self.loss = self.gen_loss + 1/8 * self.loss_RE  + 8/8 * self.gen_loss_FS
 
 
-        self.probY =  -1 * self.loss*8 + \
-                             self.get_multinormal_lnprob(self.psi_encoder) - \
-                             self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
+        self.probY =  -1 * self.loss * 8 + \
+                             self.get_multinormal_lnprob(self.encoder.psi_mean) - \
+                             self.get_multinormal_lnprob(self.encoder.psi_mean,self.encoder.psi_mean,self.encoder.psi_covariance)
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
         self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
         ## not required
-        self.probYgivenX =  -1 * self.loss #\
+        self.probYgivenX =  -1 * self.loss * 8 #\
                     #+ 1/256*(self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance) \
                     #- self.get_multinormal_lnprob(self.psi_encoder))
         ###############################
