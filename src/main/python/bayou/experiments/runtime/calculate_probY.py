@@ -63,7 +63,7 @@ class embedding_server():
                 else:
                     sum_probY = np.logaddexp(sum_probY, probYgivenX)
 
-            return sum_probY / monteCarloIterations
+            return sum_probY - log(monteCarloIterations)
 
         _, _, _, inputs = self.predictor.wrangle_data(qry_program)
         prob_Y_given_X = [None]*len(db_program_items[0])
