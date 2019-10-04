@@ -78,7 +78,7 @@ class BayesianPredictor(object):
         with tf.variable_scope("Decoder"):
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])
             lift_b = tf.get_variable('lift_b', [config.decoder.units])
-            initial_state = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w, lift_b, name="Initial_State")
+            initial_state = tf.nn.xw_plus_b(self.psi_encoder, lift_w, lift_b, name="Initial_State")
             self.decoder = BayesianDecoder(config, emb, initial_state, nodes, edges)
 
         with tf.variable_scope("RE_Decoder"):
@@ -89,7 +89,7 @@ class BayesianPredictor(object):
             lift_w_RE = tf.get_variable('lift_w_RE', [config.latent_size, config.evidence[4].units])
             lift_b_RE = tf.get_variable('lift_b_RE', [config.evidence[4].units])
 
-            initial_state_RE = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
+            initial_state_RE = tf.nn.xw_plus_b(self.psi_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
 
             input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(ev_data[4]), axis=[1]))
             output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
@@ -111,7 +111,7 @@ class BayesianPredictor(object):
             lift_w_FS = tf.get_variable('lift_w_FS', [config.latent_size, config.evidence[5].units])
             lift_b_FS = tf.get_variable('lift_b_FS', [config.evidence[5].units])
 
-            initial_state_FS = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS")
+            initial_state_FS = tf.nn.xw_plus_b(self.psi_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS")
 
             input_FS = tf.transpose(tf.reverse_v2(ev_data[5], axis=[1]))
             self.decoder_FS = SimpleDecoder(config, emb_FS, initial_state_FS, input_FS, config.evidence[5])
@@ -153,19 +153,19 @@ class BayesianPredictor(object):
 
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
 
-            self.loss = self.gen_loss + 1/32 * self.loss_RE  + 8/32 * self.gen_loss_FS
+            self.loss = self.gen_loss + 1/8 * self.loss_RE  + 8/8 * self.gen_loss_FS
 
 
-        self.probY =  -1 * self.loss*32 + \
-                             self.get_multinormal_lnprob(self.psi_reverse_encoder) - \
-                             self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
+        self.probY =  -1 * self.loss*8 + \
+                             self.get_multinormal_lnprob(self.psi_encoder) - \
+                             self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
         self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
         ## not required
-        self.probYgivenX =  -1 * self.loss*32 \
-                    + self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance) \
-                    - self.get_multinormal_lnprob(self.psi_reverse_encoder,self.reverse_encoder.psi_mean,self.reverse_encoder.psi_covariance)
+        self.probYgivenX =  -1 * self.loss #\
+                    #+ 1/256*(self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance) \
+                    #- self.get_multinormal_lnprob(self.psi_encoder))
         ###############################
 
 
@@ -226,7 +226,7 @@ class BayesianPredictor(object):
 
         nodes = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.int32)
         edges = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.bool)
-        targets = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.bool)
+        targets = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.int32)
 
         ast_node_graph = get_ast_from_json(program['ast']['_nodes'])
         path = ast_node_graph.depth_first_search()

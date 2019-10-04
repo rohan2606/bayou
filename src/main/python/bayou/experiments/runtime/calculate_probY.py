@@ -61,7 +61,7 @@ class embedding_server():
                 if count == 0:
                     sum_probY = probYgivenX
                 else:
-                    sum_probY = np.logaddexp(probY, probYgivenX)
+                    sum_probY = np.logaddexp(sum_probY, probYgivenX)
 
             return sum_probY / monteCarloIterations
 
