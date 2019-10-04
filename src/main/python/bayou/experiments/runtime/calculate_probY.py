@@ -55,12 +55,15 @@ class embedding_server():
     def manto_carlo_prob_y_given_x(self, qry_program, db_program_items, monteCarloIterations = 10):
 
         def single_prob(nodes, edges, targets, inputs):
-            probY = 0.
+            sum_probY = None
             for count in range(monteCarloIterations):
                 probYgivenX = self.predictor.get_probYgivenX(nodes, edges, targets, inputs)
-                probY += probYgivenX
+                if count == 0:
+                    sum_probY = probYgivenX
+                else:
+                    sum_probY = np.logaddexp(probY, probYgivenX)
 
-            return probY / monteCarloIterations
+            return sum_probY / monteCarloIterations
 
         _, _, _, inputs = self.predictor.wrangle_data(qry_program)
         prob_Y_given_X = [None]*len(db_program_items[0])
@@ -131,4 +134,3 @@ if __name__ == "__main__":
 
     # print(final_error_graph)
         # get_estimate_at_step
-
