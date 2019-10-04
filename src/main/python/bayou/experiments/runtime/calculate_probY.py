@@ -52,50 +52,37 @@ class embedding_server():
         programs = js['programs'][0:items]
         return programs
 
-    def get_ProbYs_given_X(self, program, monteCarloIterations = 1000):
+    def manto_carlo_prob_y_given_x(self, qry_program, db_program_items, monteCarloIterations = 10):
 
-        nodes, edges, targets,  inputs = self.predictor.wrangle_data(program)
-        probYs = []
-        for count in range(monteCarloIterations):
-            # print(count)
-            probYgivenX = self.predictor.get_probYgivenX(nodes, edges, targets, inputs)
-            probYs.append(probYgivenX)
+        def single_prob(nodes, edges, targets, inputs):
+            probY = 0.
+            for count in range(monteCarloIterations):
+                probYgivenX = self.predictor.get_probYgivenX(nodes, edges, targets, inputs)
+                probY += probYgivenX
 
-        # idealProbY = np.mean(np.asarray(probYs))
-        return probYs
+            return probY / monteCarloIterations
 
+        _, _, _, inputs = self.predictor.wrangle_data(qry_program)
+        prob_Y_given_X = [None]*len(db_program_items[0])
 
-    def get_ProbYs_given_X_from_Bayou(self, program):
-
-        EncA, EncB, RevEncA, RevEncB, probY, ignored= self.predictor.get_a1b1a2b2(program)
-        # idealProbY = np.mean(np.asarray(probYs))
-
-        prob_Y_given_X = get_c_minus_cstar(EncA[0], EncB[0], RevEncA[0:1], RevEncB[0:1], probY[0:1], self.predictor.config.latent_size)
-        return prob_Y_given_X
-
+        k=0
+        for node, edge, target in zip(*db_program_items):
+            prob_Y_given_X[k] = single_prob(node, edge, target, inputs)
+            k+=1
+        Z = np.logaddexp.reduce(np.array(prob_Y_given_X),dtype=float)
+        return [prob-Z for prob in prob_Y_given_X]
 
 
-    def get_running_mean(self, probYs):
 
+    def rev_encoder_prob_y_given_x(self, qry_program, db_programs):
+        EncA, EncB, _, _, _, ignored= self.predictor.get_a1b1a2b2(qry_program)
+        prob_Y_given_X = [None]*len(db_programs)
+        for k, program in enumerate(db_programs):
+            _ , _ , RevEncA, RevEncB, probY, ignored= self.predictor.get_a1b1a2b2(program)
+            prob_Y_given_X[k] = get_c_minus_cstar(EncA[0], EncB[0], RevEncA[0:1], RevEncB[0:1], probY[0:1], self.predictor.config.latent_size)
+        Z = np.logaddexp.reduce(np.array(prob_Y_given_X),dtype=float)
+        return [prob-Z for prob in prob_Y_given_X]
 
-        running_mean = []
-        curr_sum = 0
-        for count , probY in enumerate(probYs):
-            curr_sum += probY
-            curr_mean = curr_sum/(count+1)
-            running_mean.append(curr_mean)
-
-        ideal_val = min(running_mean) #running_mean[-1]
-        return running_mean, ideal_val
-
-
-    def get_running_error(self, probYs):
-        running_std_errors = []
-        for val in running_mean:
-            std_error = np.sqrt( np.square(ideal_val - val) )
-            running_std_errors.append(std_error)
-
-        return np.asarray(running_std_errors)
 
 
 
@@ -114,23 +101,34 @@ if __name__ == "__main__":
     # initiate the server
     EmbS = embedding_server()
     # get the input JSON
-    programs = EmbS.getExampleJsons('../predictMethods/log/expNumber_6/', 10)
+    all_programs = EmbS.getExampleJsons('../predictMethods/log/expNumber_6/', 10)
+    db_program = all_programs[:10]
+
+    nodes, edges, targets, inputs = [], [], [], []
+    for program in db_program:
+        node, edge, target, input_ = EmbS.predictor.wrangle_data(program)
+        nodes.append(node)
+        edges.append(edge)
+        targets.append(target)
+        inputs.append(input_)
+
+    db_program_items = [nodes, edges, targets]
+    qry_program_inputs = inputs
+    # print(len(db_program))
     #get the probs
-    std_errors = []
-    for j, program in enumerate(programs):
+    # std_errors = []
+    for j, qry_program in enumerate(all_programs):
         print("Working with program no :: " + str(j))
-        probY_model = EmbS.get_ProbYs_given_X_from_Bayou(program)
+        rev_prob = EmbS.rev_encoder_prob_y_given_x(qry_program, db_program)
+        mc_mean = EmbS.manto_carlo_prob_y_given_x(qry_program, db_program_items)
 
-        probYs = EmbS.get_ProbYs_given_X(program)
-        running_mean, ideal_val = EmbS.get_running_mean(probYs)
-        # running_std_errors = EmbS.get_running_error(probYs)
-        # std_errors.append(running_std_errors)
-        print(ideal_val)
-        print(probY_model)
+        print(rev_prob)
+        print(mc_mean)
 
-    final_error_graph = np.mean(np.stack(std_errors, axis=0), axis=0)
+    # final_error_graph = np.mean(np.stack(std_errors, axis=0), axis=0)
 
     # get probs from trained model
 
-    print(final_error_graph)
+    # print(final_error_graph)
         # get_estimate_at_step
+
