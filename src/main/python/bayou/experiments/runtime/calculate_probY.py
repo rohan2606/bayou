@@ -70,7 +70,7 @@ class embedding_server():
             prob_Y_given_X[k] = single_prob(node, edge, target, inputs)
             k+=1
         Z = np.logaddexp.reduce(np.array(prob_Y_given_X),dtype=float)
-        return [prob-Z for prob in prob_Y_given_X]
+        return ["%.2f" % prob.item() for prob in prob_Y_given_X]
 
 
 
@@ -81,7 +81,7 @@ class embedding_server():
             _ , _ , RevEncA, RevEncB, probY, ignored= self.predictor.get_a1b1a2b2(program)
             prob_Y_given_X[k] = get_c_minus_cstar(EncA[0], EncB[0], RevEncA[0:1], RevEncB[0:1], probY[0:1], self.predictor.config.latent_size)
         Z = np.logaddexp.reduce(np.array(prob_Y_given_X),dtype=float)
-        return [prob-Z for prob in prob_Y_given_X]
+        return ["%.2f" % prob.item() for prob in prob_Y_given_X]
 
 
 
