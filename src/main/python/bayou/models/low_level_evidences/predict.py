@@ -101,7 +101,7 @@ class BayesianPredictor(object):
             labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
 
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
+            cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
             # cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
             self.loss_RE = tf.reduce_mean(tf.where(cond , loss_RE, tf.zeros(cond.shape)))
 
@@ -126,7 +126,7 @@ class BayesianPredictor(object):
 
             # self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
             #                                       tf.ones_like(target_FS, dtype=tf.float32))
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
+            cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
             cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
             cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
@@ -162,10 +162,8 @@ class BayesianPredictor(object):
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
         self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
-        ## not required
-        self.probYgivenX =  -1 * self.loss * 8 #\
-                    #+ 1/256*(self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance) \
-                    #- self.get_multinormal_lnprob(self.psi_encoder))
+
+        self.probYgivenZ =  -1 * self.loss * 8
         ###############################
 
 
@@ -181,6 +179,37 @@ class BayesianPredictor(object):
         return
 
 
+
+    def get_psi_encoder(self, evidences):
+
+        inputs = self.wrange_inputs(evidences)
+
+
+        feed = {}
+        for j, _ in enumerate(self.config.evidence[:-1]):
+            feed[self.inputs[j].name] = inputs[j]
+
+        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
+            feed[self.inputs[-1][j].name] = inputs[-1][j]
+
+        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
+            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
+
+
+        [psi_encoder, EncA, EncB] = self.sess.run( [ self.psi_encoder, self.EncA, self.EncB ] , feed )
+        return psi_encoder, EncA, EncB
+
+
+
+    def get_probY_given_psi(self, nodes, edges, targets, psi):
+        feed = {}
+        feed[self.psi_encoder] = psi
+        feed[self.nodes.name] = nodes
+        feed[self.edges.name] = edges
+        feed[self.targets.name] = targets
+
+        [probYgivenZ] = self.sess.run( [ self.probYgivenZ ], feed)
+        return  probYgivenZ
 
 
     def get_a1b1(self, evidences):
