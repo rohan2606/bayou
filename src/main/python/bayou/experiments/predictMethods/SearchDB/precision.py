@@ -1,6 +1,7 @@
-from parallelReadJSON import parallelReadJSON
-from searchFromDB import searchFromDB
-from Embedding import Embedding_iterator_WBatch
+from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
+from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
+from bayou.experiments.predictMethods.SearchDB.Embedding import Embedding_iterator_WBatch
+
 import numpy as np
 import simplejson as json
 from utils import *
@@ -93,7 +94,7 @@ if __name__=="__main__":
                     ifBodyMatches = exact_match( prog.body , desiredBody )
                     ifASTMatches = exact_match_ast( dict_ast[key] , desireAST )
                     ifSeqMatches = exact_match_sequence( dict_seq[key] , desireSeq )
-                    
+
                     ifAPIMatches = exact_match_api( dict_api_calls[key] , desireAPIcalls )
 
                     jaccard_distace_api = get_jaccard_distace_api( dict_api_calls[key] , desireAPIcalls )

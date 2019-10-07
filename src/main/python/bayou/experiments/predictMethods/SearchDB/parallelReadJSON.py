@@ -1,8 +1,10 @@
 from multiprocessing import Pool
+
+from bayou.experiments.predictMethods.SearchDB.MyDataBase import MyColumnDatabaseWBatch
+from bayou.experiments.predictMethods.SearchDB.Program import skinnyProgramInBatch
+
 import ijson.backends.yajl2_cffi as ijson
 import simplejson as json
-from MyDataBase import MyColumnDatabaseWBatch
-from Program import skinnyProgramInBatch
 import pickle
 import os
 

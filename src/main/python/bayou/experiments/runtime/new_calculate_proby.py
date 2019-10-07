@@ -25,6 +25,10 @@ import json
 
 
 import time
+
+from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
+from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
+
 import bayou.models.low_level_evidences.predict
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
 
@@ -82,7 +86,7 @@ class Rev_Encoder_Model:
 
 
     def get_result(self, encA, encB):
-        embIt_batch = {['a1':encA, 'b1':encB]}
+        embIt_batch = {[{'a1':encA, 'b1':encB}]}
 
         topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = numThreads)
         topKProgs = topKProgsBatch[0]
@@ -97,9 +101,9 @@ class Decoder_Model:
         num_batches = 50
 
         # Load
-        self.nodes = np.load('../../../models/low_level_evidences/data/nodes.npy')
-        self.edges = np.load('../../../models/low_level_evidences/data/edges.npy')
-        self.targets = np.load('../../../models/low_level_evidences/data/targets.npy')
+        self.nodes = np.load('../../models/low_level_evidences/data/nodes.npy')
+        self.edges = np.load('../../models/low_level_evidences/data/edges.npy')
+        self.targets = np.load('../../models/low_level_evidences/data/targets.npy')
 
         # Batch
         self.nodes = np.split(self.nodes, num_batches, axis=0)
