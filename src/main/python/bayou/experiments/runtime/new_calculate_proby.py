@@ -104,26 +104,34 @@ class Decoder_Model:
         self.predictor = predictor
 
         # Load
+        print('Loading Data')
         self.nodes = np.load('../../models/low_level_evidences/data/nodes.npy')
         self.edges = np.load('../../models/low_level_evidences/data/edges.npy')
         self.targets = np.load('../../models/low_level_evidences/data/targets.npy')
         with open('../../models/low_level_evidences/data/inputs.npy', 'rb') as f:
             self.inputs = pickle.load(f)
 
-        num_batches = len(self.nodes)/self.predictor.predictor.config.batch_size
+        num_batches = int(len(self.nodes)/self.predictor.predictor.config.batch_size)
         self.js_programs = []
         with open('../../models/low_level_evidences/data/js_programs.json', 'rb') as f:
             for program in ijson.items(f, 'programs.item'):
                 self.js_programs.append(program)
+        print('Done')
         # Batch
         self.ret_type = np.split(self.inputs[4], num_batches, axis=0)
         self.formal_param = np.split(self.inputs[5], num_batches, axis=0)
         self.nodes = np.split(self.nodes, num_batches, axis=0)
         self.edges = np.split(self.edges, num_batches, axis=0)
         self.targets = np.split(self.targets, num_batches, axis=0)
-        self.js_programs = np.split(self.js_programs, num_batches, axis=0)
+        self.js_programs = self.chunks(self.js_programs, num_batches)
         return
 
+    def chunks(self, l, n):
+        """Yield successive n-sized chunks from l."""
+        chunks = []
+        for i in range(0, len(l), n):
+            chunks.append(l[i:i + n])
+        return chunks
 
     def get_ProbYs_given_X(self, program, monteCarloIterations = 1):
         
