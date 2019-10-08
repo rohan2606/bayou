@@ -133,7 +133,7 @@ class Decoder_Model:
             chunks.append(l[i:i + n])
         return chunks
 
-    def get_ProbYs_given_X(self, program, monteCarloIterations = 1):
+    def get_ProbYs_given_X(self, program, psi, monteCarloIterations = 1):
         
         program_db = []
         sum_probY = None
@@ -145,9 +145,9 @@ class Decoder_Model:
                 else:
                     sum_probY = np.logaddexp(sum_probY, probYgivenZ)
             batch_prob = sum_probY - np.log(monteCarloIterations)
-            for json, prob in zip(jsons, batch_prob):
-                 program_db.append((json, prob))
-            if batch_num > 20:
+            for i, js in enumerate(jsons):
+                 program_db.append((js['body'], batch_prob[i]))
+            if batch_num > 200:
                break
             print(f'Batch# {batch_num}/{len(self.nodes)}',end='\r')
         
@@ -188,9 +188,11 @@ if __name__ == "__main__":
     for top_prog in rev_encoder_top_progs:
         print(top_prog)
     print("=====================================")
-    decoder_top_progs = decoder.get_ProbYs_given_X(program)
+    decoder_top_progs = decoder.get_ProbYs_given_X(program, psi)
     for top_prog in decoder_top_progs:
-        print(top_prog)
+        print(top_prog[0])
+        print(top_prog[1])
+       
     print("=====================================")
 
 

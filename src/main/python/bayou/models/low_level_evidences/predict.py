@@ -103,7 +103,7 @@ class BayesianPredictor(object):
 
             cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
             # cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
-            self.loss_RE = tf.reduce_mean(tf.where(cond , loss_RE, tf.zeros(cond.shape)))
+            self.loss_RE = tf.where(cond , loss_RE, tf.zeros(cond.shape))
 
         with tf.variable_scope("FS_Decoder"):
             #FS
@@ -132,7 +132,7 @@ class BayesianPredictor(object):
 
 
             self.gen_loss_FS = seq2seq.sequence_loss([logits_FS], [tf.reshape(targets_FS, [-1])],
-                                                  [cond])
+                                                  [cond], average_across_batch=False)
 
         # get the decoder outputs
         with tf.name_scope("Loss"):
@@ -148,7 +148,7 @@ class BayesianPredictor(object):
             cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
 
-            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])], [cond])
+            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])], [cond], average_across_batch=False)
 
 
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
