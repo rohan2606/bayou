@@ -26,13 +26,13 @@ from bayou.models.low_level_evidences.node import Node, get_ast_from_json, CHILD
 
 class BayesianPredictor(object):
 
-    def __init__(self, save, sess):
+    def __init__(self, save, sess, batch_size=1):
 
         with open(os.path.join(save, 'config.json')) as f:
             config = read_config(json.load(f), chars_vocab=True)
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
 
-        config.batch_size = 1
+        config.batch_size = batch_size
         self.config = config
         self.sess = sess
 
@@ -143,7 +143,7 @@ class BayesianPredictor(object):
 
 
             # 1. generation loss: log P(Y | Z)
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
+            cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
             cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
             cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 

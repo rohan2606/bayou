@@ -28,12 +28,15 @@ import time
 
 from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
 from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
+from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
+
 
 import bayou.models.low_level_evidences.predict
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
 
 class Get_Example_JSONs:
-    def getExampleJsons(self, logdir, items):
+    
+    def getExampleJsons(logdir, items):
 
         with open(logdir + '/L4TestProgramList.json', 'r') as f:
             js = json.load(f)
@@ -62,48 +65,49 @@ class Encoder_Model:
         return
 
     def get_latent_space(self, program):
-        psi, EncA, EncB = self.predictor.get_latent_space(program)
+        psi, EncA, EncB = self.predictor.predictor.get_psi_encoder(program)
         return psi, EncA, EncB
+
 
 
 
 class Rev_Encoder_Model:
     def __init__(self):
+        self.numThreads = 30
+        self.batch_size = 1
+        self.minJSONs = 1
+        self.maxJSONs = 2
+        self.dimension = 256
+        self.topK = 11
         self.scanner = self.get_database_scanner()
         return
 
     def get_database_scanner(self):
-        numThreads = 30
-        batch_size = 1
-        minJSONs = 1
-        maxJSONs = 1
-        dimension = 256
-        topK = 11
-        JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, minJSONs=minJSONs , maxJSONs=maxJSONs)
+
+        JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=self.numThreads, dimension=self.dimension, batch_size=self.batch_size, minJSONs=self.minJSONs , maxJSONs=self.maxJSONs)
         listOfColDB = JSONReader.readAllJSONs()
-        scanner = searchFromDB(listOfColDB, topK, batch_size)
+        scanner = searchFromDB(listOfColDB, self.topK, self.batch_size)
         return scanner
 
 
     def get_result(self, encA, encB):
-        embIt_batch = {[{'a1':encA, 'b1':encB}]}
-
-        topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = numThreads)
+        embIt_json = [{'a1':encA, 'b1':encB}]
+        embIt_batch = EmbeddingBatch(embIt_json, 1, 256)
+        topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = self.numThreads)
         topKProgs = topKProgsBatch[0]
         return [prog.body for prog in topKProgs]
-
 
 
 class Decoder_Model:
 
     def __init__(self, predictor):
         self.predictor = predictor
-        num_batches = 50
 
         # Load
         self.nodes = np.load('../../models/low_level_evidences/data/nodes.npy')
         self.edges = np.load('../../models/low_level_evidences/data/edges.npy')
         self.targets = np.load('../../models/low_level_evidences/data/targets.npy')
+        num_batches = len(self.nodes)/self.predictor.predictor.config.batch_size
 
         # Batch
         self.nodes = np.split(self.nodes, num_batches, axis=0)
@@ -115,9 +119,9 @@ class Decoder_Model:
     def get_ProbYs_given_X(self, program, monteCarloIterations = 10):
 
         sum_probY = None
-        for batch_num, nodes, edges, targets in enumerate(zip(self.nodes, self.edges, self.targets)):
+        for batch_num, (nodes, edges, targets) in enumerate(zip(self.nodes, self.edges, self.targets)):
             for count in range(monteCarloIterations):
-                probYgivenZ = self.predictor.get_probY_given_psi(nodes, edges, targets, psi)
+                probYgivenZ = self.predictor.predictor.get_probY_given_psi(nodes, edges, targets, psi)
                 if count == 0:
                     sum_probY = probYgivenZ
                 else:
@@ -154,9 +158,11 @@ if __name__ == "__main__":
     j=0
     program = programs[j]
     print("Working with program no :: " + str(j))
-    psi = encoder.get_latent_space(program)
-    rev_encoder_top_progs = rev_encoder.get_result(probYs)
-    print(rev_encoder_top_progs)
+    psi, eA, eB = encoder.get_latent_space(program)
+    rev_encoder_top_progs = rev_encoder.get_result(eA, eB)
+    for top_prog in rev_encoder_top_progs:
+        print(top_prog)
+
     probYs = decoder.get_ProbYs_given_X(program)
 
 
