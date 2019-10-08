@@ -42,9 +42,9 @@ class BayesianPredictor(object):
         self.nodes = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
         self.edges = tf.placeholder(tf.bool, [config.batch_size, config.decoder.max_ast_depth])
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
+        self.ret_type_placeholder = tf.placeholder(tf.int32, [config.batch_size, config.evidence[4].max_nums])
+        self.formal_param_placeholder = tf.placeholder(tf.int32, [config.batch_size, config.evidence[5].max_depth])
 
-
-        # targets  = tf.concat(  [self.nodes[:, 1:] , tf.zeros([config.batch_size , 1], dtype=tf.int32) ] ,axis=1 )  # shifted left by one
 
         ev_data = self.inputs[:-1]
         surr_input = self.inputs[-1][:-1]
@@ -69,7 +69,7 @@ class BayesianPredictor(object):
             embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
             embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
             embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
-            self.reverse_encoder = BayesianReverseEncoder(config, embAPI, nodes, edges, ev_data[4], embRT, ev_data[5], embFS)
+            self.reverse_encoder = BayesianReverseEncoder(config, embAPI, nodes, edges, self.ret_type_placeholder, embRT, self.formal_param_placeholder, embFS)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
 
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
@@ -91,14 +91,14 @@ class BayesianPredictor(object):
 
             initial_state_RE = tf.nn.xw_plus_b(self.psi_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
 
-            input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(ev_data[4]), axis=[1]))
+            input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(self.ret_type_placeholder), axis=[1]))
             output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
 
             projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
             projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
             logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
 
-            labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
+            labels_RE = tf.one_hot(tf.squeeze(self.ret_type_placeholder) , config.evidence[4].vocab_size , dtype=tf.int32)
             loss_RE = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE)
 
             cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
@@ -113,7 +113,7 @@ class BayesianPredictor(object):
 
             initial_state_FS = tf.nn.xw_plus_b(self.psi_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS")
 
-            input_FS = tf.transpose(tf.reverse_v2(ev_data[5], axis=[1]))
+            input_FS = tf.transpose(tf.reverse_v2(self.formal_param_placeholder, axis=[1]))
             self.decoder_FS = SimpleDecoder(config, emb_FS, initial_state_FS, input_FS, config.evidence[5])
 
             output = tf.reshape(tf.concat(self.decoder_FS.outputs, 1), [-1, self.decoder_FS.cell1.output_size])
@@ -121,7 +121,7 @@ class BayesianPredictor(object):
 
 
             # logits_FS = output
-            targets_FS = tf.reverse_v2(tf.concat( [ tf.zeros_like(ev_data[5][:,-1:]) , ev_data[5][:, :-1]], axis=1) , axis=[1])
+            targets_FS = tf.reverse_v2(tf.concat( [ tf.zeros_like(self.formal_param_placeholder[:,-1:]) , self.formal_param_placeholder[:, :-1]], axis=1) , axis=[1])
 
 
             # self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
@@ -201,12 +201,14 @@ class BayesianPredictor(object):
 
 
 
-    def get_probY_given_psi(self, nodes, edges, targets, psi):
+    def get_probY_given_psi(self, nodes, edges, targets, ret, fp, psi):
         feed = {}
         feed[self.psi_encoder] = psi
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
         feed[self.targets.name] = targets
+        feed[self.ret_type_placeholder] = ret
+        feed[self.formal_param_placeholder] = fp
 
         [probYgivenZ] = self.sess.run( [ self.probYgivenZ ], feed)
         return  probYgivenZ

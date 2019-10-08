@@ -35,7 +35,7 @@ import bayou.models.low_level_evidences.predict
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
 
 class Get_Example_JSONs:
-    
+
     def getExampleJsons(logdir, items):
 
         with open(logdir + '/L4TestProgramList.json', 'r') as f:
@@ -107,9 +107,14 @@ class Decoder_Model:
         self.nodes = np.load('../../models/low_level_evidences/data/nodes.npy')
         self.edges = np.load('../../models/low_level_evidences/data/edges.npy')
         self.targets = np.load('../../models/low_level_evidences/data/targets.npy')
+        with open('../../models/low_level_evidences/data/inputs.npy', 'rb') as f:
+            self.inputs = pickle.load(f)
+
         num_batches = len(self.nodes)/self.predictor.predictor.config.batch_size
 
         # Batch
+        self.ret_type = np.split(self.inputs[4], num_batches, axis=0)
+        self.formal_param = np.split(self.inputs[5], num_batches, axis=0)
         self.nodes = np.split(self.nodes, num_batches, axis=0)
         self.edges = np.split(self.edges, num_batches, axis=0)
         self.targets = np.split(self.targets, num_batches, axis=0)
@@ -119,9 +124,9 @@ class Decoder_Model:
     def get_ProbYs_given_X(self, program, monteCarloIterations = 10):
 
         sum_probY = None
-        for batch_num, (nodes, edges, targets) in enumerate(zip(self.nodes, self.edges, self.targets)):
+        for batch_num, (nodes, edges, targets, ret, fp) in enumerate(zip(self.nodes, self.edges, self.targets, self.ret_type, self.formal_param)):
             for count in range(monteCarloIterations):
-                probYgivenZ = self.predictor.predictor.get_probY_given_psi(nodes, edges, targets, psi)
+                probYgivenZ = self.predictor.predictor.get_probY_given_psi(nodes, edges, targets, ret, fp, psi)
                 if count == 0:
                     sum_probY = probYgivenZ
                 else:
