@@ -53,7 +53,7 @@ class Predictor:
         model = bayou.models.low_level_evidences.predict.BayesianPredictor
 
         sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, sess, batch_size=500) # goes to predict.BayesianPredictor
+        self.predictor = model(clargs.save, sess, batch_size=500)# goes to predict.BayesianPredictor
 
         print ('Model Loaded, All Ready to Predict Evidences!!')
         return
@@ -75,8 +75,8 @@ class Rev_Encoder_Model:
     def __init__(self):
         self.numThreads = 30
         self.batch_size = 1
-        self.minJSONs = 1
-        self.maxJSONs = 2
+        self.minJSONs = 0
+        self.maxJSONs = 1
         self.dimension = 256
         self.topK = 11
         self.scanner = self.get_database_scanner()
@@ -123,7 +123,7 @@ class Decoder_Model:
         self.nodes = np.split(self.nodes, num_batches, axis=0)
         self.edges = np.split(self.edges, num_batches, axis=0)
         self.targets = np.split(self.targets, num_batches, axis=0)
-        self.js_programs = self.chunks(self.js_programs, num_batches)
+        self.js_programs = self.chunks(self.js_programs, self.predictor.predictor.config.batch_size)
         return
 
     def chunks(self, l, n):
@@ -147,8 +147,8 @@ class Decoder_Model:
             batch_prob = sum_probY - np.log(monteCarloIterations)
             for i, js in enumerate(jsons):
                  program_db.append((js['body'], batch_prob[i]))
-            if batch_num > -1:
-               break
+            #if batch_num > 200:
+            #   break
             print(f'Batch# {batch_num}/{len(self.nodes)}',end='\r')
         
         top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
@@ -178,10 +178,11 @@ if __name__ == "__main__":
     rev_encoder = Rev_Encoder_Model()
 
     # get the input JSON
-    programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_6/', 1)
+    programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_6/', 10)
     #get the probs
-    j=0
+    j=1
     program = programs[j]
+    print(program)
     print("Working with program no :: " + str(j))
     psi, eA, eB = encoder.get_latent_space(program)
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])
@@ -196,6 +197,3 @@ if __name__ == "__main__":
     print("=====================================")
 
 
-
-
-    # get probs from trained model
