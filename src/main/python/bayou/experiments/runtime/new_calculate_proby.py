@@ -29,6 +29,7 @@ import ijson
 from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
 from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
 from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
+from bayou.models.low_level_evidences.test import get_c_minus_cstar
 
 
 import bayou.models.low_level_evidences.predict
@@ -56,7 +57,35 @@ class Predictor:
         self.predictor = model(clargs.save, sess, batch_size=500)# goes to predict.BayesianPredictor
 
         print ('Model Loaded, All Ready to Predict Evidences!!')
+
+        print('Loading Data')
+        self.nodes = np.load('../../models/low_level_evidences/data/nodes.npy')
+        self.edges = np.load('../../models/low_level_evidences/data/edges.npy')
+        self.targets = np.load('../../models/low_level_evidences/data/targets.npy')
+        with open('../../models/low_level_evidences/data/inputs.npy', 'rb') as f:
+            self.inputs = pickle.load(f)
+
+        num_batches = int(len(self.nodes)/self.predictor.predictor.config.batch_size)
+        self.js_programs = []
+        with open('../../models/low_level_evidences/data/js_programs.json', 'rb') as f:
+            for program in ijson.items(f, 'programs.item'):
+                self.js_programs.append(program)
+        print('Done')
+        # Batch
+        self.ret_type = np.split(self.inputs[4], num_batches, axis=0)
+        self.formal_param = np.split(self.inputs[5], num_batches, axis=0)
+        self.nodes = np.split(self.nodes, num_batches, axis=0)
+        self.edges = np.split(self.edges, num_batches, axis=0)
+        self.targets = np.split(self.targets, num_batches, axis=0)
+        self.js_programs = self.chunks(self.js_programs, self.predictor.predictor.config.batch_size)
         return
+
+    def chunks(self, l, n):
+        """Yield successive n-sized chunks from l."""
+        chunks = []
+        for i in range(0, len(l), n):
+            chunks.append(l[i:i + n])
+        return chunks
 
 class Encoder_Model:
 
@@ -69,6 +98,27 @@ class Encoder_Model:
         return psi, EncA, EncB
 
 
+class Rev_Encoder_Model_2:
+    def __init__(self):
+        return
+
+
+    def get_result(self, encA, encB):
+
+        program_db = []
+        sum_probY = None
+        for batch_num, (nodes, edges, targets, ret, fp, jsons) in enumerate(zip(self.predictor.nodes, self.predictor.edges, self.predictor.targets, self.predictor.ret_type, self.predictor.formal_param, self.predictor.js_programs)):
+            probY, RevEncA, RevEncB = self.predictor.predictor.get_rev_enc_ab(nodes, edges, targets, ret, fp)
+            batch_prob = get_c_minus_cstar(encA, encB, RevEncA, RevEncB, probY, self.predictor.config.latent_size)
+
+            for i, js in enumerate(jsons):
+                 program_db.append((js['body'], batch_prob[i]))
+            #if batch_num > 200:
+            #   break
+            print(f'Batch# {batch_num}/{len(self.nodes)}',end='\r')
+
+        top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
+        return top_progs
 
 
 class Rev_Encoder_Model:
@@ -104,40 +154,13 @@ class Decoder_Model:
         self.predictor = predictor
 
         # Load
-        print('Loading Data')
-        self.nodes = np.load('../../models/low_level_evidences/data/nodes.npy')
-        self.edges = np.load('../../models/low_level_evidences/data/edges.npy')
-        self.targets = np.load('../../models/low_level_evidences/data/targets.npy')
-        with open('../../models/low_level_evidences/data/inputs.npy', 'rb') as f:
-            self.inputs = pickle.load(f)
 
-        num_batches = int(len(self.nodes)/self.predictor.predictor.config.batch_size)
-        self.js_programs = []
-        with open('../../models/low_level_evidences/data/js_programs.json', 'rb') as f:
-            for program in ijson.items(f, 'programs.item'):
-                self.js_programs.append(program)
-        print('Done')
-        # Batch
-        self.ret_type = np.split(self.inputs[4], num_batches, axis=0)
-        self.formal_param = np.split(self.inputs[5], num_batches, axis=0)
-        self.nodes = np.split(self.nodes, num_batches, axis=0)
-        self.edges = np.split(self.edges, num_batches, axis=0)
-        self.targets = np.split(self.targets, num_batches, axis=0)
-        self.js_programs = self.chunks(self.js_programs, self.predictor.predictor.config.batch_size)
-        return
-
-    def chunks(self, l, n):
-        """Yield successive n-sized chunks from l."""
-        chunks = []
-        for i in range(0, len(l), n):
-            chunks.append(l[i:i + n])
-        return chunks
 
     def get_ProbYs_given_X(self, program, psi, monteCarloIterations = 1):
-        
+
         program_db = []
         sum_probY = None
-        for batch_num, (nodes, edges, targets, ret, fp, jsons) in enumerate(zip(self.nodes, self.edges, self.targets, self.ret_type, self.formal_param, self.js_programs)):
+        for batch_num, (nodes, edges, targets, ret, fp, jsons) in enumerate(zip(self.predictor.nodes, self.predictor.edges, self.predictor.targets, self.predictor.ret_type, self.predictor.formal_param, self.predictor.js_programs)):
             for count in range(monteCarloIterations):
                 probYgivenZ = self.predictor.predictor.get_probY_given_psi(nodes, edges, targets, ret, fp, psi)
                 if count == 0:
@@ -150,7 +173,7 @@ class Decoder_Model:
             #if batch_num > 200:
             #   break
             print(f'Batch# {batch_num}/{len(self.nodes)}',end='\r')
-        
+
         top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
         return top_progs
 
@@ -175,7 +198,7 @@ if __name__ == "__main__":
     pred = Predictor()
     encoder = Encoder_Model(pred)
     decoder = Decoder_Model(pred)
-    rev_encoder = Rev_Encoder_Model()
+    rev_encoder = Rev_Encoder_Model_2()
 
     # get the input JSON
     programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_6/', 10)
@@ -187,13 +210,12 @@ if __name__ == "__main__":
     psi, eA, eB = encoder.get_latent_space(program)
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])
     for top_prog in rev_encoder_top_progs:
-        print(top_prog)
+        print(top_prog[0])
+        print(top_prog[1])
     print("=====================================")
     decoder_top_progs = decoder.get_ProbYs_given_X(program, psi)
     for top_prog in decoder_top_progs:
         print(top_prog[0])
         print(top_prog[1])
-       
+
     print("=====================================")
-
-

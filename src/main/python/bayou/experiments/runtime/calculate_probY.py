@@ -83,11 +83,11 @@ class embedding_server():
         prob_Y = [None]*len(db_programs)
         for k, program in enumerate(db_programs):
             _ , _ , RevEncA, RevEncB, probY, ignored= self.predictor.get_a1b1a2b2(program)
-            prob_Y_given_X[k], prob_Y[k] = get_c_minus_cstar(EncA[0], EncB[0], RevEncA[0:1], RevEncB[0:1], probY[0:1], self.predictor.config.latent_size)
+            prob_Y_given_X[k] = get_c_minus_cstar(EncA[0], EncB[0], RevEncA[0:1], RevEncB[0:1], probY[0:1], self.predictor.config.latent_size)
         Z1 = np.logaddexp.reduce(np.array(prob_Y_given_X),dtype=float)
         Z2 = np.logaddexp.reduce(np.array(prob_Y),dtype=float)
         #return ["%.2f" % (prob1.item() - Z1 + prob2 - Z2) for prob1, prob2 in zip(prob_Y_given_X, prob_Y)]
-        return ["%.2f" % (prob1.item() - Z1) for prob1 in prob_Y_given_X], ["%.2f" % (prob2.item()) for prob2 in prob_Y]
+        return [prob1.item() for prob1 in prob_Y_given_X]
 
 
 
@@ -131,8 +131,8 @@ if __name__ == "__main__":
             prob_Y[k].append(temp_prob_Y)
     for i in range(len(prob_Y)):
         prob_Y[i] = np.logaddexp.reduce(np.array(prob_Y[i]),dtype=float) - np.log(mc_iter)
-        
-    
+
+
     print(["%.2f"%p.item() for p in prob_Y])
     sys.exit(0)
     for j, qry_program in enumerate(all_programs):
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         mc_mean = EmbS.manto_carlo_prob_y_given_x(qry_program, db_program_items)
 
         print([(a,b) for a,b in zip(rev_prob, prob_y)])
-          
+
         print(mc_mean)
 
     # final_error_graph = np.mean(np.stack(std_errors, axis=0), axis=0)

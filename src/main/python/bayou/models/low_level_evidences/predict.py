@@ -94,7 +94,7 @@ class BayesianPredictor(object):
 
             input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(self.ret_type_placeholder), axis=[1]))
             output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
-	
+
             projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
             projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
             logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
@@ -141,7 +141,7 @@ class BayesianPredictor(object):
                                 [-1, self.decoder.cell1.output_size])
             logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
             logits = tf.reshape(logits, (config.batch_size, config.decoder.max_ast_depth, config.decoder.vocab_size))
-            
+
             #ln_probs = tf.nn.log_softmax(logits)
 
 
@@ -150,7 +150,7 @@ class BayesianPredictor(object):
             #cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
             #cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
-       
+
             self.gen_loss = seq2seq.sequence_loss(logits, self.targets, tf.ones_like(self.targets, dtype=tf.float32) , average_across_batch=False, average_across_timesteps=True)
             #self.gen_loss = tf.reduce_sum(tf.reshape(self.gen_loss,[config.batch_size, config.decoder.max_ast_depth]), axis=1)
 
@@ -166,7 +166,7 @@ class BayesianPredictor(object):
         self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
 
-        self.probYgivenZ =  -1 * self.loss 
+        self.probYgivenZ =  -1 * self.loss
         ###############################
 
 
@@ -202,6 +202,17 @@ class BayesianPredictor(object):
         [psi_encoder, EncA, EncB] = self.sess.run( [ self.encoder.psi_mean, self.EncA, self.EncB ] , feed )
         return psi_encoder, EncA, EncB
 
+
+    def get_rev_enc_ab(self, nodes, edges, targets, ret, fp):
+        feed = {}
+        feed[self.nodes.name] = nodes
+        feed[self.edges.name] = edges
+        feed[self.targets.name] = targets
+        feed[self.ret_type_placeholder] = ret
+        feed[self.formal_param_placeholder] = fp
+
+        [probY, RevEncA, RevEncB] = self.sess.run( [ self.probY, self.RevEncA, self.RevEncB], feed)
+        return  probY, RevEncA, RevEncB
 
 
     def get_probY_given_psi(self, nodes, edges, targets, ret, fp, psi):
