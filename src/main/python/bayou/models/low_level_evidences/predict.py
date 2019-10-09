@@ -156,7 +156,7 @@ class BayesianPredictor(object):
 
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
 
-            self.loss = self.gen_loss #+ 1/8 * self.loss_RE  + 8/8 * self.gen_loss_FS
+            self.loss = self.gen_loss + 1/8 * self.loss_RE  + 8/8 * self.gen_loss_FS
 
 
         self.probY =  -1 * self.loss + \
