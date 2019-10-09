@@ -23,7 +23,14 @@ def load_data():
 def reduce_nums(inputs, nodes, edges, targets, js_programs):
 
     max_data = 100000
-    new_inputs = [inp[:max_data] for inp in inputs]
+
+    new_inputs = [inp[:max_data] for inp in inputs[:-1]]
+    surr_new_inputs = [surr_inp[:max_data] for surr_inp in inputs[-1][:-1]]
+    surr_fps_new_inputs = [surr_inp_fp[:max_data] for surr_inp_fp in inputs[-1][-1]]
+    
+    surr_new_inputs.append(surr_fps_new_inputs)
+    new_inputs.append(surr_new_inputs)
+
     nodes = nodes[:max_data]
     edges = edges[:max_data]
     targets = targets[:max_data]
