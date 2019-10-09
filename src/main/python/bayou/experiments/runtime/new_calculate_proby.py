@@ -147,7 +147,7 @@ class Decoder_Model:
             batch_prob = sum_probY - np.log(monteCarloIterations)
             for i, js in enumerate(jsons):
                  program_db.append((js['body'], batch_prob[i]))
-            if batch_num > 200:
+            if batch_num > -1:
                break
             print(f'Batch# {batch_num}/{len(self.nodes)}',end='\r')
         

@@ -21,7 +21,8 @@ import pickle
 import json
 from bayou.models.low_level_evidences.utils import get_var_list, read_config
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianReverseEncoder, BayesianDecoder, SimpleDecoder
-from tensorflow.contrib import legacy_seq2seq as seq2seq
+#from tensorflow.contrib import legacy_seq2seq as seq2seq
+from tensorflow.contrib import seq2seq
 from bayou.models.low_level_evidences.node import Node, get_ast_from_json, CHILD_EDGE, SIBLING_EDGE, TooLongLoopingException, TooLongBranchingException
 
 class BayesianPredictor(object):
@@ -93,7 +94,7 @@ class BayesianPredictor(object):
 
             input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(self.ret_type_placeholder), axis=[1]))
             output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
-
+	
             projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
             projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
             logits_RE = tf.nn.xw_plus_b(output.outputs[-1] , projection_w_RE, projection_b_RE)
@@ -118,7 +119,7 @@ class BayesianPredictor(object):
 
             output = tf.reshape(tf.concat(self.decoder_FS.outputs, 1), [-1, self.decoder_FS.cell1.output_size])
             logits_FS = tf.matmul(output, self.decoder_FS.projection_w_FS) + self.decoder_FS.projection_b_FS
-
+            logits_FS = tf.reshape(logits_FS, (config.batch_size, config.evidence[5].max_depth, config.evidence[5].vocab_size))
 
             # logits_FS = output
             targets_FS = tf.reverse_v2(tf.concat( [ tf.zeros_like(self.formal_param_placeholder[:,-1:]) , self.formal_param_placeholder[:, :-1]], axis=1) , axis=[1])
@@ -126,37 +127,39 @@ class BayesianPredictor(object):
 
             # self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
             #                                       tf.ones_like(target_FS, dtype=tf.float32))
-            cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
-            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
-            cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
+            #cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
+            #cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
+            #cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
 
-            self.gen_loss_FS = seq2seq.sequence_loss([logits_FS], [tf.reshape(targets_FS, [-1])],
-                                                  [cond], average_across_batch=False)
+            self.gen_loss_FS = seq2seq.sequence_loss(logits_FS, targets_FS,
+                                                  tf.ones_like(targets_FS, dtype=tf.float32), average_across_batch=False, average_across_timesteps=True)
 
         # get the decoder outputs
         with tf.name_scope("Loss"):
             output = tf.reshape(tf.concat(self.decoder.outputs, 1),
                                 [-1, self.decoder.cell1.output_size])
             logits = tf.matmul(output, self.decoder.projection_w) + self.decoder.projection_b
-            ln_probs = tf.nn.log_softmax(logits)
+            logits = tf.reshape(logits, (config.batch_size, config.decoder.max_ast_depth, config.decoder.vocab_size))
+            
+            #ln_probs = tf.nn.log_softmax(logits)
 
 
             # 1. generation loss: log P(Y | Z)
-            cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
-            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
-            cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
+            #cond = tf.not_equal(tf.reduce_sum(self.psi_encoder, axis=1), 0)
+            #cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
+            #cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
 
-
-            self.gen_loss = seq2seq.sequence_loss([logits], [tf.reshape(self.targets, [-1])], [cond], average_across_batch=False)
-
+       
+            self.gen_loss = seq2seq.sequence_loss(logits, self.targets, tf.ones_like(self.targets, dtype=tf.float32) , average_across_batch=False, average_across_timesteps=True)
+            #self.gen_loss = tf.reduce_sum(tf.reshape(self.gen_loss,[config.batch_size, config.decoder.max_ast_depth]), axis=1)
 
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
 
             self.loss = self.gen_loss + 1/8 * self.loss_RE  + 8/8 * self.gen_loss_FS
 
 
-        self.probY =  -1 * self.loss * 8 + \
+        self.probY =  -1 * self.loss + \
                              self.get_multinormal_lnprob(self.encoder.psi_mean) - \
                              self.get_multinormal_lnprob(self.encoder.psi_mean,self.encoder.psi_mean,self.encoder.psi_covariance)
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
@@ -196,7 +199,7 @@ class BayesianPredictor(object):
             feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
 
 
-        [psi_encoder, EncA, EncB] = self.sess.run( [ self.psi_encoder, self.EncA, self.EncB ] , feed )
+        [psi_encoder, EncA, EncB] = self.sess.run( [ self.encoder.psi_mean, self.EncA, self.EncB ] , feed )
         return psi_encoder, EncA, EncB
 
 
