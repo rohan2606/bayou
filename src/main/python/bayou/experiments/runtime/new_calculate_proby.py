@@ -65,7 +65,7 @@ class Predictor:
         with open('../../models/low_level_evidences/data/inputs.npy', 'rb') as f:
             self.inputs = pickle.load(f)
 
-        num_batches = int(len(self.nodes)/self.predictor.predictor.config.batch_size)
+        num_batches = int(len(self.nodes)/self.predictor.config.batch_size)
         self.js_programs = []
         with open('../../models/low_level_evidences/data/js_programs.json', 'rb') as f:
             for program in ijson.items(f, 'programs.item'):
@@ -77,7 +77,7 @@ class Predictor:
         self.nodes = np.split(self.nodes, num_batches, axis=0)
         self.edges = np.split(self.edges, num_batches, axis=0)
         self.targets = np.split(self.targets, num_batches, axis=0)
-        self.js_programs = self.chunks(self.js_programs, self.predictor.predictor.config.batch_size)
+        self.js_programs = self.chunks(self.js_programs, self.predictor.config.batch_size)
         return
 
     def chunks(self, l, n):
@@ -125,8 +125,8 @@ class Rev_Encoder_Model:
     def __init__(self):
         self.numThreads = 30
         self.batch_size = 1
-        self.minJSONs = 0
-        self.maxJSONs = 1
+        self.minJSONs = 1000
+        self.maxJSONs = 1001
         self.dimension = 256
         self.topK = 11
         self.scanner = self.get_database_scanner()
@@ -172,7 +172,7 @@ class Decoder_Model:
                  program_db.append((js['body'], batch_prob[i]))
             #if batch_num > 200:
             #   break
-            print(f'Batch# {batch_num}/{len(self.nodes)}',end='\r')
+            print(f'Batch# {batch_num}/{len(self.predictor.nodes)}',end='\r')
 
         top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
         return top_progs
@@ -198,7 +198,8 @@ if __name__ == "__main__":
     pred = Predictor()
     encoder = Encoder_Model(pred)
     decoder = Decoder_Model(pred)
-    rev_encoder = Rev_Encoder_Model_2()
+    #rev_encoder = Rev_Encoder_Model_2(pred)
+    rev_encoder = Rev_Encoder_Model()
 
     # get the input JSON
     programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_6/', 10)
@@ -210,8 +211,8 @@ if __name__ == "__main__":
     psi, eA, eB = encoder.get_latent_space(program)
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])
     for top_prog in rev_encoder_top_progs:
-        print(top_prog[0])
-        print(top_prog[1])
+        print(top_prog)
+        #print(top_prog[1])
     print("=====================================")
     decoder_top_progs = decoder.get_ProbYs_given_X(program, psi)
     for top_prog in decoder_top_progs:

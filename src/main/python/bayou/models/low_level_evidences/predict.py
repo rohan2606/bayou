@@ -40,11 +40,11 @@ class BayesianPredictor(object):
         infer = True
 
         self.inputs = [ev.placeholder(config) for ev in self.config.evidence]
-        self.nodes = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
-        self.edges = tf.placeholder(tf.bool, [config.batch_size, config.decoder.max_ast_depth])
-        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
-        self.ret_type_placeholder = tf.placeholder(tf.int32, [config.batch_size, config.evidence[4].max_nums])
-        self.formal_param_placeholder = tf.placeholder(tf.int32, [config.batch_size, config.evidence[5].max_depth])
+        self.nodes = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name='nodes')
+        self.edges = tf.placeholder(tf.bool, [config.batch_size, config.decoder.max_ast_depth], name='edges')
+        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth], name='targets')
+        self.ret_type_placeholder = tf.placeholder(tf.int32, [config.batch_size, config.evidence[4].max_nums], name='ret_type')
+        self.formal_param_placeholder = tf.placeholder(tf.int32, [config.batch_size, config.evidence[5].max_depth], name='form_param')
 
 
         ev_data = self.inputs[:-1]
@@ -156,7 +156,7 @@ class BayesianPredictor(object):
 
             #KL_cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1) , 0)
 
-            self.loss = self.gen_loss + 1/8 * self.loss_RE  + 8/8 * self.gen_loss_FS
+            self.loss = self.gen_loss + 8/32* self.gen_loss_FS + 1/32 * self.loss_RE  #+ 8/8 * self.gen_loss_FS
 
 
         self.probY =  -1 * self.loss + \
@@ -203,13 +203,21 @@ class BayesianPredictor(object):
         return psi_encoder, EncA, EncB
 
 
-    def get_rev_enc_ab(self, nodes, edges, targets, ret, fp):
+    def get_rev_enc_ab(self, nodes, edges, targets, ret, fp, inputs):
         feed = {}
+        for j, _ in enumerate(self.config.evidence[:-1]):
+            feed[self.inputs[j].name] = inputs[j]
+
+        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
+            feed[self.inputs[-1][j].name] = inputs[-1][j]
+
+        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
+            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
         feed[self.targets.name] = targets
-        feed[self.ret_type_placeholder] = ret
-        feed[self.formal_param_placeholder] = fp
+        feed[self.ret_type_placeholder.name] = ret
+        feed[self.formal_param_placeholder.name] = fp
 
         [probY, RevEncA, RevEncB] = self.sess.run( [ self.probY, self.RevEncA, self.RevEncB], feed)
         return  probY, RevEncA, RevEncB

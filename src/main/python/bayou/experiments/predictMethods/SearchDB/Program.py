@@ -16,4 +16,4 @@ class skinnyProgramInBatch():
 
 
     def stripJavaDoc(self, stringBody):
-        return re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))
+        return stringBody #re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))
