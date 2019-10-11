@@ -13,7 +13,9 @@
 # limitations under the License.
 
 import tensorflow as tf
-from tensorflow.contrib import legacy_seq2seq as seq2seq
+#from tensorflow.contrib import legacy_seq2seq as seq2seq
+from tensorflow.contrib import seq2seq
+
 import numpy as np
 
 from bayou.models.low_level_evidences.architecture import BayesianEncoder, BayesianDecoder, BayesianReverseEncoder, SimpleDecoder
@@ -110,48 +112,41 @@ class Model():
             self.decoder_FS_enc = SimpleDecoder(config, emb_FS, initial_state_FS_Enc, input_FS, config.evidence[5])
             self.decoder_FS_rev_enc = SimpleDecoder(config, emb_FS, initial_state_FS_RevEnc, input_FS, config.evidence[5])
 
-            output_Enc = tf.reshape(tf.concat(self.decoder_FS_enc.outputs, 1), [-1, self.decoder_FS_enc.cell1.output_size])
-            output_RevEnc = tf.reshape(tf.concat(self.decoder_FS_rev_enc.outputs, 1), [-1, self.decoder_FS_rev_enc.cell1.output_size])
+            output_enc = tf.reshape(tf.concat(self.decoder_FS_enc.outputs, 1), [-1, self.decoder_FS_enc.cell1.output_size])
+            output_rev_enc = tf.reshape(tf.concat(self.decoder_FS_rev_enc.outputs, 1), [-1, self.decoder_FS_rev_enc.cell1.output_size])
 
-            logits_FS_Enc = tf.matmul(output_Enc, self.decoder_FS_enc.projection_w_FS) + self.decoder_FS_enc.projection_b_FS
-            logits_FS_RevEnc = tf.matmul(output_RevEnc, self.decoder_FS_rev_enc.projection_w_FS) + self.decoder_FS_rev_enc.projection_b_FS
+            logits_FS_Enc = tf.matmul(output_enc, self.decoder_FS_enc.projection_w_FS) + self.decoder_FS_enc.projection_b_FS
+            logits_FS_RevEnc = tf.matmul(output_rev_enc, self.decoder_FS_rev_enc.projection_w_FS) + self.decoder_FS_rev_enc.projection_b_FS
+            
+            logits_FS_Enc = tf.reshape(logits_FS_Enc, (config.batch_size, config.evidence[5].max_depth, config.evidence[5].vocab_size))
+            logits_FS_RevEnc = tf.reshape(logits_FS_RevEnc, (config.batch_size, config.evidence[5].max_depth, config.evidence[5].vocab_size))
 
-
+          
             # logits_FS = output
             targets_FS = tf.reverse_v2(tf.concat( [ tf.zeros_like(ev_data[5][:,-1:]) , ev_data[5][:, :-1]], axis=1) , axis=[1])
 
-
-            #self.gen_loss_FS = tf.contrib.seq2seq.sequence_loss(logits_FS, target_FS,
-            #                                       tf.ones_like(target_FS, dtype=tf.float32))
-
-
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
-            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.evidence[5].max_depth]) , [-1] )
-            cond =tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
-
-            self.gen_loss_FS_Enc = seq2seq.sequence_loss([logits_FS_Enc], [tf.reshape(targets_FS, [-1])], [cond] )
-            self.gen_loss_FS_RevEnc = seq2seq.sequence_loss([logits_FS_RevEnc], [tf.reshape(targets_FS, [-1])], [cond])
+            self.gen_loss_FS_Enc = seq2seq.sequence_loss(logits_FS_Enc, targets_FS,
+                                                  tf.ones_like(targets_FS, dtype=tf.float32), average_across_batch=False, average_across_timesteps=True)
+            self.gen_loss_FS_RevEnc = seq2seq.sequence_loss(logits_FS_RevEnc, targets_FS,
+                                                  tf.ones_like(targets_FS, dtype=tf.float32), average_across_batch=False, average_across_timesteps=True)
 
         # get the decoder outputs
         with tf.name_scope("Loss"):
             output_enc = tf.reshape(tf.concat(self.decoder_enc.outputs, 1),[-1, self.decoder_enc.cell1.output_size])
             logits_enc = tf.matmul(output_enc, self.decoder_enc.projection_w) + self.decoder_enc.projection_b
+            logits_enc = tf.reshape(logits_enc, (config.batch_size, config.decoder.max_ast_depth, config.decoder.vocab_size))
             ln_probs_enc = tf.nn.log_softmax(logits_enc)
 
             output_rev_enc = tf.reshape(tf.concat(self.decoder_rev_enc.outputs, 1),[-1, self.decoder_rev_enc.cell1.output_size])
             logits_rev_enc = tf.matmul(output_rev_enc, self.decoder_rev_enc.projection_w) + self.decoder_rev_enc.projection_b
+            logits_rev_enc = tf.reshape(logits_rev_enc, (config.batch_size, config.decoder.max_ast_depth, config.decoder.vocab_size))
             ln_probs_rev_enc = tf.nn.log_softmax(logits_rev_enc)
 
 
             # 1. generation loss: log P(Y | Z)
 
-
-            cond = tf.not_equal(tf.reduce_sum(self.encoder.psi_mean, axis=1), 0)
-            cond = tf.reshape( tf.tile(tf.expand_dims(cond, axis=1) , [1,config.decoder.max_ast_depth]) , [-1] )
-            cond = tf.where(cond , tf.ones(cond.shape), tf.zeros(cond.shape))
-
-            self.gen_loss_enc = seq2seq.sequence_loss([logits_enc], [tf.reshape(targets, [-1])], [cond]) #[tf.ones_like(tf.reshape(targets, [-1]))])
-            self.gen_loss_rev_enc = seq2seq.sequence_loss([logits_rev_enc], [tf.reshape(targets, [-1])], [cond]) #[tf.ones_like(tf.reshape(targets, [-1]))])
+            self.gen_loss_enc = seq2seq.sequence_loss(logits_enc, targets, tf.ones_like(targets, dtype=tf.float32) , average_across_batch=False, average_across_timesteps=True)
+            self.gen_loss_rev_enc = seq2seq.sequence_loss(logits_rev_enc, targets, tf.ones_like(targets, dtype=tf.float32) , average_across_batch=False, average_across_timesteps=True)
 
               # 2. latent loss: negative of the KL-divergence between P(\Psi | f(\Theta)) and P(\Psi)
             KL_loss = 0.5 * tf.reduce_mean( tf.log(self.encoder.psi_covariance) - tf.log(self.reverse_encoder.psi_covariance)
@@ -178,7 +173,7 @@ class Model():
 
             regularizor = tf.reduce_sum([ tf.square(ev.sigma) for ev in self.config.evidence ])
             
-            self.loss_enc = self.gen_loss_enc + 1/32 * self.loss_RE_enc  + 8/32 * self.gen_loss_FS_Enc
+            self.loss_enc = self.gen_loss_enc + 1/8 * self.loss_RE_enc  + 8/8 * self.gen_loss_FS_Enc
             self.loss_rev_enc = self.gen_loss_rev_enc + 1/32 * self.loss_RE_rev_enc  + 8/32 * self.gen_loss_FS_RevEnc
 
             self.loss = self.loss_enc + 0.01*self.KL_loss + 0.01*regu_KL_loss + 0.01*regularizor
@@ -188,8 +183,8 @@ class Model():
                 # last step by importace_sampling
                 # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
 				# P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
-            self.probY = -1 * self.gen_loss_enc + self.get_multinormal_lnprob(self.psi_encoder) \
-                                      - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
+            self.probY = -1 * self.loss_enc * 8 + 0.01 * (self.get_multinormal_lnprob(self.psi_encoder) \
+                                      - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance))
             self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
             self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 

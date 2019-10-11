@@ -54,5 +54,5 @@ class MyColumnDatabaseWBatch():
         ab_star = np.sum((np.square(b_star) /  (4 * a_star[:,:,None])), axis=2) + 0.5 *  latent_size * np.log(-a_star/np.pi) # shape is [batch_size , numItems]
 
         cons = 0.5 * latent_size * np.log( 2*np.pi )
-        self.distance = ab1[:,None] + ab2[None,:] - ab_star - cons #+ self.numpy_ProbY[None,:]
+        self.distance = ab1[:,None] + ab2[None,:] - ab_star - cons + self.numpy_ProbY[None,:]
         return

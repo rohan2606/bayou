@@ -160,13 +160,13 @@ class BayesianPredictor(object):
 
 
         self.probY =  -1 * self.loss + \
-                             self.get_multinormal_lnprob(self.encoder.psi_mean) - \
-                             self.get_multinormal_lnprob(self.encoder.psi_mean,self.encoder.psi_mean,self.encoder.psi_covariance)
+                             self.get_multinormal_lnprob(self.psi_encoder) - \
+                             self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
         self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
 
 
-        self.probYgivenZ =  -1 * self.loss
+        self.probYgivenZ =  -1 * self.loss 
         ###############################
 
 
@@ -199,7 +199,7 @@ class BayesianPredictor(object):
             feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
 
 
-        [psi_encoder, EncA, EncB] = self.sess.run( [ self.encoder.psi_mean, self.EncA, self.EncB ] , feed )
+        [psi_encoder, EncA, EncB] = self.sess.run( [ self.psi_encoder, self.EncA, self.EncB ] , feed )
         return psi_encoder, EncA, EncB
 
 

@@ -125,8 +125,8 @@ class Rev_Encoder_Model:
     def __init__(self):
         self.numThreads = 30
         self.batch_size = 1
-        self.minJSONs = 1000
-        self.maxJSONs = 1001
+        self.minJSONs = 2000
+        self.maxJSONs = 2001
         self.dimension = 256
         self.topK = 11
         self.scanner = self.get_database_scanner()
@@ -150,16 +150,18 @@ class Rev_Encoder_Model:
 
 class Decoder_Model:
 
-    def __init__(self, predictor):
+    def __init__(self, predictor, mc_iter):
         self.predictor = predictor
+        self.mc_iter = mc_iter
 
         # Load
 
 
-    def get_ProbYs_given_X(self, program, psi, monteCarloIterations = 1):
+    def get_ProbYs_given_X(self, program, psi):
 
         program_db = []
         sum_probY = None
+        monteCarloIterations = self.mc_iter
         for batch_num, (nodes, edges, targets, ret, fp, jsons) in enumerate(zip(self.predictor.nodes, self.predictor.edges, self.predictor.targets, self.predictor.ret_type, self.predictor.formal_param, self.predictor.js_programs)):
             for count in range(monteCarloIterations):
                 probYgivenZ = self.predictor.predictor.get_probY_given_psi(nodes, edges, targets, ret, fp, psi)
@@ -188,8 +190,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
     help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='/home/ubuntu/savedSearchModel',
-    help='checkpoint model during training here')
+    parser.add_argument('--save', type=str, default='/home/ubuntu/savedSearchModel')
+    parser.add_argument('--mc_iter', type=int, default=1)
 
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
@@ -197,14 +199,14 @@ if __name__ == "__main__":
     # initiate the server
     pred = Predictor()
     encoder = Encoder_Model(pred)
-    decoder = Decoder_Model(pred)
+    decoder = Decoder_Model(pred, clargs.mc_iter)
     #rev_encoder = Rev_Encoder_Model_2(pred)
     rev_encoder = Rev_Encoder_Model()
 
     # get the input JSON
     programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_6/', 10)
     #get the probs
-    j=1
+    j=0
     program = programs[j]
     print(program)
     print("Working with program no :: " + str(j))
