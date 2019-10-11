@@ -31,6 +31,8 @@ from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
 from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
 
+from bayou.experiments.predictMethods.SearchDB.utils import get_jaccard_distace_api
+
 
 import bayou.models.low_level_evidences.predict
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
@@ -125,10 +127,10 @@ class Rev_Encoder_Model:
     def __init__(self):
         self.numThreads = 30
         self.batch_size = 1
-        self.minJSONs = 2000
-        self.maxJSONs = 2001
+        self.minJSONs = 1000
+        self.maxJSONs = 1001
         self.dimension = 256
-        self.topK = 11
+        self.topK = 100
         self.scanner = self.get_database_scanner()
         return
 
@@ -180,7 +182,36 @@ class Decoder_Model:
         return top_progs
 
 
+    def get_running_comparison(self, program, psis, golden_programs=list()):
 
+        monteCarloIterations = self.mc_iter
+        sum_probY = [None for i in range(len(self.predictor.nodes))]
+        for count in range(monteCarloIterations):
+            psi = np.tile(psis[count],(self.predictor.predictor.config.batch_size,1))
+            program_db = []
+            for batch_num, (nodes, edges, targets, ret, fp, jsons) in enumerate(zip(self.predictor.nodes, self.predictor.edges, self.predictor.targets, self.predictor.ret_type, self.predictor.formal_param, self.predictor.js_programs)):
+                probYgivenZ = self.predictor.predictor.get_probY_given_psi(nodes, edges, targets, ret, fp, psi)
+                if count == 0:
+                    sum_probY[batch_num] = probYgivenZ
+                else:
+                    sum_probY[batch_num] = np.logaddexp(sum_probY[batch_num], probYgivenZ)
+                batch_prob = sum_probY[batch_num] - np.log(count+1)
+
+                for i, js in enumerate(jsons):
+                     program_db.append((js['body'], batch_prob[i]))
+
+            top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
+            distance1 = get_jaccard_distace_api(golden_programs[:1], [prog[0] for prog in top_progs][:1])
+            distance3 = get_jaccard_distace_api(golden_programs[:3], [prog[0] for prog in top_progs][:3])
+            distance5 = get_jaccard_distace_api(golden_programs[:5], [prog[0] for prog in top_progs][:5])
+            distance10 = get_jaccard_distace_api(golden_programs[:10], [prog[0] for prog in top_progs][:10])
+            distance100 = get_jaccard_distace_api(golden_programs[:100], [prog[0] for prog in top_progs][:100])
+            for prog in top_progs:
+                 print(prog[0])
+                 print(prog[1])
+            print(f"Monte Carlo Iteration: {count}, Distance[1/3/5/10/100]: {distance1}/{distance3}/{distance5}/{distance10}/{distance100}/")
+            print("=====================================")
+        return top_progs
 
 
 
@@ -210,15 +241,23 @@ if __name__ == "__main__":
     program = programs[j]
     print(program)
     print("Working with program no :: " + str(j))
-    psi, eA, eB = encoder.get_latent_space(program)
-    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])
+    psis = []   
+    while(len(psis) < clargs.mc_iter):
+         psi, eA, eB = encoder.get_latent_space(program)
+         psi = np.vsplit(psi, len(psi))
+         psis.extend(psi)
+    
+    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:100]
+
     for top_prog in rev_encoder_top_progs:
         print(top_prog)
-        #print(top_prog[1])
+         #print(top_prog[1])
     print("=====================================")
-    decoder_top_progs = decoder.get_ProbYs_given_X(program, psi)
-    for top_prog in decoder_top_progs:
-        print(top_prog[0])
-        print(top_prog[1])
 
-    print("=====================================")
+    decoder_top_progs = decoder.get_running_comparison(program, psis, golden_programs=rev_encoder_top_progs)
+    # for top_prog in decoder_top_progs:
+    #     print(top_prog[0])
+    #     print(top_prog[1])
+    #
+    # print("=====================================")
+
