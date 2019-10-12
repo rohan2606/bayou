@@ -25,9 +25,9 @@ import gc
 from copy import deepcopy
 
 #import bayou.models.core.infer
-import bayou.models.low_level_evidences.infer
+import bayou.models.non_prob.infer
 from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
-from bayou.models.low_level_evidences.data_reader import Reader
+from bayou.models.non_prob.data_reader import Reader
 
 
 #%%
@@ -37,7 +37,7 @@ def index(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
     clargs.continue_from = None
 
-    model = bayou.models.low_level_evidences.infer.BayesianPredictor
+    model = bayou.models.non_prob.infer.BayesianPredictor
 
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
@@ -80,10 +80,10 @@ def index(clargs):
 
         programs = []
         step=200
-        start = 0*step
-        end = 18*step
+        start = 18*step
+        end = 36*step
         end = min(end , config.num_batches)
-        print(f'Running from {start} to {end}')
+        #print(f'Running from {start} to {end}')
         for j in range(end):
             if j < start:
                  new_batch = iterator.get_next()
@@ -92,7 +92,7 @@ def index(clargs):
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
                 prog_json = deepcopy(jsp[   j * config.batch_size + i   ])
-                prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in b2[i]]
+                prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in prog_psi[i]]
                 programs.append(prog_json)
 
             if (j+1) % step == 0 or (j+1) == config.num_batches:
@@ -133,7 +133,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_scratch',
+    clargs = parser.parse_args(['--save', 'save',
         '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

@@ -63,7 +63,7 @@ class Reader():
 
             if infer:
                 self.js_programs = []
-                with open('data/js_programs.json', 'rb') as f:
+                with open('../low_level_evidences/data/js_programs.json', 'rb') as f:
                     for program in ijson.items(f, 'programs.item'):
                         self.js_programs.append(program)
             config.num_batches = int(len(self.nodes) / config.batch_size)

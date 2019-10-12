@@ -51,6 +51,6 @@ class BayesianPredictor(object):
 
     def get_latent_vector(self):
         # setup initial states and feed
-        [prog_psi] = self.sess.run([self.reverse_encoder_negative])
+        [prog_psi] = self.sess.run([self.model.psi_reverse_encoder])
 
         return prog_psi
