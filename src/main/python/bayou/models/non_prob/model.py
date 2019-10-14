@@ -52,7 +52,7 @@ class Model():
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean
 
             #self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes_negative, self.edges_negative, ev_data[4], embRT, ev_data[5], embFS)
-            self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges, ev_data[4], embRT, ev_data[5], embFS)
+            self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes_negative, self.edges_negative, ev_data[4], embRT, ev_data[5], embFS)
             self.psi_reverse_encoder_negative = self.reverse_encoder_negative.psi_mean
 
             self.loss = self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative)
