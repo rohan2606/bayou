@@ -55,8 +55,6 @@ class Model():
             self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges, ev_data[4], embRT, ev_data[5], embFS)
             self.psi_reverse_encoder_negative = self.reverse_encoder_negative.psi_mean
 
-            # 1. generation loss: log P(Y | Z)
-            
             self.loss = self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative)
 
             #unused if MultiGPU is being used
@@ -74,6 +72,9 @@ class Model():
 
 
     def cosine_similarity(self, a, b):
-       norm_a = tf.nn.l2_normalize(a,0)
-       norm_b = tf.nn.l2_normalize(b,0)
-       return 1 - tf.reduce_sum(tf.multiply(norm_a, norm_b))
+       norm_a = tf.nn.l2_normalize(a,1)
+       norm_b = tf.nn.l2_normalize(b,1)
+       batch_similarity = tf.reduce_sum(tf.multiply(norm_a, norm_b), axis=1)
+       batch_loss = 1 - batch_similarity
+       total_loss = tf.reduce_mean(batch_loss, axis=0)
+       return total_loss
