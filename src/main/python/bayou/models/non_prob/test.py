@@ -151,7 +151,7 @@ def cosine_similarity(a, b):
    norm_b = b/norm_denom_b[:, None]
 
    sim = np.dot(norm_a, np.transpose(norm_b))
-   return (1 - sim[0])
+   return sim[0]
 
 
 #%%
