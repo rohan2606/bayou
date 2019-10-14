@@ -49,12 +49,14 @@ class Reader():
             self.edges = np.load('../low_level_evidences/data/edges.npy')
 
 
-            num_progs = len(self.nodes)
             np.random.seed(0)
-            perm = np.random.permutation(num_progs)
+            perm = np.random.permutation(len(self.nodes))
 
-            self.nodes_negative = copy.deepcopy(self.nodes[perm])
-            self.edges_negative = copy.deepcopy(self.edges[perm])
+            self.inputs_negative = copy.deepcopy(self.inputs)
+
+            inputs_negative = [input_[perm] for input_ in self.inputs_negative[:-1]]
+            inputs_negative.append([input_surr[perm] for input_surr in self.inputs_negative[-1][:-1]])
+            inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in self.inputs_negative[-1][-1]])
 
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:

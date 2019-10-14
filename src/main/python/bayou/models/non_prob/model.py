@@ -27,34 +27,38 @@ class Model():
 
 
         newBatch = iterator.get_next()
-        nodes, edges, nodes_negative, edges_negative = newBatch[:4]
-        ev_data = newBatch[4:14]
-        surr_input = newBatch[14:17]
-        surr_input_fp = newBatch[17:]
+        nodes, edges = newBatch[:2]
 
+        ev_data = newBatch[2:12]
+        surr_input = newBatch[12:15]
+        surr_input_fp = newBatch[15:17]
+
+        neg_ev_data = newBatch[17:27]
+        neg_surr_input = newBatch[27:30]
+        neg_surr_input_fp = newBatch[30:32]
 
         self.nodes = tf.transpose(nodes)
         self.edges = tf.transpose(edges)
 
-        self.nodes_negative = tf.transpose(nodes_negative)
-        self.edges_negative = tf.transpose(edges_negative)
 
-        with tf.variable_scope("Encoder"):
+        with tf.variable_scope("Encoder", reuse=tf.AUTO_REUSE):
             self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
             self.psi_encoder = self.encoder.psi_mean
 
+            self.encoder_negative = BayesianEncoder(config, neg_ev_data, neg_surr_input, neg_surr_input_fp, infer)
+            self.psi_encoder_negative = self.encoder_negative.psi_mean
+
         # setup the reverse encoder.
-        with tf.variable_scope("Reverse_Encoder", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("Reverse_Encoder"):
             embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
             embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
             embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
             self.reverse_encoder = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges,  ev_data[4], embRT, ev_data[5], embFS)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean
 
-            self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes_negative, self.edges_negative, ev_data[4], embRT, ev_data[5], embFS)
-            self.psi_reverse_encoder_negative = self.reverse_encoder_negative.psi_mean
 
-            self.loss = tf.reduce_sum(tf.math.maximum(0., 0.05 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) + self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative)), axis=0)
+            self.loss = tf.reduce_sum( tf.maximum(0., 0.05 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) \
+                                            + self.cosine_similarity(self.psi_encoder_negative, self.psi_reverse_encoder)) , axis=0)
 
             #unused if MultiGPU is being used
             with tf.name_scope("train"):
@@ -73,7 +77,4 @@ class Model():
     def cosine_similarity(self, a, b):
        norm_a = tf.nn.l2_normalize(a,1)
        norm_b = tf.nn.l2_normalize(b,1)
-       batch_similarity = tf.reduce_sum(tf.multiply(norm_a, norm_b), axis=1)
-       #batch_loss = 1 - batch_similarity
-       #total_similarity = tf.reduce_mean(batch_similarity, axis=0)
-       return batch_similarity
+       return tf.reduce_sum(tf.multiply(norm_a, norm_b), axis=1)
