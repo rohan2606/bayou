@@ -88,11 +88,12 @@ def index(clargs):
             if j < start:
                  new_batch = iterator.get_next()
                  continue
-            prog_psi = predictor.get_latent_vector()
+            enc_psi, rev_enc_psi = predictor.get_all_latent_vectors()
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
                 prog_json = deepcopy(jsp[   j * config.batch_size + i   ])
-                prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in prog_psi[i]]
+                prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in enc_psi[i]]
+                prog_json['prog_psi_rev'] =  [ "%.3f" % val.item() for val in rev_enc_psi[i]]
                 programs.append(prog_json)
 
             if (j+1) % step == 0 or (j+1) == config.num_batches:
@@ -133,7 +134,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save',
+    clargs = parser.parse_args(['--save', 'save_debug',
         '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

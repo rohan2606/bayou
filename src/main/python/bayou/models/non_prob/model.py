@@ -51,11 +51,10 @@ class Model():
             self.reverse_encoder = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges,  ev_data[4], embRT, ev_data[5], embFS)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean
 
-            #self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes_negative, self.edges_negative, ev_data[4], embRT, ev_data[5], embFS)
             self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes_negative, self.edges_negative, ev_data[4], embRT, ev_data[5], embFS)
             self.psi_reverse_encoder_negative = self.reverse_encoder_negative.psi_mean
 
-            self.loss = self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative)
+            self.loss = tf.reduce_sum(tf.math.maximum(0., 0.05 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) + self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative)), axis=0)
 
             #unused if MultiGPU is being used
             with tf.name_scope("train"):
@@ -75,6 +74,6 @@ class Model():
        norm_a = tf.nn.l2_normalize(a,1)
        norm_b = tf.nn.l2_normalize(b,1)
        batch_similarity = tf.reduce_sum(tf.multiply(norm_a, norm_b), axis=1)
-       batch_loss = 1 - batch_similarity
-       total_loss = tf.reduce_mean(batch_loss, axis=0)
-       return total_loss
+       #batch_loss = 1 - batch_similarity
+       #total_similarity = tf.reduce_mean(batch_similarity, axis=0)
+       return batch_similarity

@@ -47,7 +47,6 @@ class Reader():
             # with open(, 'rb') as f:
             self.nodes = np.load('../low_level_evidences/data/nodes.npy')
             self.edges = np.load('../low_level_evidences/data/edges.npy')
-            self.targets = np.load('../low_level_evidences/data/targets.npy')
 
 
             num_progs = len(self.nodes)
@@ -66,7 +65,7 @@ class Reader():
                 with open('../low_level_evidences/data/js_programs.json', 'rb') as f:
                     for program in ijson.items(f, 'programs.item'):
                         self.js_programs.append(program)
-            config.num_batches = int(len(self.nodes) / config.batch_size)
+            config.num_batches = 10 #int(len(self.nodes) / config.batch_size)
             print('Done')
 
         else:

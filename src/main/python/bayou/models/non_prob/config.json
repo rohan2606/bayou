@@ -1,7 +1,7 @@
 {
     "model": "lle",
     "latent_size": 256,
-    "batch_size": 500,
+    "batch_size": 50,
     "num_epochs": 100,
     "learning_rate": 0.0006,
     "print_step": 100,
@@ -14,8 +14,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.7,
-            "ev_call_drop_prob":0.7
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "types",
@@ -24,8 +24,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.7,
-            "ev_call_drop_prob":0.7
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "keywords",
@@ -34,8 +34,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 8,
-            "ev_drop_prob":0.7,
-            "ev_call_drop_prob":0.6
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "callsequences",
@@ -44,8 +44,8 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":0.6,
-            "ev_call_drop_prob":0.7
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "returntype",
@@ -54,7 +54,7 @@
             "tile": 1,
             "max_depth": 1,
             "max_nums": 1,
-            "ev_drop_prob":0.7,
+            "ev_drop_prob":1.0,
             "ev_call_drop_prob":1.00
         },
         {
@@ -64,8 +64,8 @@
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
-            "ev_drop_prob":0.7,
-            "ev_call_drop_prob":0.95
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
           "name": "javadoc",
@@ -74,7 +74,7 @@
           "tile": 1,
           "max_depth": 32,
           "max_nums": 1,
-          "ev_drop_prob":0.7,
+          "ev_drop_prob":1.0,
           "ev_call_drop_prob":1.0
         },
         {
@@ -84,8 +84,8 @@
             "tile": 1,
             "max_depth": -1,
             "max_nums": 16,
-            "ev_drop_prob":0.7,
-            "ev_call_drop_prob":0.7
+            "ev_drop_prob":1.0,
+            "ev_call_drop_prob":1.0
         },
         {
             "name": "class_name",
