@@ -21,30 +21,70 @@ import os
 import sys
 import simplejson as json
 import textwrap
-import gc
-from copy import deepcopy
 
-#import bayou.models.core.infer
 import bayou.models.non_prob.infer
-from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
 from bayou.models.non_prob.data_reader import Reader
+from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
 
 
 #%%
 
+def test(clargs):
+    encs, rev_encs  = test_get_vals(clargs)
 
-def index(clargs):
+
+    latent_size, num_progs, batch_size = len(encs[0]), len(encs), 10000
+    hit_points = [1,2,5,10,50,100,500,1000,5000,10000]
+    hit_counts = np.zeros(len(hit_points))
+    for i in range(num_progs):
+        distances = []
+        for j in range(int(np.ceil(num_progs / batch_size))):
+            sid, eid = j * batch_size, min( (j+1) * batch_size , num_progs)
+            dist = cosine_similarity(np.array(encs[sid:eid]), np.array(rev_encs[sid:eid]))
+            distances += list(dist)
+
+        _rank = find_my_rank( distances , i )
+
+        hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
+
+        if (((i+1) % 100 == 0) or (i == (num_progs - 1))):
+            print('Searched {}/{} (Max Rank {})'
+                  'Hit_Points {} :: Percentage Hits {}'.format
+                  (i + 1, num_progs, num_progs,
+                   ListToFormattedString(hit_points, Type='int'), ListToFormattedString(prctg, Type='float')))
+    return
+
+
+def test_get_vals(clargs):
+
+    infer_vars, config = forward_pass(clargs)
+
+    encs, rev_encs  = [],[]
+    for prog_id in sorted(list(infer_vars.keys())):
+       encs += [list(infer_vars[prog_id]['psi_enc'])]
+       rev_encs += [list(infer_vars[prog_id]['psi_rev_enc'])]
+
+    return encs, rev_encs
+
+def forward_pass(clargs):
     #set clargs.continue_from = True while testing, it continues from old saved config
-    clargs.continue_from = None
+    clargs.continue_from = True
 
-    model = bayou.models.non_prob.infer.BayesianPredictor
+    with open(os.path.join(clargs.save, 'config.json')) as f:
+        model_type = json.load(f)['model']
+
+    if model_type == 'lle':
+        model = bayou.models.non_prob.infer.BayesianPredictor
+    else:
+        raise ValueError('Invalid model type in config: ' + model_type)
 
     # load the saved config
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
-    config.batch_size = 500
 
-    reader = Reader(clargs, config, infer=True, dataIsThere=True)
+    reader = Reader(clargs, config, infer=True)
+
+    # merged_summary = tf.summary.merge_all()
 
     # Placeholders for tf data
     nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
@@ -70,58 +110,46 @@ def index(clargs):
     iterator = batched_dataset.make_initializable_iterator()
 
 
+	# Placeholders for tf data
     jsp = reader.js_programs
-
-
     with tf.Session() as sess:
         predictor = model(clargs.save, sess, config, iterator) # goes to infer.BayesianPredictor
+        # testing
         sess.run(iterator.initializer, feed_dict=feed_dict)
         infer_vars = {}
 
-        programs = []
-        step=200
-        start = 0*step
-        end = 18*step
-        end = min(end , config.num_batches)
-        #print(f'Running from {start} to {end}')
-        for j in range(end):
-            if j < start:
-                 new_batch = iterator.get_next()
-                 continue
-            prog_psi = predictor.get_latent_vector()
+
+        for j in range(config.num_batches):
+            psi_enc, psi_rev_enc = predictor.get_all_latent_vectors()
             for i in range(config.batch_size):
-                infer_vars = jsp[i]
-                prog_json = deepcopy(jsp[   j * config.batch_size + i   ])
-                prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in prog_psi[i]]
-                programs.append(prog_json)
-
-            if (j+1) % step == 0 or (j+1) == config.num_batches:
-                k = (j+1)//step
-                fileName = "Program_output_" + str(k) + ".json"
-                print('\nWriting to {}...'.format(fileName), end='')
-                with open(fileName, 'w') as f:
-                     json.dump({'programs': programs}, fp=f, indent=2)
-
-                for item in programs:
-                    del item
-                del programs
-                gc.collect()
-                programs = []
+                prog_id = j * config.batch_size + i
+                infer_vars[prog_id] = {}
+                infer_vars[prog_id]['psi_enc'] = psi_enc[i].round(decimals=2)
+                infer_vars[prog_id]['psi_rev_enc'] = psi_rev_enc[i].round(decimals=2)
 
 
+            if (j+1) % 1000 == 0:
+                print('Completed Processing {}/{} batches'.format(j+1, config.num_batches))
 
-    print('Batch Processing Completed')
+
 
     return infer_vars, config
 
 
+def cosine_similarity(a, b):
+   norm_denom_a = np.linalg.norm(a,axis=1)
+   norm_a = a/norm_denom_a[:,None]
+   
+   norm_denom_b = np.linalg.norm(b, axis=1)
+   norm_b = b/norm_denom_b[:, None]
+   
+   sim = np.dot(norm_a, np.transpose(norm_b))
+   return (1 - sim[0])
 
 
 #%%
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('input_file', type=str, nargs=1,
-                            help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
     parser.add_argument('--save', type=str, required=True,
@@ -133,8 +161,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save',
-        '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json'])
+    clargs = parser.parse_args(['--save', 'save_debug'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
-    index(clargs)
+    test(clargs)

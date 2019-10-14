@@ -49,6 +49,13 @@ class BayesianPredictor(object):
         saver.restore(self.sess, ckpt.model_checkpoint_path)
 
 
+    def get_all_latent_vectors(self):
+        # setup initial states and feed
+        [prog_psi_enc, prog_psi_rev_enc] = self.sess.run([self.model.psi_encoder, self.model.psi_reverse_encoder])
+
+        return prog_psi_enc, prog_psi_rev_enc
+
+
     def get_latent_vector(self):
         # setup initial states and feed
         [prog_psi] = self.sess.run([self.model.psi_reverse_encoder])
