@@ -52,12 +52,14 @@ class Reader():
             np.random.seed(0)
             perm = np.random.permutation(len(self.nodes))
 
-            self.inputs_negative = copy.deepcopy(self.inputs)
+            temp_inputs = copy.deepcopy(self.inputs)
 
-            inputs_negative = [input_[perm] for input_ in self.inputs_negative[:-1]]
-            inputs_negative.append([input_surr[perm] for input_surr in self.inputs_negative[-1][:-1]])
-            inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in self.inputs_negative[-1][-1]])
+            inputs_negative = [input_[perm] for input_ in temp_inputs[:-1]]
+            inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
+            inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
 
+            self.inputs_negative = inputs_negative
+            
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
                 json.dump(jsconfig, fp=f, indent=2)
