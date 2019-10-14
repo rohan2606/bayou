@@ -1,8 +1,8 @@
 from multiprocessing.dummy import Pool as ThreadPool
 #from multiprocessing import Pool
 
-from bayou.experiments.predictMethods.SearchDB.MyDataBase import MyColumnDatabaseWBatch
-from bayou.experiments.predictMethods.SearchDB.Program import skinnyProgramInBatch
+from bayou.experiments.predictMethods_non_prob.SearchDB.MyDataBase import MyColumnDatabaseWBatch
+from bayou.experiments.predictMethods_non_prob.SearchDB.Program import skinnyProgramInBatch
 
 
 

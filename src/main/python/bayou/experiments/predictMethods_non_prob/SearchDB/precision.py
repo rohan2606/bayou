@@ -1,6 +1,6 @@
-from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
-from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
-from bayou.experiments.predictMethods.SearchDB.Embedding import Embedding_iterator_WBatch
+from bayou.experiments.predictMethods_non_prob.SearchDB.parallelReadJSON import parallelReadJSON
+from bayou.experiments.predictMethods_non_prob.SearchDB.searchFromDB import searchFromDB
+from bayou.experiments.predictMethods_non_prob.SearchDB.Embedding import Embedding_iterator_WBatch
 
 import numpy as np
 import simplejson as json
@@ -10,8 +10,8 @@ if __name__=="__main__":
 
     numThreads = 30
     batch_size = 5
-    minJSONs = 0
-    maxJSONs = 259
+    minJSONs = 1
+    maxJSONs = 37 #259
     dimension = 256
     topK = 10
 
@@ -32,7 +32,7 @@ if __name__=="__main__":
 
     for expNumber in [0,1,2,3,4,5,6]:
         print ("Load Embedding for ExpNumber :: "  +  str(expNumber) )
-        embIt = Embedding_iterator_WBatch('../log/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
+        embIt = Embedding_iterator_WBatch('../log_non_prob/expNumber_'+ str(expNumber) +'/EmbeddedProgramList.json', batch_size, dimension)
 
         # for first hit
         hit_counts_first_hit_total_body = np.zeros(len(hit_points))
@@ -215,6 +215,6 @@ if __name__=="__main__":
                 print('Searched {} Hit_Pts {} :: Distance Seq Match {}'.format
                 (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(avg_jaccard_seq_dist, Type='float')))
                 print()
-                with open("../log" + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
+                with open("../log_non_prob" + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
                     json.dump({'topPrograms': JSONList}, fp=f, indent=2)
                 break

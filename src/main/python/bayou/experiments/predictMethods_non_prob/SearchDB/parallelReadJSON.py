@@ -1,14 +1,14 @@
 from multiprocessing import Pool
 
-from bayou.experiments.predictMethods.SearchDB.MyDataBase import MyColumnDatabaseWBatch
-from bayou.experiments.predictMethods.SearchDB.Program import skinnyProgramInBatch
+from bayou.experiments.predictMethods_non_prob.SearchDB.MyDataBase import MyColumnDatabaseWBatch
+from bayou.experiments.predictMethods_non_prob.SearchDB.Program import skinnyProgramInBatch
 
 import ijson.backends.yajl2_cffi as ijson
 import simplejson as json
 import pickle
 import os
 
-backupDB = '../log/bayouSearchColDb_backup.pkl'
+backupDB = '../log_non_prob/bayouSearchColDb_backup.pkl'
 
 class parallelReadJSON():
 

@@ -18,7 +18,7 @@ class MyColumnDatabaseWBatch():
 
     def setValues(self, jsProgram, decProg, index):
 
-        self.embedding_psi[index] = np.asarray( [ item for item in jsProgram['ev_psi'] ], dtype=np.float32)
+        self.embedding_psi[index] = np.asarray( [ item for item in jsProgram['prog_psi'] ], dtype=np.float32)
         self.programs[index] = decProg
         return
 
@@ -36,12 +36,17 @@ class MyColumnDatabaseWBatch():
 
 
     def cosine_similarity(self, a, b):
-       norm_a = tf.nn.l2_normalize(a,0)
-       norm_b = tf.nn.l2_normalize(b,0)
-       return 1 - tf.reduce_sum(tf.multiply(norm_a, norm_b))
+       norm_denom_a = np.linalg.norm(a,axis=1)
+       norm_a = a/norm_denom_a[:,None]
+       
+       norm_denom_b = np.linalg.norm(b, axis=1)
+       norm_b = b/norm_denom_b[:, None]
+       
+       sim = np.dot(norm_a, np.transpose(norm_b))
+       return (1 - sim)
 
 
     def measureDistance(self, embedding):
 
-        self.distance = self.cosine_similarity(embedding, self.embedding_psi)
+        self.distance = self.cosine_similarity(embedding.psi, self.embedding_psi)
         return
