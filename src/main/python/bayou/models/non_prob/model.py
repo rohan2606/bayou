@@ -57,7 +57,7 @@ class Model():
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean
 
 
-            self.loss = tf.reduce_sum( tf.maximum(0., 0.05 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) \
+            self.loss = tf.reduce_sum( tf.maximum(0., 2 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) \
                                             + self.cosine_similarity(self.psi_encoder_negative, self.psi_reverse_encoder)) , axis=0)
 
             #unused if MultiGPU is being used

@@ -66,9 +66,9 @@ def train(clargs):
     neg_surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
     neg_surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
 
-    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs[:-1])}
-    feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
-    feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs_negative[:-1])}
+    feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})
+    feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs_negative[-1][-1])})
 
     feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs_negative[:-1])}
     feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})

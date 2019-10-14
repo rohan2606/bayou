@@ -40,7 +40,7 @@ def test(clargs):
         distances = []
         for j in range(int(np.ceil(num_progs / batch_size))):
             sid, eid = j * batch_size, min( (j+1) * batch_size , num_progs)
-            dist = cosine_similarity(np.array(encs[sid:eid]), np.array(rev_encs[sid:eid]))
+            dist = cosine_similarity(np.array(encs[i:i+1]), np.array(rev_encs[sid:eid]))
             distances += list(dist)
 
         _rank = find_my_rank( distances , i )
