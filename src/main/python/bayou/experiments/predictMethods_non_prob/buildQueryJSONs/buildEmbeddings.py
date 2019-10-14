@@ -25,13 +25,13 @@ import json
 
 
 import time
-import bayou.models.low_level_evidences.predict
+import bayou.models.non_prob.predict
 
 #%%
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('--python_recursion_limit', type=int, default=10000,
                     help='set recursion limit for the Python interpreter')
-parser.add_argument('--save', type=str, default='/home/ubuntu/savedSearchModel',
+parser.add_argument('--save', type=str, default='/home/ubuntu/savedSearchModel_non_prob',
                     help='checkpoint model during training here')
 
 clargs = parser.parse_args()
@@ -44,7 +44,7 @@ class embedding_server():
         #set clargs.continue_from = True while testing, it continues from old saved config
         clargs.continue_from = True
         print('Loading Model, please wait _/\_ ...')
-        model = bayou.models.low_level_evidences.predict.BayesianPredictor
+        model = bayou.models.non_prob.predict.BayesianPredictor
 
         sess = tf.InteractiveSession()
         self.predictor = model(clargs.save, sess) # goes to predict.BayesianPredictor

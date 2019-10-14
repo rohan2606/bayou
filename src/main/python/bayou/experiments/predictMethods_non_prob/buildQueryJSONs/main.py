@@ -73,15 +73,15 @@ def runDomDriver(queryFilesSampled, queryFilesInJson, logdir):
 
 if __name__ == "__main__":
 
-    logdir = "../log"
+    logdir = "../log_non_prob"
     queryFilesSampled = logdir + "/L1SampledQueryFileNamesfiles.txt"
     queryFilesInJson = logdir + '/L3JSONFiles.txt'
 
-    cleanUp(logdir = logdir)
-    sampleFiles(queryFilesSampled, k=10000)
-    runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
+    #cleanUp(logdir = logdir)
+    #sampleFiles(queryFilesSampled, k=10000)
+    #runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
 
-    with open('/home/ubuntu/savedSearchModel/config.json') as f:
+    with open('/home/ubuntu/savedSearchModel_non_prob/config.json') as f:
         config = read_config(json.load(f), chars_vocab=True)
 
 
