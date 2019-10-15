@@ -57,9 +57,11 @@ class Model():
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean
 
 
-            self.loss = tf.reduce_sum( tf.maximum(0., 2 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) \
-                                            + self.cosine_similarity(self.psi_encoder_negative, self.psi_reverse_encoder)) , axis=0)
+            #self.loss = tf.reduce_sum( 2 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) \
+            #                               + self.cosine_similarity(self.psi_encoder_negative, self.psi_reverse_encoder) , axis=0)
 
+            self.loss = tf.reduce_mean( tf.maximum(0., 10000. + self.euclidean_distance(self.psi_encoder, self.psi_reverse_encoder) - self.euclidean_distance(self.psi_encoder_negative, self.psi_reverse_encoder)) , axis=0)
+            #self.loss = tf.reduce_sum(self.euclidean_distance(self.psi_encoder, self.psi_reverse_encoder) , axis=0)
             #unused if MultiGPU is being used
             with tf.name_scope("train"):
                 train_ops = get_var_list()['all_vars']
@@ -78,3 +80,8 @@ class Model():
        norm_a = tf.nn.l2_normalize(a,1)
        norm_b = tf.nn.l2_normalize(b,1)
        return tf.reduce_sum(tf.multiply(norm_a, norm_b), axis=1)
+    
+    def euclidean_distance(self, a, b):
+       sqr_a = tf.math.sqrt(tf.reduce_sum(tf.math.square(a-b),axis=1))
+       #norm_b = tf.nn.l2_normalize(b,1)
+       return sqr_a #tf.reduce_sum(tf.multiply(norm_a, norm_b), axis=1)

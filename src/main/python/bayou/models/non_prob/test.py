@@ -40,9 +40,9 @@ def test(clargs):
         distances = []
         for j in range(int(np.ceil(num_progs / batch_size))):
             sid, eid = j * batch_size, min( (j+1) * batch_size , num_progs)
-            dist = cosine_similarity(np.array(encs[i:i+1]), np.array(rev_encs[sid:eid]))
+            dist = euclidean_distance(np.array(encs[i:i+1]), np.array(rev_encs[sid:eid]))
             distances += list(dist)
-
+        
         _rank = find_my_rank( distances , i )
 
         hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
@@ -153,6 +153,10 @@ def cosine_similarity(a, b):
    sim = np.dot(norm_a, np.transpose(norm_b))
    return sim[0]
 
+
+
+def euclidean_distance(a,b):
+    return np.sum(np.square(b-a[0]) , axis=1)
 
 #%%
 if __name__ == '__main__':
