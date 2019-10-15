@@ -26,8 +26,8 @@ import textwrap
 from bayou.models.non_prob.data_reader import Reader
 from bayou.models.non_prob.model import Model
 
-from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list
-
+from bayou.models.low_level_evidences.utils import dump_config, get_var_list
+from bayou.models.non_prob.utils import read_config
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
