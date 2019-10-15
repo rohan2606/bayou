@@ -49,7 +49,7 @@ class BayesianEncoder(object):
 
             # 4. compute the mean of non-zero encodings
             #self.psi_mean = tf.reduce_sum(encodings, axis=0)
-            self.psi_mean = tf.layers.dense(tf.concat(encodings, axis=1),config.latent_size)
+            self.psi_mean = tf.layers.dense(tf.concat(encodings, axis=1),config.latent_size, activation=tf.nn.tanh)
  
 
 
@@ -85,8 +85,8 @@ class BayesianReverseEncoder(object):
 
 
         encodings = [Tree_mean, rt_mean, fp_mean]
-        finalMean = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(encodings, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size, activation=tf.nn.tanh)
+        finalMean = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(encodings, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size)
         finalMean = tf.layers.dense(finalMean, config.latent_size, activation=tf.nn.tanh)
-        finalMean = tf.layers.dense(finalMean, config.latent_size)
+        #finalMean = tf.layers.dense(finalMean, config.latent_size)
         # 4. compute the mean of non-zero encodings
         self.psi_mean = finalMean

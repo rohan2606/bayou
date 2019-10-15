@@ -49,8 +49,9 @@ class Reader():
             self.edges = np.load('../low_level_evidences/data/edges.npy')
 
 
-            np.random.seed(0)
+            #np.random.seed(0)
             perm = np.random.permutation(len(self.nodes))
+            #perm = np.random.permutation(500)
 
             temp_inputs = copy.deepcopy(self.inputs)
 

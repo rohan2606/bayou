@@ -40,7 +40,7 @@ def test(clargs):
         distances = []
         for j in range(int(np.ceil(num_progs / batch_size))):
             sid, eid = j * batch_size, min( (j+1) * batch_size , num_progs)
-            dist = euclidean_distance(np.array(encs[i:i+1]), np.array(rev_encs[sid:eid]))
+            dist = cosine_similarity(np.array(encs[i:i+1]), np.array(rev_encs[sid:eid]))
             distances += list(dist)
         
         _rank = find_my_rank( distances , i )
@@ -127,7 +127,7 @@ def forward_pass(clargs):
 
 
         for j in range(config.num_batches):
-            psi_enc, psi_rev_enc = predictor.get_all_latent_vectors()
+            psi_enc, psi_neg, psi_rev_enc = predictor.get_all_latent_vectors()
             for i in range(config.batch_size):
                 prog_id = j * config.batch_size + i
                 infer_vars[prog_id] = {}
@@ -172,7 +172,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_debug'])
+    clargs = parser.parse_args(['--save', 'save_no_max'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

@@ -63,9 +63,9 @@ def index(clargs):
     feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
     feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
 
-    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs_negative[:-1])}
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs_negative[-1][-1])})
+    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs[:-1])}
+    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs[-1][:-1])})
+    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
 
     feed_dict.update(feed_dict_neg)
     feed_dict.update({nodes_placeholder: reader.nodes})
@@ -96,11 +96,12 @@ def index(clargs):
             if j < start:
                  new_batch = iterator.get_next()
                  continue
-            enc_psi, rev_enc_psi = predictor.get_all_latent_vectors()
+            enc_psi, enc_neg_psi, rev_enc_psi = predictor.get_all_latent_vectors()
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
                 prog_json = deepcopy(jsp[   j * config.batch_size + i   ])
                 prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in enc_psi[i]]
+                prog_json['prog_neg_psi'] =  [ "%.3f" % val.item() for val in enc_neg_psi[i]]
                 prog_json['prog_psi_rev'] =  [ "%.3f" % val.item() for val in rev_enc_psi[i]]
                 programs.append(prog_json)
 
@@ -142,7 +143,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_debug',
+    clargs = parser.parse_args(['--save', 'save_no_max',
         '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
