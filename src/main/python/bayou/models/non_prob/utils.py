@@ -23,8 +23,8 @@ import os
 #import matplotlib.pyplot as plt
 
 # Do not move these imports to the top, it will introduce a cyclic dependency
-import bayou.models.low_level_evidences.evidence
-
+import bayou.models.non_prob.evidence
+from bayou.models.non_prob.utils import CONFIG_GENERAL, CONFIG_ENCODER, CONFIG_DECODER, CONFIG_REVERSE_ENCODER, CONFIG_INFER
 
 # convert JSON to config
 def read_config(js, chars_vocab=False):
