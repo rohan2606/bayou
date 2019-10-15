@@ -199,7 +199,7 @@ class Sets(Evidence):
             latent_encoding = tf.where(condition, latent_encoding, zeros)
             latent_encoding = tf.reshape(latent_encoding , [config.batch_size, self.max_nums, config.latent_size])
             count = tf.math.count_nonzero(tf.reduce_sum(latent_encoding, axis=2), axis=1, dtype=tf.float32)
-            latent_encoding = tf.reduce_sum(latent_encoding, axis=1)/count
+            latent_encoding = tf.reduce_sum(latent_encoding, axis=1)/(count[:,None] + 0.01)
             return latent_encoding
 
 
@@ -686,8 +686,8 @@ class SurroundingEvidence(Evidence):
 
             encodings_flat = tf.where( cond, encodings_flat , zeros)
 
-            count = tf.nn.count_nonzero( tf.reduce_sum(encodings_flat, axis=2), axis=1 , tf.float32)
+            count = tf.math.count_nonzero( tf.reduce_sum(encodings_flat, axis=2), axis=1 , dtype=tf.float32)
 
             #batch_size * number_of_methods * latent_size
-            encodings_flat = tf.reduce_sum(encodings_flat, axis=1)/count[:,None]
+            encodings_flat = tf.reduce_sum(encodings_flat, axis=1)/(count[:,None]+0.01)
         return encodings_flat

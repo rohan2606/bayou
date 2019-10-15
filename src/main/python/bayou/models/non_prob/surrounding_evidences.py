@@ -139,7 +139,7 @@ class SetsOfSets(SetsOfSomething):
             latent_encoding = tf.reshape(latent_encoding , [config.batch_size * self.max_nums, self.max_depth, config.latent_size])
 
             count = tf.math.count_nonzero(tf.reduce_sum(latent_encoding, axis=2), axis=1, dtype=tf.float32)
-            latent_encoding = tf.reduce_sum(latent_encoding, axis=1)/count
+            latent_encoding = tf.reduce_sum(latent_encoding, axis=1)/(count[:,None]+0.01)
 
             latent_encoding = tf.reshape(latent_encoding, [config.batch_size ,self.max_nums, config.latent_size])
             return latent_encoding

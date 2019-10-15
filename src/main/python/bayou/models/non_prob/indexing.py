@@ -26,7 +26,8 @@ from copy import deepcopy
 
 #import bayou.models.core.infer
 import bayou.models.non_prob.infer
-from bayou.models.low_level_evidences.utils import read_config, normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
+from bayou.models.low_level_evidences.utils import  normalize_log_probs, find_my_rank, rank_statistic, ListToFormattedString
+from bayou.models.non_prob.utils import read_config
 from bayou.models.non_prob.data_reader import Reader
 
 
