@@ -23,6 +23,7 @@ import os
 import sys
 import json
 import pickle
+import re
 
 import time
 import ijson
@@ -46,7 +47,7 @@ class Java_Reader:
     def useDomDriver(filepath):
         subprocess.call(['java', '-jar', \
         '/home/ubuntu/bayou/tool_files/maven_3_3_9/dom_driver/target/dom_driver-1.0-jar-with-dependencies.jar', \
-        '-f', 'convertToArrayList.java', '-c', '/home/ubuntu/bayou/Java-prog-extract-config.json', \
+        '-f', 'problems/convertToArrayList.java', '-c', '/home/ubuntu/bayou/Java-prog-extract-config.json', \
         '-o', 'output.json'])
         return
 
@@ -95,8 +96,8 @@ class Rev_Encoder_Model:
     def __init__(self):
         self.numThreads = 30
         self.batch_size = 1
-        self.minJSONs = 2000
-        self.maxJSONs = 2001
+        self.minJSONs = 0
+        self.maxJSONs = 69
         self.dimension = 256
         self.topK = 100
         self.scanner = self.get_database_scanner()
@@ -127,7 +128,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
     help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='/home/ubuntu/savedSearchModel')
+    parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq')
     parser.add_argument('--mc_iter', type=int, default=1)
 
     clargs = parser.parse_args()
@@ -136,21 +137,20 @@ if __name__ == "__main__":
     # initiate the server
     pred = Predictor()
     encoder = Encoder_Model(pred)
-    decoder = Decoder_Model(pred, clargs.mc_iter)
     #rev_encoder = Rev_Encoder_Model_2(pred)
     rev_encoder = Rev_Encoder_Model()
-    max_cut_off_accept = 10
 
     # get the input JSON
-    programs = Java_Reader.useDomDriver('problems/sample.json').getExampleJson()
+    Java_Reader.useDomDriver('problems/sample.json')
+    programs = Java_Reader.getExampleJsons('problems/output.json',10)
+
+    print(programs)
+    print("=====================================")
     #get the probs
-    j=0
-    program = programs[j]
-    print(program)
 
-
-    _, eA, eB = encoder.get_latent_space(program)
-    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:max_cut_off_accept]
+    print("=====================================")
+    _, eA, eB = encoder.get_latent_space(json.loads(programs))
+    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:rev_encoder.topK]
 
     for top_prog in rev_encoder_top_progs:
        print(top_prog)

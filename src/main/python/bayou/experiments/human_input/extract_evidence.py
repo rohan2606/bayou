@@ -1,6 +1,19 @@
 import json
 import scripts.ast_extractor as ast_extractor
 import bayou.models.low_level_evidences.evidence
+from scripts.variable_name_extractor import get_variables
+from bayou.models.low_level_evidences.utils import gather_calls
+from itertools import chain
+from scripts.evidence_extractor import shorten
+import re
+import random
+
+
+
+def stripJavaDoc(stringBody):
+    return re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))
+
+max_ast_depth = 32
 
 def extract_evidence(fileName):
     #print('Loading data file...')
