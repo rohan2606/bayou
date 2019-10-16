@@ -122,14 +122,13 @@ class Rev_Encoder_Model:
 
 
 
-
 if __name__ == "__main__":
     #%%
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
     help='set recursion limit for the Python interpreter')
     parser.add_argument('input_file', type=str, nargs=1,
-                        help='input data file')    
+                        help='input data file')
     parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq')
     parser.add_argument('--mc_iter', type=int, default=1)
 
@@ -144,7 +143,9 @@ if __name__ == "__main__":
     rev_encoder = Rev_Encoder_Model()
 
     # get the input JSON
-    Java_Reader.useDomDriver(clargs.input_file[0])
+    filename = clargs.input_file[0]
+    Java_Reader.useDomDriver(filename)
+
     programs = Java_Reader.getExampleJsons('problems/output.json',10)
 
     print(programs)
@@ -155,6 +156,8 @@ if __name__ == "__main__":
     _, eA, eB = encoder.get_latent_space(json.loads(programs))
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:rev_encoder.topK]
 
-    for top_prog in rev_encoder_top_progs:
+    for j, top_prog in enumerate(rev_encoder_top_progs):
+       print('Rank ::' +  str(j))
        print(top_prog)
     print("=====================================")
+
