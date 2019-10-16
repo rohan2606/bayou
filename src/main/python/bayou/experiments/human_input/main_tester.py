@@ -47,8 +47,8 @@ class Java_Reader:
     def useDomDriver(filepath):
         subprocess.call(['java', '-jar', \
         '/home/ubuntu/bayou/tool_files/maven_3_3_9/dom_driver/target/dom_driver-1.0-jar-with-dependencies.jar', \
-        '-f', 'problems/convertToArrayList.java', '-c', '/home/ubuntu/bayou/Java-prog-extract-config.json', \
-        '-o', 'output.json'])
+        '-f', filepath, '-c', '/home/ubuntu/bayou/Java-prog-extract-config.json', \
+        '-o', 'problems/output.json'])
         return
 
     def getExampleJsons(logdir, items):
@@ -128,12 +128,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
     help='set recursion limit for the Python interpreter')
+    parser.add_argument('input_file', type=str, nargs=1,
+                        help='input data file')    
     parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq')
     parser.add_argument('--mc_iter', type=int, default=1)
 
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
 
+    print(clargs.input_file)
     # initiate the server
     pred = Predictor()
     encoder = Encoder_Model(pred)
@@ -141,7 +144,7 @@ if __name__ == "__main__":
     rev_encoder = Rev_Encoder_Model()
 
     # get the input JSON
-    Java_Reader.useDomDriver('problems/sample.json')
+    Java_Reader.useDomDriver(clargs.input_file[0])
     programs = Java_Reader.getExampleJsons('problems/output.json',10)
 
     print(programs)
