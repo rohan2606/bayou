@@ -23,7 +23,8 @@ from collections import Counter
 import gc
 import copy
 
-from bayou.models.low_level_evidences.utils import gather_calls, dump_config
+from bayou.models.low_level_evidences.utils import gather_calls
+from bayou.models.non_prob.utils import dump_config
 from bayou.models.low_level_evidences.node import Node, get_ast_from_json, CHILD_EDGE, SIBLING_EDGE, TooLongLoopingException, TooLongBranchingException
 
 
@@ -42,11 +43,11 @@ class Reader():
 
         if clargs.continue_from is not None or dataIsThere:
             print('Loading Data')
-            with open('../low_level_evidences/data/inputs.npy', 'rb') as f:
+            with open('data/inputs.npy', 'rb') as f:
                 self.inputs = pickle.load(f)
             # with open(, 'rb') as f:
-            self.nodes = np.load('../low_level_evidences/data/nodes.npy')
-            self.edges = np.load('../low_level_evidences/data/edges.npy')
+            self.nodes = np.load('data/nodes.npy')
+            self.edges = np.load('data/edges.npy')
 
 
             #np.random.seed(0)
@@ -55,15 +56,15 @@ class Reader():
 
             temp_inputs = copy.deepcopy(self.inputs)
 
-            inputs_negative = [input_[perm] for input_ in temp_inputs[:-1]]
-            inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
-            inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
+            inputs_negative = [input_[perm] for input_ in temp_inputs]
+            #inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
+            #inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
 
             self.inputs_negative = inputs_negative
             
-            jsconfig = dump_config(config)
-            with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
-                json.dump(jsconfig, fp=f, indent=2)
+            #jsconfig = dump_config(config)
+            #with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
+            #    json.dump(jsconfig, fp=f, indent=2)
 
             if infer:
                 self.js_programs = []
@@ -80,8 +81,8 @@ class Reader():
             raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
 
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
-            raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
-            raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
+            #raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
+            #raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
 
 
             config.num_batches = int(len(raw_targets) / config.batch_size)
@@ -93,29 +94,28 @@ class Reader():
             for i in range(len(config.evidence)-1): #-1 to leave surrounding evidences
                 raw_evidences[i] = raw_evidences[i][:sz]
 
-            for i in range(len(config.surrounding_evidence)-1): #-1 to leave formal params
-                raw_evidences[-1][i] = raw_evidences[-1][i][:sz]
+            #for i in range(len(config.surrounding_evidence)-1): #-1 to leave formal params
+            #    raw_evidences[-1][i] = raw_evidences[-1][i][:sz]
 
 
-            for j in range(2):
-                raw_evidences[-1][-1][j] = raw_evidences[-1][-1][j][:sz]
+            #for j in range(2):
+            #    raw_evidences[-1][-1][j] = raw_evidences[-1][-1][j][:sz]
 
             raw_targets = raw_targets[:sz]
             js_programs = js_programs[:sz]
 
             # setup input and target chars/vocab
-            config.decoder.vocab, config.decoder.vocab_size = self.decoder_api_dict.get_call_dict()
             # adding the same variables for reverse Encoder
             config.reverse_encoder.vocab, config.reverse_encoder.vocab_size = self.decoder_api_dict.get_call_dict()
 
             # wrangle the evidences and targets into numpy arrays
             self.inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, raw_evidences)]
-            self.nodes = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
-            self.edges = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.bool)
-            self.targets = np.zeros((sz, config.decoder.max_ast_depth), dtype=np.int32)
+            self.nodes = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
+            self.edges = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.bool)
+            self.targets = np.zeros((sz, config.reverse_encoder.max_ast_depth), dtype=np.int32)
 
             for i, path in enumerate(raw_targets):
-                len_path = min(len(path) , config.decoder.max_ast_depth)
+                len_path = min(len(path) , config.reverse_encoder.max_ast_depth)
                 mod_path = path[:len_path]
 
                 self.nodes[i, :len_path]   =  [ p[0] for p in mod_path ]
@@ -124,6 +124,18 @@ class Reader():
 
             self.js_programs = js_programs
 
+
+
+            perm = np.random.permutation(sz)
+            #perm = np.random.permutation(500)
+
+            temp_inputs = copy.deepcopy(self.inputs)
+
+            inputs_negative = [input_[perm] for input_ in temp_inputs]
+            #inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
+            #inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
+
+            self.inputs_negative = inputs_negative
             print('Done!')
             # del raw_evidences
             # del raw_targets
@@ -147,3 +159,102 @@ class Reader():
                 json.dump(jsconfig, fp=f, indent=2)
 
             print("Saved")
+
+
+    def read_data(self, filename, infer, save=None):
+
+        data_points = []
+        done, ignored_for_branch, ignored_for_loop = 0, 0, 0
+        self.decoder_api_dict = decoderDict(infer, self.config.decoder)
+
+        f = open(filename , 'rb')
+
+        for program in ijson.items(f, 'programs.item'):
+            if 'ast' not in program:
+                continue
+            try:
+                evidences = [ev.read_data_point(program, infer) for ev in self.config.evidence]
+                ast_node_graph = get_ast_from_json(program['ast']['_nodes'])
+
+                ast_node_graph.sibling.check_nested_branch()
+                ast_node_graph.sibling.check_nested_loop()
+
+                path = ast_node_graph.depth_first_search()
+
+                parsed_data_array = []
+                for i, (curr_node_val, parent_node_id, edge_type) in enumerate(path):
+                    curr_node_id = self.decoder_api_dict.get_or_add_node_val_from_callMap(curr_node_val)
+                    # now parent id is already evaluated since this is top-down breadth_first_search
+                    parent_call = path[parent_node_id][0]
+                    parent_call_id = self.decoder_api_dict.get_node_val_from_callMap(parent_call)
+
+                    if i > 0 and not (curr_node_id is None or parent_call_id is None): # I = 0 denotes DSubtree ----sibling---> DSubTree
+                        parsed_data_array.append((parent_call_id, edge_type, curr_node_id))
+
+                sample = dict()
+                sample['file'] = program['file']
+                sample['method'] = program['method']
+                sample['body'] = program['body']
+
+                data_points.append((evidences, parsed_data_array, sample))
+                done += 1
+
+            except (TooLongLoopingException) as e1:
+                ignored_for_loop += 1
+
+            except (TooLongBranchingException) as e2:
+                ignored_for_branch += 1
+
+            if done % 10000 == 0:
+                print('Extracted data for {} programs'.format(done), end='\n')
+                break
+
+        print('{:8d} programs/asts in training data'.format(done))
+        print('{:8d} programs/asts missed in training data for loop'.format(ignored_for_loop))
+        print('{:8d} programs/asts missed in training data for branch'.format(ignored_for_branch))
+
+
+        # randomly shuffle to avoid bias towards initial data points during training
+        random.shuffle(data_points)
+        evidences, parsed_data_array, js_programs = zip(*data_points) #unzip
+
+
+        return evidences, parsed_data_array, js_programs
+
+
+
+
+class decoderDict():
+
+   def __init__(self, infer, pre_loaded_vocab=None):
+       self.infer = infer
+       if not infer:
+           self.call_dict = dict()
+           self.call_dict['STOP'] = 0
+           self.call_count = 1
+       else:
+           self.call_dict = pre_loaded_vocab.vocab
+           self.call_count = pre_loaded_vocab.vocab_size
+
+
+
+   def get_or_add_node_val_from_callMap(self, nodeVal):
+       if (self.infer) and (nodeVal not in self.call_dict):
+           return None
+       elif (self.infer) or (nodeVal in self.call_dict):
+           return self.call_dict[nodeVal]
+       else:
+           nextOpenPos = self.call_count
+           self.call_dict[nodeVal] = nextOpenPos
+           self.call_count += 1
+           return nextOpenPos
+
+   def get_node_val_from_callMap(self, nodeVal):
+       if (self.infer) and (nodeVal not in self.call_dict):
+           return None
+       else:
+           return self.call_dict[nodeVal]
+
+   def get_call_dict(self):
+       return self.call_dict, self.call_count
+

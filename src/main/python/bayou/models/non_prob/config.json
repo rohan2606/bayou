@@ -39,7 +39,7 @@
         },
         {
             "name": "callsequences",
-            "units": 256,
+            "units": 32,
             "num_layers": 1,
             "tile": 1,
             "max_depth": 8,
@@ -49,7 +49,7 @@
         },
         {
             "name": "returntype",
-            "units": 256,
+            "units": 32,
             "num_layers": 1,
             "tile": 1,
             "max_depth": 1,
@@ -59,112 +59,15 @@
         },
         {
             "name": "formalparam",
-            "units": 256,
+            "units": 32,
             "num_layers": 1,
             "tile": 1,
             "max_depth": 8,
             "max_nums": 1,
             "ev_drop_prob":1.0,
             "ev_call_drop_prob":1.0
-        },
-        {
-          "name": "javadoc",
-          "units": 256,
-          "num_layers": 1,
-          "tile": 1,
-          "max_depth": 32,
-          "max_nums": 1,
-          "ev_drop_prob":1.0,
-          "ev_call_drop_prob":1.0
-        },
-        {
-            "name": "classtype",
-            "units": 256,
-            "num_layers": 1,
-            "tile": 1,
-            "max_depth": -1,
-            "max_nums": 16,
-            "ev_drop_prob":1.0,
-            "ev_call_drop_prob":1.0
-        },
-        {
-            "name": "class_name",
-            "units": 256,
-            "num_layers": 1,
-            "tile": 1,
-            "max_depth": 4,
-            "max_nums": 1,
-            "ev_drop_prob":1.0,
-            "ev_call_drop_prob":1.0
-        },
-        {
-            "name": "method_name",
-            "units": 256,
-            "num_layers": 1,
-            "tile": 1,
-            "max_depth": 4,
-            "max_nums": 1,
-            "ev_drop_prob":1.0,
-            "ev_call_drop_prob":1.0
-        },
-        {
-            "name": "surrounding_evidence",
-            "units": 256,
-            "num_layers": 1,
-            "tile": 1,
-            "max_depth": -1,
-            "max_nums": 8,
-            "ev_drop_prob":1.0,
-            "ev_call_drop_prob":1.0,
-            "evidence": [
-                {
-                    "name": "surr_returnType",
-                    "units": 256,
-                    "num_layers": 1,
-                    "tile": 1,
-                    "max_depth": 1,
-                    "max_nums": 8,
-                    "ev_drop_prob":1.0,
-                    "ev_call_drop_prob":1.0
-                },
-                {
-                    "name": "surr_sequences",
-                    "units": 256,
-                    "num_layers": 1,
-                    "tile": 1,
-                    "max_depth": 8,
-                    "max_nums": 8,
-                    "ev_drop_prob":1.0,
-                    "ev_call_drop_prob":1.0
-                },
-                {
-                    "name": "surr_methodName",
-                    "units": 256,
-                    "num_layers": 1,
-                    "tile": 1,
-                    "max_depth": 4,
-                    "max_nums": 8,
-                    "ev_drop_prob":1.0,
-                    "ev_call_drop_prob":1.0
-                },
-                {
-                    "name": "surr_formalParam",
-                    "units": 256,
-                    "num_layers": 1,
-                    "tile": 1,
-                    "max_depth": 8,
-                    "max_nums": 8,
-                    "ev_drop_prob":1.0,
-                    "ev_call_drop_prob":1.0
-                }
-          ]
         }
     ],
-    "decoder": {
-        "units": 256,
-        "num_layers": 1,
-        "max_ast_depth": 32
-    },
     "reverse_encoder": {
         "units": 256,
         "num_layers": 1,
