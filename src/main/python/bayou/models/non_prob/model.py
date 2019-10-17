@@ -41,9 +41,11 @@ class Model():
         self.edges = tf.transpose(edges)
 
 
-        with tf.variable_scope("Encoder", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("Encoder"):
             self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
             self.psi_encoder = self.encoder.psi_mean
+
+            tf.get_variable_scope().reuse_variables()
 
             self.encoder_negative = BayesianEncoder(config, neg_ev_data, neg_surr_input, neg_surr_input_fp, infer)
             self.psi_encoder_negative = self.encoder_negative.psi_mean
@@ -57,8 +59,8 @@ class Model():
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean
 
 
-            self.loss = tf.reduce_mean( - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder)   , axis=0)
-            #self.loss = tf.reduce_mean( - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) + 0.2*self.cosine_similarity(self.psi_encoder_negative, self.psi_reverse_encoder)  , axis=0)
+            #self.loss = tf.reduce_mean( - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder)   , axis=0)
+            self.loss = tf.reduce_sum( - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) + self.cosine_similarity(self.psi_encoder_negative, self.psi_reverse_encoder)  , axis=0)
 
             #unused if MultiGPU is being used
             with tf.name_scope("train"):
