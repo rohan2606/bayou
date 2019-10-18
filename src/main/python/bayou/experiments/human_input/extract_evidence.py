@@ -70,13 +70,24 @@ def extract_evidence(fileName):
         if '__PDB_FILL__' not in program['body']:
             continue
 
-        calls = gather_calls(program['ast'])
-        apicalls = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.APICalls.from_call(call)
-                                                 for call in calls])))
-        types = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Types.from_call(call)
-                                              for call in calls])))
-        keywords = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Keywords.from_call(call)
-                                                for call in calls])))
+        for string in re.findall(r"\S+", program['body']): # separates out all lines of a program
+            if 'call:' in string:
+                apicalls.append(string.split(":")[1])
+            if 'type:' in string:
+                types.append(string.split(":")[1])
+            if 'keyword:' in string:
+                keywords.append(string.split(":")[1])
+            if 'sequence:' in string:
+                for call in string.split(":")[1:]:
+                    sequence.append(call)
+
+        # calls = gather_calls(program['ast'])
+        # apicalls = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.APICalls.from_call(call)
+        #                                          for call in calls])))
+        # types = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Types.from_call(call)
+        #                                       for call in calls])))
+        # keywords = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Keywords.from_call(call)
+        #                                         for call in calls])))
 
         sample = dict(program)
 
@@ -91,7 +102,7 @@ def extract_evidence(fileName):
 
         method_name = program['method']
 
-        sequences = program['sequences']
+        sequences = sequence #program['sequences']
         sample['testsequences'] = sequences
         sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
         sequences.sort(key=len, reverse=True)
