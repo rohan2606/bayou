@@ -18,7 +18,7 @@ class MyColumnDatabaseWBatch():
 
     def setValues(self, jsProgram, decProg, index):
 
-        self.embedding_psi[index] = np.asarray( [ item for item in jsProgram['prog_psi'] ], dtype=np.float32)
+        self.embedding_psi[index] = np.asarray( [ item for item in jsProgram['prog_psi_rev'] ], dtype=np.float32)
         self.programs[index] = decProg
         return
 
@@ -43,7 +43,7 @@ class MyColumnDatabaseWBatch():
        norm_b = b/norm_denom_b[:, None]
        
        sim = np.dot(norm_a, np.transpose(norm_b))
-       return (1 - sim)
+       return sim #(1 - sim)
 
 
     def measureDistance(self, embedding):
