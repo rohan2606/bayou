@@ -45,11 +45,14 @@ class BayesianEncoder(object):
             # 2. pick only encodings from valid inputs that exist, otherwise pick zero encoding
             encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
 
-            # # 3. tile the encodings according to each evidence type
+            # 3. tile the encodings according to each evidence type
+            all_encodings = tf.stack(encodings, axis=1)
+            sum_encodings = tf.reduce_sum(all_encodings, axis=1)
+            count_deno = tf.count_nonzero(tf.reduce_sum(all_encodings, axis=2), axis=1, dtype=tf.float32)
 
             # 4. compute the mean of non-zero encodings
-            #self.psi_mean = tf.reduce_sum(encodings, axis=0)
-            self.psi_mean = tf.layers.dense(tf.concat(encodings, axis=1),config.latent_size, activation=tf.nn.tanh)
+            self.psi_mean = sum_encodings/(count_deno[:,None]+0.01) #tf.reduce_sum(encodings, axis=0)
+            #self.psi_mean = tf.layers.dense(tf.concat(encodings, axis=1),config.latent_size)
  
 
 
@@ -86,7 +89,7 @@ class BayesianReverseEncoder(object):
 
         encodings = [Tree_mean, rt_mean, fp_mean]
         finalMean = tf.layers.dense(tf.reshape( tf.transpose(tf.stack(encodings, axis=0), perm=[1,0,2]), [config.batch_size, -1]) , config.latent_size)
-        finalMean = tf.layers.dense(finalMean, config.latent_size, activation=tf.nn.tanh)
+        finalMean = tf.layers.dense(finalMean, config.latent_size)
         #finalMean = tf.layers.dense(finalMean, config.latent_size)
         # 4. compute the mean of non-zero encodings
         self.psi_mean = finalMean

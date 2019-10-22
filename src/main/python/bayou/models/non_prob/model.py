@@ -60,7 +60,7 @@ class Model():
 
 
             #self.loss = tf.reduce_mean( - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder)   , axis=0)
-            self.loss = tf.reduce_sum( - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) + self.cosine_similarity(self.psi_encoder_negative, self.psi_reverse_encoder)  , axis=0)
+            self.loss = tf.reduce_sum( tf.maximum(0. , 0.05 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) + self.cosine_similarity(self.psi_encoder_negative, self.psi_reverse_encoder))  , axis=0)
 
             #unused if MultiGPU is being used
             with tf.name_scope("train"):

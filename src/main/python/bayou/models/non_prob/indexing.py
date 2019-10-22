@@ -72,7 +72,6 @@ def index(clargs):
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
 
-
     dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder,  *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder, \
                                         *neg_evidence_placeholder, *neg_surr_evidence_placeholder, *neg_surr_evidence_fps_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
@@ -101,8 +100,8 @@ def index(clargs):
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
                 prog_json = deepcopy(jsp[   j * config.batch_size + i   ])
-                prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in enc_psi[i]]
-                prog_json['prog_neg_psi'] =  [ "%.3f" % val.item() for val in enc_neg_psi[i]]
+                #prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in enc_psi[i]]
+                #prog_json['prog_neg_psi'] =  [ "%.3f" % val.item() for val in enc_neg_psi[i]]
                 prog_json['prog_psi_rev'] =  [ "%.3f" % val.item() for val in rev_enc_psi[i]]
                 programs.append(prog_json)
 
@@ -144,7 +143,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_no_max',
+    clargs = parser.parse_args(['--save', 'save_no_limit_mean_enc',
         '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
