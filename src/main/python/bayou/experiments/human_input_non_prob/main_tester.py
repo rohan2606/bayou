@@ -85,19 +85,20 @@ class Encoder_Model:
 
 
 class Rev_Encoder_Model:
-    def __init__(self):
+    def __init__(self, db_location):
         self.numThreads = 30
         self.batch_size = 1
         self.minJSONs = 0
         self.maxJSONs = 19
         self.dimension = 256
         self.topK = 10
+        self.db_location = db_location
         self.scanner = self.get_database_scanner()
         return
 
     def get_database_scanner(self):
 
-        JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=self.numThreads, dimension=self.dimension, batch_size=self.batch_size, minJSONs=self.minJSONs , maxJSONs=self.maxJSONs)
+        JSONReader = parallelReadJSON(self.db_location, numThreads=self.numThreads, dimension=self.dimension, batch_size=self.batch_size, minJSONs=self.minJSONs , maxJSONs=self.maxJSONs)
         listOfColDB = JSONReader.readAllJSONs()
         scanner = searchFromDB(listOfColDB, self.topK, self.batch_size)
         return scanner
@@ -122,6 +123,7 @@ if __name__ == "__main__":
     parser.add_argument('input_file', type=str, nargs=1,
                         help='input data file')
     parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq')
+    parser.add_argument('--db_location', type=str, default='/home/ubuntu/DATABASE/')
     parser.add_argument('--mc_iter', type=int, default=1)
 
     clargs = parser.parse_args()
@@ -132,7 +134,7 @@ if __name__ == "__main__":
     pred = Predictor()
     encoder = Encoder_Model(pred)
     #rev_encoder = Rev_Encoder_Model_2(pred)
-    rev_encoder = Rev_Encoder_Model()
+    rev_encoder = Rev_Encoder_Model(clargs.db_location)
 
     # get the input JSON
     filename = clargs.input_file[0]
