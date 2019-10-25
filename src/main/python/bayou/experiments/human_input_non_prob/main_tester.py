@@ -27,16 +27,14 @@ import re
 
 import time
 import ijson
-from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
-from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
-from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
-from bayou.models.low_level_evidences.test import get_c_minus_cstar
+from bayou.experiments.predictMethods_non_prob.SearchDB.parallelReadJSON import parallelReadJSON
+from bayou.experiments.predictMethods_non_prob.SearchDB.searchFromDB import searchFromDB
+from bayou.experiments.predictMethods_non_prob.SearchDB.Embedding import EmbeddingBatch
 
-from bayou.experiments.predictMethods.SearchDB.utils import get_jaccard_distace_api
+from bayou.experiments.predictMethods_non_prob.SearchDB.utils import get_jaccard_distace_api
 
 
-import bayou.models.low_level_evidences.predict
-from bayou.models.low_level_evidences.test import get_c_minus_cstar
+import bayou.models.non_prob.predict
 from bayou.experiments.human_input.extract_evidence import extract_evidence
 
 import subprocess
@@ -68,7 +66,7 @@ class Predictor:
         model = bayou.models.non_prob.predict.BayesianPredictor
 
         sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, sess, batch_size=500)# goes to predict.BayesianPredictor
+        self.predictor = model(clargs.save, sess) #, batch_size=500)# goes to predict.BayesianPredictor
 
         print ('Model Loaded, All Ready to Predict Evidences!!')
 
@@ -93,7 +91,7 @@ class Rev_Encoder_Model:
         self.minJSONs = 0
         self.maxJSONs = 19
         self.dimension = 256
-        self.topK = 100
+        self.topK = 10
         self.scanner = self.get_database_scanner()
         return
 

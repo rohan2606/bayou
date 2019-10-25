@@ -70,6 +70,9 @@ def extract_evidence(fileName):
         if '__PDB_FILL__' not in program['body']:
             continue
 
+
+
+        apicalls,types,keywords,sequence = [],[],[],[] 
         for string in re.findall(r"\S+", program['body']): # separates out all lines of a program
             if 'call:' in string:
                 apicalls.append(string.split(":")[1])
@@ -104,9 +107,7 @@ def extract_evidence(fileName):
 
         sequences = sequence #program['sequences']
         sample['testsequences'] = sequences
-        sequences = [[shorten(call) for call in json_seq['calls']] for json_seq in sequences]
-        sequences.sort(key=len, reverse=True)
-        sample['sequences'] = sequences[0]
+        sample['sequences'] = sequences
 
         # Take in classTypes and sample a few
         sample['classTypes'] = set(program['classTypes']) if 'classTypes' in program else set()
