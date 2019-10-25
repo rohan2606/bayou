@@ -136,7 +136,7 @@ class BayesianPredictor(object):
 
         return nodes, edges, targets, inputs
 
-    def get_psi_enc(self, program):
+    def get_psi_encoder(self, program):
 
         nodes, edges, targets, inputs = self.wrangle_data(program)
         ignored = True if np.sum(nodes)==0 else False

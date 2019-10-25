@@ -61,7 +61,7 @@ class embedding_server():
         programs = []
         count = 0
         for program in js['programs']:
-            psi_enc = self.predictor.get_psi_enc(program)
+            psi_enc = self.predictor.get_psi_encoder(program)
             program['ev_psi'] = [val.item() for val in psi_enc[0]]
             programs.append(program)
 
