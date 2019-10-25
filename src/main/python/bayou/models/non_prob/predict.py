@@ -19,7 +19,8 @@ import numpy as np
 import os
 import pickle
 import json
-from bayou.models.low_level_evidences.utils import get_var_list, read_config
+from bayou.models.low_level_evidences.utils import get_var_list
+from bayou.models.non_prob.utils import read_config
 from bayou.models.non_prob.architecture import BayesianEncoder, BayesianReverseEncoder
 
 from bayou.models.low_level_evidences.node import Node, get_ast_from_json, CHILD_EDGE, SIBLING_EDGE, TooLongLoopingException, TooLongBranchingException
