@@ -50,8 +50,13 @@ class Reader():
 
 
             #np.random.seed(0)
-            perm = np.random.permutation(len(self.nodes))
+            #perm = np.random.permutation(len(self.nodes))
             #perm = np.random.permutation(500)
+            perm = []
+            for i in range(len(self.nodes)//config.batch_size):
+                temp_perm = i*config.batch_size + np.random.permutation(config.batch_size)
+                perm.extend(temp_perm)
+                
 
             temp_inputs = copy.deepcopy(self.inputs)
 

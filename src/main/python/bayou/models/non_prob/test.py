@@ -173,7 +173,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_no_max'])
+    clargs = parser.parse_args(['--save', 'save_no_bound'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
     test(clargs)

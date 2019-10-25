@@ -672,12 +672,12 @@ class SurroundingEvidence(Evidence):
             # batch_size * number_of_methods * (latent_size * list_of_number_of_ev)
 
             #Now run neural neural_network
-            #encodings_flat = tf.layers.dense( encodings , config.latent_size, activation=tf.nn.tanh)
-            #encodings_flat = tf.layers.dense(encodings_flat, config.latent_size, activation=tf.nn.tanh)
-            #encodings_flat = tf.layers.dense(encodings_flat, config.latent_size)
+            encodings_flat = tf.layers.dense( encodings , config.latent_size, activation=tf.nn.tanh)
+            encodings_flat = tf.layers.dense(encodings_flat, config.latent_size, activation=tf.nn.tanh)
+            encodings_flat = tf.layers.dense(encodings_flat, config.latent_size)
             #done
 
-            encodings_flat = tf.layers.dense(encodings, config.latent_size)
+            encodings_flat = tf.layers.dense(encodings_flat, config.latent_size)
 
             #zero check in method level
             zeros = tf.zeros_like(encodings_flat)
