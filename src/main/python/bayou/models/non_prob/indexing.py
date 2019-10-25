@@ -64,9 +64,9 @@ def index(clargs):
     feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
     feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
 
-    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs[:-1])}
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs[-1][:-1])})
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
+    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs_negative[:-1])}
+    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})
+    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs_negative[-1][-1])})
 
     feed_dict.update(feed_dict_neg)
     feed_dict.update({nodes_placeholder: reader.nodes})
@@ -100,8 +100,8 @@ def index(clargs):
             for i in range(config.batch_size):
                 infer_vars = jsp[i]
                 prog_json = deepcopy(jsp[   j * config.batch_size + i   ])
-                #prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in enc_psi[i]]
-                #prog_json['prog_neg_psi'] =  [ "%.3f" % val.item() for val in enc_neg_psi[i]]
+                prog_json['prog_psi'] =  [ "%.3f" % val.item() for val in enc_psi[i]]
+                prog_json['prog_neg_psi'] =  [ "%.3f" % val.item() for val in enc_neg_psi[i]]
                 prog_json['prog_psi_rev'] =  [ "%.3f" % val.item() for val in rev_enc_psi[i]]
                 programs.append(prog_json)
 
