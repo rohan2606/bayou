@@ -514,7 +514,7 @@ class JavaDoc(Sequences):
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
-        self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/root/GoogleNews-vectors-negative300.bin', binary=True)
+        self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
         self.n_Dims=300
 
 

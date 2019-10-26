@@ -39,16 +39,14 @@ class BayesianPredictor(object):
         infer = True
 
         self.inputs = [ev.placeholder(config) for ev in self.config.evidence]
-        self.nodes = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
-        self.edges = tf.placeholder(tf.bool, [config.batch_size, config.decoder.max_ast_depth])
-        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.decoder.max_ast_depth])
+        self.nodes = tf.placeholder(tf.int32, [config.batch_size, config.reverse_encoder.max_ast_depth])
+        self.edges = tf.placeholder(tf.bool, [config.batch_size, config.reverse_encoder.max_ast_depth])
+        self.targets = tf.placeholder(tf.int32, [config.batch_size, config.reverse_encoder.max_ast_depth])
 
 
-        # targets  = tf.concat(  [self.nodes[:, 1:] , tf.zeros([config.batch_size , 1], dtype=tf.int32) ] ,axis=1 )  # shifted left by one
-
-        ev_data = self.inputs[:-1]
-        surr_input = self.inputs[-1][:-1]
-        surr_input_fp = self.inputs[-1][-1]
+        ev_data = self.inputs#[:-1]
+        #surr_input = self.inputs[-1][:-1]
+        #surr_input_fp = self.inputs[-1][-1]
 
         nodes = tf.transpose(self.nodes)
         edges = tf.transpose(self.edges)
@@ -57,7 +55,7 @@ class BayesianPredictor(object):
 
 
         with tf.variable_scope("Encoder"):
-            self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
+            self.encoder = BayesianEncoder(config, ev_data, infer)
             self.psi_encoder = self.encoder.psi_mean
 
         # setup the reverse encoder.
@@ -100,11 +98,8 @@ class BayesianPredictor(object):
         config = self.config
         raw_evidences = [rdp for j in range(self.config.batch_size)]
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
-        raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
-        raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
         rdp = raw_evidences
 
-        # inputs = [ev.wrangle([ev_rdp for i in range(self.config.batch_size)]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
         inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, rdp)]
 
         return inputs
@@ -114,9 +109,9 @@ class BayesianPredictor(object):
 
         inputs = self.wrange_inputs(program)
 
-        nodes = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.int32)
-        edges = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.bool)
-        targets = np.zeros((self.config.batch_size, self.config.decoder.max_ast_depth), dtype=np.int32)
+        nodes = np.zeros((self.config.batch_size, self.config.reverse_encoder.max_ast_depth), dtype=np.int32)
+        edges = np.zeros((self.config.batch_size, self.config.reverse_encoder.max_ast_depth), dtype=np.bool)
+        targets = np.zeros((self.config.batch_size, self.config.reverse_encoder.max_ast_depth), dtype=np.int32)
 
         ast_node_graph = get_ast_from_json(program['ast']['_nodes'])
         path = ast_node_graph.depth_first_search()
@@ -143,14 +138,9 @@ class BayesianPredictor(object):
         ignored = True if np.sum(nodes)==0 else False
 
         feed = {}
-        for j, _ in enumerate(self.config.evidence[:-1]):
+        for j, _ in enumerate(self.config.evidence):
             feed[self.inputs[j].name] = inputs[j]
 
-        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
-            feed[self.inputs[-1][j].name] = inputs[-1][j]
-
-        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
-            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
 
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
@@ -167,14 +157,9 @@ class BayesianPredictor(object):
         ignored = True if np.sum(nodes)==0 else False
 
         feed = {}
-        for j, _ in enumerate(self.config.evidence[:-1]):
+        for j, _ in enumerate(self.config.evidence):
             feed[self.inputs[j].name] = inputs[j]
 
-        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
-            feed[self.inputs[-1][j].name] = inputs[-1][j]
-
-        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
-            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
 
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges

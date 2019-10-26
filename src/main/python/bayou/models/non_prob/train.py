@@ -26,8 +26,8 @@ import textwrap
 from bayou.models.non_prob.data_reader import Reader
 from bayou.models.non_prob.model import Model
 
-from bayou.models.low_level_evidences.utils import dump_config, get_var_list
-from bayou.models.non_prob.utils import read_config
+from bayou.models.low_level_evidences.utils import get_var_list
+from bayou.models.non_prob.utils import read_config, dump_config
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
@@ -37,7 +37,7 @@ Config options should be given as a JSON file (see config.json for example):
 
 def train(clargs):
 
-    dataIsThere = True
+    dataIsThere = False
 
     if clargs.continue_from is not None:
         config_file = os.path.join(clargs.continue_from, 'config.json')
@@ -57,30 +57,29 @@ def train(clargs):
     nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
 
-    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
-    surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
-    surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
+    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+    #surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
+    #surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
 
 
-    neg_evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs_negative[:-1]]
-    neg_surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs_negative[-1][:-1]]
-    neg_surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs_negative[-1][-1]]
+    neg_evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs_negative]
+    #neg_surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs_negative[-1][:-1]]
+    #neg_surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs_negative[-1][-1]]
 
-    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs[:-1])}
-    feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
-    feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
+    #feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
+    #feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
 
-    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs_negative[:-1])}
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs_negative[-1][-1])})
+    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs_negative)}
+    #feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})
+    #feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs_negative[-1][-1])})
 
     feed_dict.update(feed_dict_neg)
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
 
 
-    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder,  *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder, \
-                                        *neg_evidence_placeholder, *neg_surr_evidence_placeholder, *neg_surr_evidence_fps_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder,  *evidence_placeholder, *neg_evidence_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
@@ -147,7 +146,7 @@ if __name__ == '__main__':
     clargs = parser.parse_args(
      #['--continue_from', 'save',
      ['--config','config.json',
-    '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json']) #DATA-newSurrounding_methodHeaders_train.json'])
+    '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train-TOP.json']) #DATA-newSurrounding_methodHeaders_train.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

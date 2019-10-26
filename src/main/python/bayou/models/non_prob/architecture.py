@@ -18,23 +18,18 @@ from bayou.models.low_level_evidences.gru_tree import TreeEncoder
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
 
 class BayesianEncoder(object):
-    def __init__(self, config, inputs, surr_input, surr_input_fp, infer=False):
+    def __init__(self, config, inputs, infer=False):
 
         # exists  = #ev * batch_size
-        exists = [ev.exists(i, config, infer) for ev, i in zip(config.evidence[:-1], inputs)]
+        exists = [ev.exists(i, config, infer) for ev, i in zip(config.evidence, inputs)]
 
-        surr_input = list(surr_input)
-        surr_input.append(surr_input_fp)
-        surr_input_new = tuple(surr_input)
          
         for ev in config.evidence:
            ev.init_sigma(config)
 
-        exists.append(config.evidence[-1].exists(surr_input_new, config, infer))
         zeros = tf.zeros([config.batch_size, config.latent_size], dtype=tf.float32)
 
-        d = [tf.where(exist, tf.tile([tf.square(ev.sigma)], [config.batch_size]),
-                      tf.zeros(config.batch_size)) for ev, exist in zip(config.evidence, exists)]
+        d = [1./tf.tile([tf.square(ev.sigma)], [config.batch_size]) for ev in config.evidence]
         d = 0.0001 + tf.reduce_sum(tf.stack(d), axis=0)
         denom = tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
 
@@ -42,11 +37,11 @@ class BayesianEncoder(object):
         with tf.variable_scope('mean'):
             # 1. compute encoding
 
-            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence[:-1], inputs)]
-            encodings.append(config.evidence[-1].encode(surr_input_new, config, infer))
+            encodings = [ev.encode(i, config, infer) for ev, i in zip(config.evidence, inputs)]
+            #encodings.append(config.evidence[-1].encode(surr_input_new, config, infer))
 
 
-            encodings = [encoding * tf.square(ev.sigma) for ev, encoding in
+            encodings = [encoding / tf.square(ev.sigma) for ev, encoding in
                          zip(config.evidence, encodings)]
 
             # 2. pick only encodings from valid inputs that exist, otherwise pick zero encoding

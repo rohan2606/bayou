@@ -91,29 +91,28 @@ def forward_pass(clargs):
     nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
 
-    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
-    surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
-    surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
+    evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+    #surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
+    #surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
 
 
-    neg_evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
-    neg_surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
-    neg_surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
+    neg_evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs]
+    #neg_surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
+    #neg_surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
 
-    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs[:-1])}
-    feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
-    feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
+    feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs)}
+    #feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
+    #feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
 
-    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs_negative[:-1])}
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs_negative[-1][-1])})
+    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs_negative)}
+    #feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})
+    #feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs_negative[-1][-1])})
 
     feed_dict.update(feed_dict_neg)
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
 
-    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder,  *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder, \
-                                        *neg_evidence_placeholder, *neg_surr_evidence_placeholder, *neg_surr_evidence_fps_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder,  *evidence_placeholder, *neg_evidence_placeholder))
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 

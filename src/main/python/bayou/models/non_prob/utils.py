@@ -35,12 +35,6 @@ def read_config(js, chars_vocab=False):
 
     config.evidence, config.surrounding_evidence = bayou.models.non_prob.evidence.Evidence.read_config(js['evidence'], chars_vocab)
 
-    config.decoder = argparse.Namespace()
-    for attr in CONFIG_DECODER:
-        config.decoder.__setattr__(attr, js['decoder'][attr])
-    if chars_vocab:
-        for attr in CONFIG_INFER:
-            config.decoder.__setattr__(attr, js['decoder'][attr])
     config.reverse_encoder = argparse.Namespace()
     # added two paragraph  of new code for reverse encoder
     for attr in CONFIG_REVERSE_ENCODER:
@@ -49,3 +43,18 @@ def read_config(js, chars_vocab=False):
         for attr in CONFIG_INFER:
             config.reverse_encoder.__setattr__(attr, js['reverse_encoder'][attr])
     return config
+
+
+def dump_config(config):
+    js = {}
+
+    for attr in CONFIG_GENERAL:
+        js[attr] = config.__getattribute__(attr)
+
+    js['evidence'] = [ev.dump_config() for ev in config.evidence]
+
+
+    # added code for reverse encoder
+    js['reverse_encoder'] = {attr: config.reverse_encoder.__getattribute__(attr) for attr in
+                    CONFIG_REVERSE_ENCODER + CONFIG_INFER}
+    return js
