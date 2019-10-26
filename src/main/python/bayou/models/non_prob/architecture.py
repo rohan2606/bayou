@@ -33,6 +33,10 @@ class BayesianEncoder(object):
         exists.append(config.evidence[-1].exists(surr_input_new, config, infer))
         zeros = tf.zeros([config.batch_size, config.latent_size], dtype=tf.float32)
 
+        d = [tf.where(exist, tf.tile([tf.square(ev.sigma)], [config.batch_size]),
+                      tf.zeros(config.batch_size)) for ev, exist in zip(config.evidence, exists)]
+        d = 0.0001 + tf.reduce_sum(tf.stack(d), axis=0)
+        denom = tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
 
         # Compute the mean of Psi
         with tf.variable_scope('mean'):
@@ -42,16 +46,19 @@ class BayesianEncoder(object):
             encodings.append(config.evidence[-1].encode(surr_input_new, config, infer))
 
 
+            encodings = [encoding * tf.square(ev.sigma) for ev, encoding in
+                         zip(config.evidence, encodings)]
+
             # 2. pick only encodings from valid inputs that exist, otherwise pick zero encoding
             encodings = [tf.where(exist, enc, zeros) for exist, enc in zip(exists, encodings)]
 
             # 3. tile the encodings according to each evidence type
-            all_encodings = tf.stack(encodings, axis=1)
-            sum_encodings = tf.reduce_sum(all_encodings, axis=1)
-            count_deno = tf.count_nonzero(tf.reduce_sum(all_encodings, axis=2), axis=1, dtype=tf.float32)
+            #all_encodings = tf.stack(encodings, axis=1)
+            #sum_encodings = tf.reduce_sum(all_encodings, axis=1)
+            #count_deno = tf.count_nonzero(tf.reduce_sum(all_encodings, axis=2), axis=1, dtype=tf.float32)
 
             # 4. compute the mean of non-zero encodings
-            self.psi_mean = sum_encodings/(count_deno[:,None]+0.01) #tf.reduce_sum(encodings, axis=0)
+            self.psi_mean = tf.reduce_sum(encodings, axis=0)/denom
             #self.psi_mean = tf.layers.dense(tf.concat(encodings, axis=1),config.latent_size)
  
 
