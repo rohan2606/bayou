@@ -63,8 +63,8 @@ class Reader():
             temp_inputs = copy.deepcopy(self.inputs)
 
             inputs_negative = [input_[perm] for input_ in temp_inputs]
-            #inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
-            #inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
+            inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
+            inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
 
             self.inputs_negative = inputs_negative
 
@@ -87,8 +87,8 @@ class Reader():
             raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
 
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
-            #raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
-            #raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
+            raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
+            raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
 
 
             config.num_batches = int(len(raw_targets) / config.batch_size)
@@ -97,15 +97,15 @@ class Reader():
 
             assert config.num_batches > 0, 'Not enough data'
             sz = config.num_batches * config.batch_size
-            for i in range(len(config.evidence)): #-1 to leave surrounding evidences
+            for i in range(len(config.evidence)-1): #-1 to leave surrounding evidences
                 raw_evidences[i] = raw_evidences[i][:sz]
 
-            #for i in range(len(config.surrounding_evidence)-1): #-1 to leave formal params
-            #    raw_evidences[-1][i] = raw_evidences[-1][i][:sz]
+            for i in range(len(config.surrounding_evidence)-1): #-1 to leave formal params
+                raw_evidences[-1][i] = raw_evidences[-1][i][:sz]
 
 
-            #for j in range(2):
-            #    raw_evidences[-1][-1][j] = raw_evidences[-1][-1][j][:sz]
+            for j in range(2):
+                raw_evidences[-1][-1][j] = raw_evidences[-1][-1][j][:sz]
 
             raw_targets = raw_targets[:sz]
             js_programs = js_programs[:sz]
@@ -140,8 +140,8 @@ class Reader():
             temp_inputs = copy.deepcopy(self.inputs)
 
             inputs_negative = [input_[perm] for input_ in temp_inputs[:-1]]
-            #inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
-            #inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
+            inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
+            inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
 
             self.inputs_negative = inputs_negative
 

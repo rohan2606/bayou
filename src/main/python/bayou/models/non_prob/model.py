@@ -30,24 +30,24 @@ class Model():
         nodes, edges = newBatch[:2]
 
         ev_data = newBatch[2:12]
-        #surr_input = newBatch[12:15]
-        #surr_input_fp = newBatch[15:17]
+        surr_input = newBatch[12:15]
+        surr_input_fp = newBatch[15:17]
 
-        neg_ev_data = newBatch[12:22]
-        #neg_surr_input = newBatch[27:30]
-        #neg_surr_input_fp = newBatch[30:32]
+        neg_ev_data = newBatch[17:27]
+        neg_surr_input = newBatch[27:30]
+        neg_surr_input_fp = newBatch[30:32]
 
         self.nodes = tf.transpose(nodes)
         self.edges = tf.transpose(edges)
 
 
         with tf.variable_scope("Encoder"):
-            self.encoder = BayesianEncoder(config, ev_data, infer)
+            self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
             self.psi_encoder = self.encoder.psi_mean
 
             tf.get_variable_scope().reuse_variables()
 
-            self.encoder_negative = BayesianEncoder(config, neg_ev_data, infer)
+            self.encoder_negative = BayesianEncoder(config, neg_ev_data, neg_surr_input, neg_surr_input_fp, infer)
             self.psi_encoder_negative = self.encoder_negative.psi_mean
 
         # setup the reverse encoder.
