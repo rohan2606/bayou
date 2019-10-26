@@ -56,7 +56,7 @@ class Reader():
             for i in range(len(self.nodes)//config.batch_size):
                 temp_perm = i*config.batch_size + np.random.permutation(config.batch_size)
                 perm.extend(temp_perm)
-                
+
 
             temp_inputs = copy.deepcopy(self.inputs)
 
@@ -65,7 +65,7 @@ class Reader():
             inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
 
             self.inputs_negative = inputs_negative
-            
+
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
                 json.dump(jsconfig, fp=f, indent=2)
@@ -128,6 +128,22 @@ class Reader():
                 self.targets[i, :len_path] =  [ p[2] for p in mod_path ]
 
             self.js_programs = js_programs
+
+            # negative_sampling
+            perm = []
+            for i in range(len(self.nodes)//config.batch_size):
+                temp_perm = i*config.batch_size + np.random.permutation(config.batch_size)
+                perm.extend(temp_perm)
+
+
+            temp_inputs = copy.deepcopy(self.inputs)
+
+            inputs_negative = [input_[perm] for input_ in temp_inputs[:-1]]
+            inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
+            inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
+
+            self.inputs_negative = inputs_negative
+
 
             print('Done!')
             # del raw_evidences
