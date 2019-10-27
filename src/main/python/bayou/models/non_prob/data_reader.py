@@ -62,7 +62,7 @@ class Reader():
 
             temp_inputs = copy.deepcopy(self.inputs)
 
-            inputs_negative = [input_[perm] for input_ in temp_inputs]
+            inputs_negative = [input_[perm] for input_ in temp_inputs[:-1]]
             inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
             inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
 
