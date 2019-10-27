@@ -37,7 +37,7 @@ Config options should be given as a JSON file (see config.json for example):
 
 def train(clargs):
 
-    dataIsThere = False
+    dataIsThere = True
 
     if clargs.continue_from is not None:
         config_file = os.path.join(clargs.continue_from, 'config.json')
@@ -57,29 +57,23 @@ def train(clargs):
     nodes_placeholder = tf.placeholder(reader.nodes.dtype, reader.nodes.shape)
     edges_placeholder = tf.placeholder(reader.edges.dtype, reader.edges.shape)
 
+    nodes_neg_placeholder = tf.placeholder(reader.nodes_neg.dtype, reader.nodes_neg.shape)
+    edges_neg_placeholder = tf.placeholder(reader.edges_neg.dtype, reader.edges_neg.shape)
+    
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
     surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
     surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
-
-
-    neg_evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs_negative[:-1]]
-    neg_surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs_negative[-1][:-1]]
-    neg_surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs_negative[-1][-1]]
 
     feed_dict={fp: f for fp, f in zip(evidence_placeholder, reader.inputs[:-1])}
     feed_dict.update({fp: f for fp, f in zip(surr_evidence_placeholder, reader.inputs[-1][:-1])})
     feed_dict.update({fp: f for fp, f in zip(surr_evidence_fps_placeholder, reader.inputs[-1][-1])})
 
-    feed_dict_neg={fp: f for fp, f in zip(neg_evidence_placeholder, reader.inputs_negative[:-1])}
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_placeholder, reader.inputs_negative[-1][:-1])})
-    feed_dict_neg.update({fp: f for fp, f in zip(neg_surr_evidence_fps_placeholder, reader.inputs_negative[-1][-1])})
-
-    feed_dict.update(feed_dict_neg)
     feed_dict.update({nodes_placeholder: reader.nodes})
     feed_dict.update({edges_placeholder: reader.edges})
+    feed_dict.update({nodes_neg_placeholder: reader.nodes_neg})
+    feed_dict.update({edges_neg_placeholder: reader.edges_neg})
 
-    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder,  *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder, \
-                                        *neg_evidence_placeholder, *neg_surr_evidence_placeholder, *neg_surr_evidence_fps_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder, nodes_neg_placeholder, edges_neg_placeholder, *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder))
 
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
@@ -137,7 +131,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save_no_bound',
+    parser.add_argument('--save', type=str, default='save_new',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -147,7 +141,7 @@ if __name__ == '__main__':
     clargs = parser.parse_args(
      #['--continue_from', 'save',
      ['--config','config.json',
-    '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train-TOP.json']) #DATA-newSurrounding_methodHeaders_train.json'])
+    '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json']) #DATA-newSurrounding_methodHeaders_train.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

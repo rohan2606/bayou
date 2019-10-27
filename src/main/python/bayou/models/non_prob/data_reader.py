@@ -44,37 +44,29 @@ class Reader():
 
         if clargs.continue_from is not None or dataIsThere:
             print('Loading Data')
-            with open('data/inputs.npy', 'rb') as f:
+            with open('../low_level_evidences/data/inputs.npy', 'rb') as f:
                 self.inputs = pickle.load(f)
             # with open(, 'rb') as f:
-            self.nodes = np.load('data/nodes.npy')
-            self.edges = np.load('data/edges.npy')
+            self.nodes = np.load('../low_level_evidences/data/nodes.npy')
+            self.edges = np.load('../low_level_evidences/data/edges.npy')
 
-
-            #np.random.seed(0)
-            #perm = np.random.permutation(len(self.nodes))
-            #perm = np.random.permutation(500)
             perm = []
             for i in range(len(self.nodes)//config.batch_size):
                 temp_perm = i*config.batch_size + np.random.permutation(config.batch_size)
                 perm.extend(temp_perm)
 
 
-            temp_inputs = copy.deepcopy(self.inputs)
+            self.nodes_neg = copy.deepcopy(self.nodes[perm])
+            self.edges_neg = copy.deepcopy(self.edges[perm])
 
-            inputs_negative = [input_[perm] for input_ in temp_inputs[:-1]]
-            inputs_negative.append([input_surr[perm] for input_surr in temp_inputs[-1][:-1]])
-            inputs_negative[-1].append([input_surr_fp[perm] for input_surr_fp in temp_inputs[-1][-1]])
-
-            self.inputs_negative = inputs_negative
 
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
-                json.dump(jsconfig, fp=f, indent=2)
+                json.dump(jsconfig, fp=f, indent=4)
 
             if infer:
                 self.js_programs = []
-                with open('data/js_programs.json', 'rb') as f:
+                with open('../low_level_evidences/data/js_programs.json', 'rb') as f:
                     for program in ijson.items(f, 'programs.item'):
                         self.js_programs.append(program)
             config.num_batches = int(len(self.nodes) / config.batch_size)
