@@ -47,20 +47,22 @@ class Model():
 
 
         # setup the reverse encoder.
-        with tf.variable_scope("Reverse_Encoder", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("Reverse_Encoder"):
             embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
             embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
             embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
  
             self.reverse_encoder = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges,  ev_data[4], embRT, ev_data[5], embFS)
             self.psi_reverse_encoder = self.reverse_encoder.psi_mean
+            
+            #tf.get_variable_scope().reuse_variables()
 
-
+        with tf.variable_scope("Reverse_Encoder", reuse=True):
             self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes_new, self.edges_new,  ev_data[4], embRT, ev_data[5], embFS)
             self.psi_reverse_encoder_negative = self.reverse_encoder_negative.psi_mean
 
 
-        self.loss = tf.reduce_sum( tf.maximum(0., 2 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) +   self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative))  , axis=0)
+        self.loss = tf.reduce_sum(  2 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) +   self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative)  , axis=0)
 
         #unused if MultiGPU is being used
         with tf.name_scope("train"):
