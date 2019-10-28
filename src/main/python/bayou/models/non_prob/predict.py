@@ -44,9 +44,9 @@ class BayesianPredictor(object):
         self.targets = tf.placeholder(tf.int32, [config.batch_size, config.reverse_encoder.max_ast_depth])
 
 
-        ev_data = self.inputs#[:-1]
-        #surr_input = self.inputs[-1][:-1]
-        #surr_input_fp = self.inputs[-1][-1]
+        ev_data = self.inputs[:-1]
+        surr_input = self.inputs[-1][:-1]
+        surr_input_fp = self.inputs[-1][-1]
 
         nodes = tf.transpose(self.nodes)
         edges = tf.transpose(self.edges)
@@ -55,7 +55,7 @@ class BayesianPredictor(object):
 
 
         with tf.variable_scope("Encoder"):
-            self.encoder = BayesianEncoder(config, ev_data, infer)
+            self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
             self.psi_encoder = self.encoder.psi_mean
 
         # setup the reverse encoder.
@@ -98,6 +98,8 @@ class BayesianPredictor(object):
         config = self.config
         raw_evidences = [rdp for j in range(self.config.batch_size)]
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
+        raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
+        raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
         rdp = raw_evidences
 
         inputs = [ev.wrangle(data) for ev, data in zip(config.evidence, rdp)]
@@ -138,9 +140,14 @@ class BayesianPredictor(object):
         ignored = True if np.sum(nodes)==0 else False
 
         feed = {}
-        for j, _ in enumerate(self.config.evidence):
+        for j, _ in enumerate(self.config.evidence[:-1]):
             feed[self.inputs[j].name] = inputs[j]
 
+        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
+            feed[self.inputs[-1][j].name] = inputs[-1][j]
+
+        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
+            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
 
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
@@ -157,9 +164,14 @@ class BayesianPredictor(object):
         ignored = True if np.sum(nodes)==0 else False
 
         feed = {}
-        for j, _ in enumerate(self.config.evidence):
+        for j, _ in enumerate(self.config.evidence[:-1]):
             feed[self.inputs[j].name] = inputs[j]
 
+        for j, _ in enumerate(self.config.evidence[-1].internal_evidences[:-1]):
+            feed[self.inputs[-1][j].name] = inputs[-1][j]
+
+        for j in range(2): #len(self.config.evidence[-1].internal_evidences[-1])):
+            feed[self.inputs[-1][-1][j].name] = inputs[-1][-1][j]
 
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
@@ -172,4 +184,4 @@ class BayesianPredictor(object):
     def cosine_similarity(self, a, b):
        norm_a = tf.nn.l2_normalize(a,0)
        norm_b = tf.nn.l2_normalize(b,0)
-       return 1 - tf.reduce_sum(tf.multiply(norm_a, norm_b))
+       return tf.reduce_sum(tf.multiply(norm_a, norm_b))

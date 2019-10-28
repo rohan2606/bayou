@@ -88,8 +88,8 @@ class Rev_Encoder_Model:
     def __init__(self, db_location):
         self.numThreads = 30
         self.batch_size = 1
-        self.minJSONs = 0
-        self.maxJSONs = 19
+        self.minJSONs = 1
+        self.maxJSONs = 10
         self.dimension = 256
         self.topK = 10
         self.db_location = db_location
