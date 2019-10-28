@@ -33,8 +33,9 @@ class BayesianEncoder(object):
         exists.append(config.evidence[-1].exists(surr_input_new, config, infer))
         
         zeros = tf.zeros([config.batch_size, config.latent_size], dtype=tf.float32)
-
-        d = [1./tf.tile([tf.square(ev.sigma)], [config.batch_size]) for ev in config.evidence]
+        d = [tf.where(exist, tf.tile([1. / tf.square(ev.sigma)], [config.batch_size]),
+                      tf.zeros(config.batch_size)) for ev, exist in zip(config.evidence, exists)]
+        #d = [1./tf.tile([tf.square(ev.sigma)], [config.batch_size]) for ev in config.evidence]
         d = 0.0001 + tf.reduce_sum(tf.stack(d), axis=0)
         denom = tf.tile(tf.reshape(d, [-1, 1]), [1, config.latent_size])
 
