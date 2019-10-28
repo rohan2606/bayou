@@ -51,10 +51,9 @@ class Reader():
             self.edges = np.load('../low_level_evidences/data/edges.npy')
 
             perm = []
-            for i in range(len(self.nodes)//config.batch_size):
-                temp_perm = i*config.batch_size + np.random.permutation(config.batch_size)
-                perm.extend(temp_perm)
-
+            for i in range(len(self.nodes)):
+                temp_perm = np.random.randint(len(self.nodes))
+                perm.append(temp_perm)
 
             self.nodes_neg = copy.deepcopy(self.nodes[perm])
             self.edges_neg = copy.deepcopy(self.edges[perm])
