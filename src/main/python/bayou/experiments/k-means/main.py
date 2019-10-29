@@ -31,18 +31,17 @@ from sklearn import decomposition
 from scripts.ast_extractor import get_ast_paths
 from bayou.models.low_level_evidences.predict import BayesianPredictor
 from bayou.models.low_level_evidences.utils import read_config
-from bayou.experiments.predictMethods.SearchDB.utils import *
 
 from scipy.cluster.vq import kmeans2
-
+from bayou.experiments.predictMethods.SearchDB.utils import get_api_dict,get_ast_dict,get_sequence_dict
 
 def load_desires():
     print("Loading API Dictionary")
     dict_api_calls = get_api_dict()
     print("Loading AST Dictionary")
-    dict_ast = None #get_ast_dict()
+    dict_ast = get_ast_dict()
     print("Loading Seq Dictionary")
-    dict_seq = None #get_sequence_dict()
+    dict_seq = get_sequence_dict()
     return dict_api_calls, dict_ast, dict_seq
 
 
@@ -56,13 +55,28 @@ def main(clargs):
 
     dict_api_calls, dict_ast, dict_seq = load_desires()
 
-    print('Reverse Encoder Plot')
+    print('API Call Jaccard Calculations')
     with open(clargs.input_file[0], 'rb') as f:
-        call_k_means(f, 'b2', dict_api_calls)
+        jac_api_matrix = call_k_means(f, 'b2', dict_api_calls)
+
+    print('Seq Calls Jaccard Calculations')
+    with open(clargs.input_file[0], 'rb') as f:
+        jac_seq_matrix = call_k_means(f, 'b2', dict_seq)
+
+    print('AST Jaccard Calculations')
+    with open(clargs.input_file[0], 'rb') as f:
+        jac_ast_matrix = call_k_means(f, 'b2', dict_ast)
+
+    plt.matshow(jac_api_matrix)
+    plt.save('clustered_apis_k.png')
+    plt.matshow(jac_seq_matrix)
+    plt.show('clustered_seqs_k.png')
+    plt.matshow(jac_ast_matrix)
+    plt.show('clustered_asts_k.png')
+    return
 
 
-
-def call_k_means(f, att, dict_api_calls, max_nums=1000):
+def call_k_means(f, att, dict_api_calls, max_nums=10000):
     psis = []
     apis = []
     item_num = 0
@@ -93,29 +107,57 @@ def call_k_means(f, att, dict_api_calls, max_nums=1000):
     num_clusters = len(clustered_apis)
     jac_matrix = np.zeros((num_clusters, num_clusters))
     for j, clustered_apis_j in enumerate(clustered_apis):
-        print(j, end='.')
         for k, clustered_apis_k in enumerate(clustered_apis):
-            jac = get_inter_cluster_jaccards(clustered_apis_j, clustered_apis_k)
-            jac_matrix[j][k] = jac
-
-    print('', end='[')
-    for j in range(num_clusters):
-        print('', end='[')
-        for k in range(num_clusters):
-            if k == num_clusters - 1:
-                print("%.3f" % jac_matrix[j][k], end='],\n')
+            if k >= j:
+                jac = get_inter_cluster_jaccards(clustered_apis_j, clustered_apis_k)
+                jac_matrix[j][k] = jac
             else:
-                print("%.3f" % jac_matrix[j][k], end=',')
-    print(']')
-    return
+                jac_matrix[j][k] = jac_matrix[k][j]
+
+    # print('', end='[')
+    # for j in range(num_clusters):
+    #     print('', end='[')
+    #     for k in range(num_clusters):
+    #         if k == num_clusters - 1 and j == num_clusters - 1:
+    #             print("%.3f" % jac_matrix[j][k], end=']\n')
+    #         elif k == num_clusters - 1:
+    #             print("%.3f" % jac_matrix[j][k], end='],\n')
+    #         else:
+    #             print("%.3f" % jac_matrix[j][k], end=',')
+    # print(']')
+
+    return jac_matrix
 
 
-def k_means(psis, apis, num_centroids = 10):
+def get_jaccard_distace(a,b):
+    if type(a) == str and type(eval(a)) == list :
+        setA = set([tuple(item['calls']) for item in eval(a)])
+        setB = set([tuple(item['calls']) for item in eval(b)])
+    elif type(a) == str and type(eval(a)) == dict :
+        dictA = eval(a.replace("u'", "'"))
+        dictB = eval(b.replace("u'", "'"))
+        return 1. if dictA == dictB else 0.
+    elif type(a) == list:
+        setA = set(a)
+        setB = set(b)
+    else:
+        print(type(a))
+
+    if (len(setA) == 0) and (len(setB) == 0):
+        return 1
+
+    distance = len(setA & setB) / len(setA | setB)
+    return distance
+
+
+def k_means(psis, apis, num_centroids = 20, max_cap=200):
 
     centroid, labels = kmeans2(np.array(psis), num_centroids)
     clusters = [[] for _ in range(num_centroids)]
     clustered_apis = [[] for _ in range(num_centroids)]
     for k, label in enumerate(labels):
+        if len(clusters[label]) > max_cap:
+            continue
         clusters[label].append(psis[k])
         clustered_apis[label].append(apis[k])
     return clusters, clustered_apis
@@ -124,12 +166,14 @@ def k_means(psis, apis, num_centroids = 10):
 def get_intra_cluster_jaccards(clustered_apis_k):
 
     dis_i = 0.
+    count = 0
     for api_i in clustered_apis_k:
         for api_j in clustered_apis_k:
-            dis_i += get_jaccard_distace_api(api_i, api_j)
+            dis_i += get_jaccard_distace(api_i, api_j)
+            count += 1
 
     num_items = len(clustered_apis_k)
-    return dis_i / (num_items * (num_items-1))
+    return dis_i / count
 
 
 def get_inter_cluster_jaccards(clustered_apis_j, clustered_apis_k):
@@ -137,54 +181,12 @@ def get_inter_cluster_jaccards(clustered_apis_j, clustered_apis_k):
     dis_ = 0.
     for api_i in clustered_apis_j:
         for api_j in clustered_apis_k:
-            dis_ += get_jaccard_distace_api(api_i, api_j)
+            dis_ += get_jaccard_distace(api_i, api_j)
 
     num_items_1 = len(clustered_apis_j)
     num_items_2 = len(clustered_apis_k)
 
     return dis_ / (num_items_1 * num_items_2 )
-
-# def fitTSEandplot(psis, labels, name):
-#     model = TSNE(n_components=2, init='random')
-#     psis_2d = model.fit_transform(psis)
-#
-#     #pca = decomposition.PCA(n_components=2)
-#     #pca.fit(psis)
-#     #psis_2d = pca.transform(psis)
-#
-#     assert len(psis_2d) == len(labels)
-#     scatter(clargs, zip(psis_2d, labels), name)
-#
-#
-#
-# def scatter(clargs, data, name):
-#     dic = {}
-#     for psi_2d, label in data:
-#         if label == 'N/A':
-#             continue
-#         if label not in dic:
-#             dic[label] = []
-#         dic[label].append(psi_2d)
-#
-#     labels = list(dic.keys())
-#     labels.sort(key=lambda l: len(dic[l]), reverse=True)
-#     for label in labels[clargs.top:]:
-#         del dic[label]
-#
-#
-#     labels = dic.keys()
-#     colors = cm.rainbow(np.linspace(0, 1, len(dic)))
-#     plotpoints = []
-#     for label, color in zip(labels, colors):
-#         x = list(map(lambda s: s[0], dic[label]))
-#         y = list(map(lambda s: s[1], dic[label]))
-#         plotpoints.append(plt.scatter(x, y, color=color))
-#
-#     plt.legend(plotpoints, labels, scatterpoints=1, loc='lower left', ncol=3, fontsize=12)
-#     plt.axhline(0, color='black')
-#     plt.axvline(0, color='black')
-#     plt.savefig(os.path.join(os.getcwd(), "plots/tSNE_" + name + ".jpeg"), bbox_inches='tight')
-#     # plt.show()
 
 
 
