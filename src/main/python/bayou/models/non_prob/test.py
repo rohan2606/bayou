@@ -43,7 +43,7 @@ def test(clargs):
             sid, eid = j * batch_size, min( (j+1) * batch_size , num_progs)
             dist = cosine_similarity(np.array(encs[i:i+1]), np.array(rev_encs[sid:eid]))
             distances += list(dist)
-        
+
         _rank = find_my_rank( distances , i )
 
         hit_counts, prctg = rank_statistic(_rank, i + 1, hit_counts, hit_points)
@@ -94,7 +94,9 @@ def forward_pass(clargs):
 
     nodes_neg_placeholder = tf.placeholder(reader.nodes_neg.dtype, reader.nodes_neg.shape)
     edges_neg_placeholder = tf.placeholder(reader.edges_neg.dtype, reader.edges_neg.shape)
-    
+    rt_neg_placeholder = tf.placeholder(reader.rt_neg.dtype, reader.rt_neg.shape)
+    fp_neg_placeholder = tf.placeholder(reader.fp_neg.dtype, reader.fp_neg.shape)
+
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
     surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
     surr_evidence_fps_placeholder = [tf.placeholder(surr_fp_input_var.dtype, surr_fp_input_var.shape) for surr_fp_input_var in reader.inputs[-1][-1]]
@@ -107,8 +109,10 @@ def forward_pass(clargs):
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({nodes_neg_placeholder: reader.nodes_neg})
     feed_dict.update({edges_neg_placeholder: reader.edges_neg})
+    feed_dict.update({rt_neg_placeholder: reader.rt_neg})
+    feed_dict.update({fp_neg_placeholder: reader.fp_neg})
 
-    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder, nodes_neg_placeholder, edges_neg_placeholder, *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder, nodes_neg_placeholder, edges_neg_placeholder, rt_neg_placeholder, fp_neg_placeholder, *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder))
 
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
