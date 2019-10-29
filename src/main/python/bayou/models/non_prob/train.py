@@ -59,6 +59,8 @@ def train(clargs):
 
     nodes_neg_placeholder = tf.placeholder(reader.nodes_neg.dtype, reader.nodes_neg.shape)
     edges_neg_placeholder = tf.placeholder(reader.edges_neg.dtype, reader.edges_neg.shape)
+    rt_neg_placeholder = tf.placeholder(reader.rt_neg.dtype, reader.rt_neg.shape)
+    fp_neg_placeholder = tf.placeholder(reader.fp_neg.dtype, reader.fp_neg.shape)
     
     evidence_placeholder = [tf.placeholder(input.dtype, input.shape) for input in reader.inputs[:-1]]
     surr_evidence_placeholder = [tf.placeholder(surr_input.dtype, surr_input.shape) for surr_input in reader.inputs[-1][:-1]]
@@ -72,8 +74,10 @@ def train(clargs):
     feed_dict.update({edges_placeholder: reader.edges})
     feed_dict.update({nodes_neg_placeholder: reader.nodes_neg})
     feed_dict.update({edges_neg_placeholder: reader.edges_neg})
+    feed_dict.update({rt_neg_placeholder: reader.rt_neg})
+    feed_dict.update({fp_neg_placeholder: reader.fp_neg})
 
-    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder, nodes_neg_placeholder, edges_neg_placeholder, *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder))
+    dataset = tf.data.Dataset.from_tensor_slices(( nodes_placeholder, edges_placeholder, nodes_neg_placeholder, edges_neg_placeholder, rt_neg_placeholder, fp_neg_placeholder, *evidence_placeholder, *surr_evidence_placeholder, *surr_evidence_fps_placeholder))
 
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
@@ -101,21 +105,23 @@ def train(clargs):
         for i in range(config.num_epochs):
             sess.run(iterator.initializer, feed_dict=feed_dict)
             start = time.time()
-            avg_loss = 0.
+            avg_loss, avg_pos_loss, avg_neg_loss = 0.,0.,0.
             for b in range(NUM_BATCHES):
                 # run the optimizer
 
-                loss, _ = sess.run([model.loss, model.train_op])
+                pos_loss, neg_loss, loss, _ = sess.run([model.positive_distance, model.negative_distance, model.loss, model.train_op])
                 avg_loss += np.mean(loss)
+                avg_pos_loss += np.mean(pos_loss)
+                avg_neg_loss += np.mean(neg_loss)
 
 
                 step = i * config.num_batches + b
                 if step % config.print_step == 0:
                     print('{}/{} (epoch {}) '
-                          'loss: {:.3f}, \n\t'.format(step, config.num_epochs * config.num_batches, i + 1 ,(avg_loss)/(b+1)))
+                          'loss: {:.3f}, pos_loss: {:.3f},neg_loss: {:.3f},\n\t'.format(step, config.num_epochs * config.num_batches, i + 1 ,(avg_loss)/(b+1),(avg_pos_loss)/(b+1),(avg_neg_loss)/(b+1)))
 
             if (i+1) % config.checkpoint_step == 0:
-                checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(i))
+                checkpoint_dir = os.path.join(clargs.save, 'model{}.ckpt'.format(5+i))
                 saver.save(sess, checkpoint_dir)
 
                 print('Model checkpointed: {}. Average for epoch , '
@@ -131,7 +137,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save_new',
+    parser.add_argument('--save', type=str, default='save4',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -139,9 +145,9 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     #['--continue_from', 'save',
+     #['--continue_from', 'save2',
      ['--config','config.json',
-    '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json']) #DATA-newSurrounding_methodHeaders_train.json'])
+    '/root/DATA-newSurrounding_methodHeaders_train_v2_train.json']) #DATA-newSurrounding_methodHeaders_train.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

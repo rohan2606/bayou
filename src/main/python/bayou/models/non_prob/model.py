@@ -29,10 +29,11 @@ class Model():
         newBatch = iterator.get_next()
         nodes, edges = newBatch[:2]
         nodes_new, edges_new = newBatch[2:4]
+        rt_new, fp_new = newBatch[4:6]
 
-        ev_data = newBatch[4:14]
-        surr_input = newBatch[14:17]
-        surr_input_fp = newBatch[17:19]
+        ev_data = newBatch[6:16]
+        surr_input = newBatch[16:19]
+        surr_input_fp = newBatch[19:21]
 
 
         self.nodes = tf.transpose(nodes)
@@ -58,11 +59,13 @@ class Model():
             #tf.get_variable_scope().reuse_variables()
 
         with tf.variable_scope("Reverse_Encoder", reuse=True):
-            self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes_new, self.edges_new,  ev_data[4], embRT, ev_data[5], embFS)
+            self.reverse_encoder_negative = BayesianReverseEncoder(config, embAPI, self.nodes_new, self.edges_new, rt_new, embRT, fp_new, embFS)
             self.psi_reverse_encoder_negative = self.reverse_encoder_negative.psi_mean
 
+        self.positive_distance = tf.reduce_sum(self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder), axis=0)
+        self.negative_distance = tf.reduce_sum(self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative), axis=0)
 
-        self.loss = tf.reduce_sum(  2 - self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder) +   self.cosine_similarity(self.psi_encoder, self.psi_reverse_encoder_negative)  , axis=0)
+        self.loss =  2.*self.config.batch_size - self.positive_distance +  self.negative_distance  
 
         #unused if MultiGPU is being used
         with tf.name_scope("train"):
