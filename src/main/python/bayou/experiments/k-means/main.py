@@ -57,22 +57,22 @@ def main(clargs):
 
     print('API Call Jaccard Calculations')
     with open(clargs.input_file[0], 'rb') as f:
-        jac_api_matrix = call_k_means(f, 'b2', dict_api_calls)
+        jac_api_matrix = call_k_means(f, clargs.index, dict_api_calls)
 
     print('Seq Calls Jaccard Calculations')
     with open(clargs.input_file[0], 'rb') as f:
-        jac_seq_matrix = call_k_means(f, 'b2', dict_seq)
+        jac_seq_matrix = call_k_means(f, clargs.index, dict_seq)
 
     print('AST Jaccard Calculations')
     with open(clargs.input_file[0], 'rb') as f:
-        jac_ast_matrix = call_k_means(f, 'b2', dict_ast)
+        jac_ast_matrix = call_k_means(f, clargs.index, dict_ast)
 
     plt.matshow(jac_api_matrix)
-    plt.save('clustered_apis_k.png')
+    plt.savefig('clustered_apis_k.png')
     plt.matshow(jac_seq_matrix)
-    plt.show('clustered_seqs_k.png')
+    plt.savefig('clustered_seqs_k.png')
     plt.matshow(jac_ast_matrix)
-    plt.show('clustered_asts_k.png')
+    plt.savefig('clustered_asts_k.png')
     return
 
 
@@ -199,5 +199,6 @@ if __name__ == '__main__':
                         help='directory to load model from')
     parser.add_argument('--top', type=int, default=10,
                         help='plot only the top-k labels')
+    parser.add_argument('--index', choices=['b2', 'psi_rev_enc'])
     clargs = parser.parse_args()
     main(clargs)
