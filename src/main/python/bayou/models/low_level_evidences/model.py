@@ -174,16 +174,15 @@ class Model():
             regularizor = tf.reduce_sum([ tf.square(ev.sigma) for ev in self.config.evidence ])
             
             self.loss_enc = self.gen_loss_enc + 1/8 * self.loss_RE_enc  + 8/8 * self.gen_loss_FS_Enc
-            self.loss_rev_enc = self.gen_loss_rev_enc + 1/32 * self.loss_RE_rev_enc  + 8/32 * self.gen_loss_FS_RevEnc
+            self.loss_rev_enc = self.gen_loss_rev_enc + 1/8 * self.loss_RE_rev_enc  + 8/8 * self.gen_loss_FS_RevEnc
 
-            self.loss = self.loss_enc + 0.01*self.KL_loss + 0.01*regu_KL_loss + 0.01*regularizor
-            #tf.log( self.loss_rev_enc * 32 +  self.KL_loss * 256) + (self.loss_enc * 32)  - ( self.get_multinormal_lnprob(self.psi_encoder) - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance))
+            self.loss = self.loss_enc + self.KL_loss + regu_KL_loss #+ 0.01*regularizor
 
-				# P(Y) = int_Z P(YZ) = int_Z P(Y|Z)P(Z) = int_Z P(Y|Z)P(Z|X)P(Z)/P(Z|X) = sum_Z P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
-                # last step by importace_sampling
-                # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
-				# P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
-            self.probY = -1 * self.loss_enc * 8 + 0.01 * (self.get_multinormal_lnprob(self.psi_encoder) \
+            # P(Y) = int_Z P(YZ) = int_Z P(Y|Z)P(Z) = int_Z P(Y|Z)P(Z|X)P(Z)/P(Z|X) = sum_Z P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
+            # last step by importace_sampling
+            # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
+	    # P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
+            self.probY = -1 * self.loss_enc * 8 + 1 * (self.get_multinormal_lnprob(self.psi_encoder) \
                                       - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance))
             self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
             self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)

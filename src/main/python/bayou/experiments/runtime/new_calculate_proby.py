@@ -101,7 +101,9 @@ class Encoder_Model:
 
 
 class Rev_Encoder_Model_2:
-    def __init__(self):
+    def __init__(self, predictor):
+
+        self.predictor = predictor
         return
 
 
@@ -110,16 +112,16 @@ class Rev_Encoder_Model_2:
         program_db = []
         sum_probY = None
         for batch_num, (nodes, edges, targets, ret, fp, jsons) in enumerate(zip(self.predictor.nodes, self.predictor.edges, self.predictor.targets, self.predictor.ret_type, self.predictor.formal_param, self.predictor.js_programs)):
-            probY, RevEncA, RevEncB = self.predictor.predictor.get_rev_enc_ab(nodes, edges, targets, ret, fp)
-            batch_prob = get_c_minus_cstar(encA, encB, RevEncA, RevEncB, probY, self.predictor.config.latent_size)
+            probY, RevEncA, RevEncB = self.predictor.predictor.get_rev_enc_ab(nodes, edges, targets, ret, fp, jsons)
+            batch_prob = get_c_minus_cstar(encA, encB, RevEncA, RevEncB, probY, self.predictor.predictor.config.latent_size)
 
             for i, js in enumerate(jsons):
                  program_db.append((js['body'], batch_prob[i]))
             #if batch_num > 200:
             #   break
-            print(f'Batch# {batch_num}/{len(self.nodes)}',end='\r')
+            print(f'Batch# {batch_num}/{len(self.predictor.nodes)}',end='\r')
 
-        top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
+        top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:100]
         return top_progs
 
 
@@ -198,7 +200,7 @@ if __name__ == "__main__":
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
     help='set recursion limit for the Python interpreter')
     parser.add_argument('--save', type=str, default='/home/ubuntu/savedSearchModel')
-    parser.add_argument('--mc_iter', type=int, default=1)
+    parser.add_argument('--mc_iter', type=int, default=10)
 
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
@@ -207,11 +209,11 @@ if __name__ == "__main__":
     pred = Predictor()
     encoder = Encoder_Model(pred)
     decoder = Decoder_Model(pred, clargs.mc_iter)
-    #rev_encoder = Rev_Encoder_Model_2(pred)
-    rev_encoder = Rev_Encoder_Model()
+    rev_encoder = Rev_Encoder_Model_2(pred)
+    #rev_encoder = Rev_Encoder_Model()
 
     # get the input JSON
-    programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_6/', 10)
+    programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_4/', 10)
     max_cut_off_accept = 100
     #get the probs
     j=0
@@ -225,14 +227,17 @@ if __name__ == "__main__":
          psis.extend(psi)
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:max_cut_off_accept]
 
-    #for top_prog in rev_encoder_top_progs:
-    #    print(top_prog)
-    print("=====================================")
+    for top_prog in rev_encoder_top_progs:
+        print(top_prog[0])
+        print(top_prog[1])
 
-    decoder_top_progs = decoder.get_running_comparison(program, psis, golden_programs=rev_encoder_top_progs)
-    # for top_prog in decoder_top_progs:
-    #     print(top_prog[0])
-    #     print(top_prog[1])
-    #
-    # print("=====================================")
+    print("=====================================")
+    print("=====================================")
+    print("=====================================")
+    decoder_top_progs = decoder.get_running_comparison(program, psis, golden_programs=[item[0] for item in rev_encoder_top_progs])
+    for top_prog in decoder_top_progs:
+        print(top_prog[0])
+        print(top_prog[1])
+    
+    print("=====================================")
 
