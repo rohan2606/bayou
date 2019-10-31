@@ -88,20 +88,15 @@ class Predictor:
         self.sess.close()
         
         clargs.continue_from = True
-        print('Loading Model, please wait _/\_ ...')
+        print('Re - Loading Model, please wait _/\_ ...')
         model = bayou.models.low_level_evidences.predict.BayesianPredictor
 
         self.sess = tf.InteractiveSession()
         self.predictor = model(clargs.save, self.sess, batch_size=500, prob_mode=prob_mode)# goes to predict.BayesianPredictor
 
-        print ('Model Loaded, All Ready to Predict Evidences!!')
+        print ('Model Re - Loaded, All Ready to Predict Evidences!!')
         return
     
-   # def close(self):
-   #     tf.reset_default_graph()
-   #     self.sess.close()
-        return
-
     def chunks(self, l, n):
         """Yield successive n-sized chunks from l."""
         chunks = []
@@ -174,9 +169,10 @@ class Rev_Encoder_Model:
 
 class Decoder_Model:
 
-    def __init__(self, predictor, mc_iter):
+    def __init__(self, predictor, mc_iter, topK=10):
         self.predictor = predictor
         self.mc_iter = mc_iter
+        self.topK = 10
 
         # Load
 
@@ -199,7 +195,7 @@ class Decoder_Model:
                 for i, js in enumerate(jsons):
                      program_db.append((js['body'], batch_prob[i]))
 
-            top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
+            top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:self.topK]
 
             count = 0
             for top_prog in top_progs:
@@ -208,7 +204,7 @@ class Decoder_Model:
             distance100 = count / len(golden_programs)
             print(f"Monte Carlo Iteration: {mc_iter}, Distance[1/3/5/10/100]: {distance100}/")
             #print(f"Monte Carlo Iteration: {mc_iter}, Distance[1/3/5/10/100]: {distance1}/{distance3}/{distance5}/{distance10}/{distance100}/")
-            print("=====================================")
+            #print("=====================================")
         return top_progs
 
 
@@ -229,7 +225,7 @@ if __name__ == "__main__":
     programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_4/', 10)
     max_cut_off_accept = 10
     #get the probs
-    j=0
+    j=3
     program = programs[j]
     print(program)
     print("Working with program no :: " + str(j))
@@ -246,10 +242,9 @@ if __name__ == "__main__":
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:max_cut_off_accept]
     
     for top_prog in rev_encoder_top_progs:
-        print(top_prog[0])
         print(top_prog[1])
-    #pred.close()
-    #del pred, encoder, rev_encoder 
+        print(top_prog[0])
+    
     print("=====================================")
     print("=====================================")
     print("=====================================")
@@ -260,12 +255,11 @@ if __name__ == "__main__":
          psi, eA, eB = encoder.get_latent_space(program)
          psi = np.vsplit(psi, len(psi))
          psis.extend(psi)
-    decoder = Decoder_Model(pred, clargs.mc_iter)
+    decoder = Decoder_Model(pred, clargs.mc_iter, topK=max_cut_off_accept )
     decoder_top_progs = decoder.get_running_comparison(program, psis, golden_programs=[item[0] for item in rev_encoder_top_progs])
     for top_prog in decoder_top_progs:
-        print(top_prog[0])
         print(top_prog[1])
+        print(top_prog[0])
     
-    #pred.close() 
     print("=====================================")
 
