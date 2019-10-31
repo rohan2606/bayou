@@ -37,9 +37,9 @@ class InvalidSketchError(Exception):
 
 class BayesianPredictor(object):
 
-    def __init__(self, save, sess, config, iterator):
+    def __init__(self, save, sess, config, iterator, prob_mode=True):
         self.sess = sess
-        self.model = Model(config, iterator, infer=True)
+        self.model = Model(config, iterator, infer=True, prob_mode=prob_mode)
         self.config = config
         #
         # restore the saved model

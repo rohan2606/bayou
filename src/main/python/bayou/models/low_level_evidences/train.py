@@ -72,7 +72,7 @@ def train(clargs):
     batched_dataset = dataset.batch(config.batch_size)
     iterator = batched_dataset.make_initializable_iterator()
 
-    model = Model(config , iterator, bayou_mode=False)
+    model = Model(config , iterator, prob_mode=False)
 
     with tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)) as sess:
         writer = tf.summary.FileWriter(clargs.save)
@@ -138,7 +138,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save_scratch_2',
+    parser.add_argument('--save', type=str, default='save_500_ndss_decoder',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -146,8 +146,8 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     #['--continue_from', 'save',
-     ['--config','config.json',
+     ['--continue_from', 'save_500_new_drop_skinny_seq',
+     #['--config','config.json',
     '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json']) #DATA-newSurrounding_methodHeaders_train.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:

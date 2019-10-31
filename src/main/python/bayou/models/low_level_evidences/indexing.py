@@ -86,8 +86,8 @@ def index(clargs):
 
         programs = []
         step=200
-        start = 0*step
-        end = 18*step
+        start = 18*step
+        end = 100*step
         end = min(end , config.num_batches)
         print(f'Running from {start} to {end}')
         for j in range(end):
@@ -143,7 +143,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', '/home/ubuntu/save_500_new_drop_skinny/',
+    clargs = parser.parse_args(['--save', 'save_500_ndss_decoder/',
         '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)
