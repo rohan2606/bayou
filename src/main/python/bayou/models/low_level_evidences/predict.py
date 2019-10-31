@@ -27,7 +27,7 @@ from bayou.models.low_level_evidences.node import Node, get_ast_from_json, CHILD
 
 class BayesianPredictor(object):
 
-    def __init__(self, save, sess, batch_size=1):
+    def __init__(self, save, sess, batch_size=1, prob_mode=True):
 
         with open(os.path.join(save, 'config.json')) as f:
             config = read_config(json.load(f), chars_vocab=True)
@@ -63,7 +63,11 @@ class BayesianPredictor(object):
             self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
 
-            self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
+            if prob_mode:
+                 self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
+            else:
+                 self.psi_encoder = self.encoder.psi_mean
+                  
 
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
@@ -72,9 +76,13 @@ class BayesianPredictor(object):
             embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
             self.reverse_encoder = BayesianReverseEncoder(config, embAPI, nodes, edges, self.ret_type_placeholder, embRT, self.formal_param_placeholder, embFS)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
+            
+            if prob_mode:
+                 self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
+            else:
+                 self.psi_reverse_encoder = self.reverse_encoder.psi_mean 
 
-            self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
-
+ 
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder"):
             lift_w = tf.get_variable('lift_w', [config.latent_size, config.decoder.units])

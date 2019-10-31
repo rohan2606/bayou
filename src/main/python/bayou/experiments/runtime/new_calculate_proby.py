@@ -49,14 +49,14 @@ class Get_Example_JSONs:
 
 class Predictor:
 
-    def __init__(self):
+    def __init__(self, prob_mode=True):
         #set clargs.continue_from = True while testing, it continues from old saved config
         clargs.continue_from = True
         print('Loading Model, please wait _/\_ ...')
         model = bayou.models.low_level_evidences.predict.BayesianPredictor
 
-        sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, sess, batch_size=500)# goes to predict.BayesianPredictor
+        self.sess = tf.InteractiveSession()
+        self.predictor = model(clargs.save, self.sess, batch_size=500, prob_mode=prob_mode)# goes to predict.BayesianPredictor
 
         print ('Model Loaded, All Ready to Predict Evidences!!')
 
@@ -80,6 +80,26 @@ class Predictor:
         self.edges = np.split(self.edges, num_batches, axis=0)
         self.targets = np.split(self.targets, num_batches, axis=0)
         self.js_programs = self.chunks(self.js_programs, self.predictor.config.batch_size)
+        return
+
+    def reload_model(self, prob_mode=True):
+        #set clargs.continue_from = True while testing, it continues from old saved config
+        tf.reset_default_graph()
+        self.sess.close()
+        
+        clargs.continue_from = True
+        print('Loading Model, please wait _/\_ ...')
+        model = bayou.models.low_level_evidences.predict.BayesianPredictor
+
+        self.sess = tf.InteractiveSession()
+        self.predictor = model(clargs.save, self.sess, batch_size=500, prob_mode=prob_mode)# goes to predict.BayesianPredictor
+
+        print ('Model Loaded, All Ready to Predict Evidences!!')
+        return
+    
+   # def close(self):
+   #     tf.reset_default_graph()
+   #     self.sess.close()
         return
 
     def chunks(self, l, n):
@@ -121,7 +141,7 @@ class Rev_Encoder_Model_2:
             #   break
             print(f'Batch# {batch_num}/{len(self.predictor.nodes)}',end='\r')
 
-        top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:100]
+        top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
         return top_progs
 
 
@@ -179,7 +199,7 @@ class Decoder_Model:
                 for i, js in enumerate(jsons):
                      program_db.append((js['body'], batch_prob[i]))
 
-            top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:100]
+            top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
 
             count = 0
             for top_prog in top_progs:
@@ -205,39 +225,47 @@ if __name__ == "__main__":
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
 
-    # initiate the server
-    pred = Predictor()
-    encoder = Encoder_Model(pred)
-    decoder = Decoder_Model(pred, clargs.mc_iter)
-    rev_encoder = Rev_Encoder_Model_2(pred)
-    #rev_encoder = Rev_Encoder_Model()
-
     # get the input JSON
     programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_4/', 10)
-    max_cut_off_accept = 100
+    max_cut_off_accept = 10
     #get the probs
     j=0
     program = programs[j]
     print(program)
     print("Working with program no :: " + str(j))
+    
+
+
+    # initiate the server
+    pred = Predictor(prob_mode=False)
+    encoder = Encoder_Model(pred)
+    rev_encoder = Rev_Encoder_Model_2(pred)
+    #rev_encoder = Rev_Encoder_Model()
+
+    psi, eA, eB = encoder.get_latent_space(program)
+    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:max_cut_off_accept]
+    
+    for top_prog in rev_encoder_top_progs:
+        print(top_prog[0])
+        print(top_prog[1])
+    #pred.close()
+    #del pred, encoder, rev_encoder 
+    print("=====================================")
+    print("=====================================")
+    print("=====================================")
+    pred.reload_model(prob_mode=True)
+    encoder = Encoder_Model(pred)
     psis = []
     while(len(psis) < clargs.mc_iter):
          psi, eA, eB = encoder.get_latent_space(program)
          psi = np.vsplit(psi, len(psi))
          psis.extend(psi)
-    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:max_cut_off_accept]
-
-    for top_prog in rev_encoder_top_progs:
-        print(top_prog[0])
-        print(top_prog[1])
-
-    print("=====================================")
-    print("=====================================")
-    print("=====================================")
+    decoder = Decoder_Model(pred, clargs.mc_iter)
     decoder_top_progs = decoder.get_running_comparison(program, psis, golden_programs=[item[0] for item in rev_encoder_top_progs])
     for top_prog in decoder_top_progs:
         print(top_prog[0])
         print(top_prog[1])
     
+    #pred.close() 
     print("=====================================")
 
