@@ -99,8 +99,9 @@ def call_k_means(f, att, dict_api_calls, max_nums=10000):
 
     clusters, clustered_apis = k_means(psis, apis)
 
-
-    sorted_ids = [i[0] for i in sorted(enumerate(clustered_apis), key=lambda x:get_intra_cluster_jaccards(x[1]), reverse=True)]
+    cluster_jaccards = [get_intra_cluster_jaccards(x) for x in clustered_apis] 
+    print(sorted(cluster_jaccards, reverse=True))
+    sorted_ids = [i[0] for i in sorted(enumerate(cluster_jaccards), key=lambda x:x[1], reverse=True)]
 
     clusters = [clusters[i] for i in sorted_ids]
     clustered_apis = [clustered_apis[i] for i in sorted_ids]
@@ -119,22 +120,22 @@ def call_k_means(f, att, dict_api_calls, max_nums=10000):
                 jac = get_inter_cluster_jaccards(clustered_apis_j, clustered_apis_k)
                 jac_matrix[j][k] = jac
             elif k == j:
-                jac = get_intra_cluster_jaccards(clustered_apis_j)
+                jac = cluster_jaccards[j]  #get_intra_cluster_jaccards(clustered_apis_j)
                 jac_matrix[j][k] = jac
             else:
                 jac_matrix[j][k] = jac_matrix[k][j]
 
-    print('', end='[')
-    for j in range(num_clusters):
-        print('', end='[')
-        for k in range(num_clusters):
-            if k == num_clusters - 1 and j == num_clusters - 1:
-                print("%.3f" % jac_matrix[j][k], end=']\n')
-            elif k == num_clusters - 1:
-                print("%.3f" % jac_matrix[j][k], end='],\n')
-            else:
-                print("%.3f" % jac_matrix[j][k], end=',')
-    print(']')
+#    print('', end='[')
+#    for j in range(num_clusters):
+#        print('', end='[')
+#        for k in range(num_clusters):
+#            if k == num_clusters - 1 and j == num_clusters - 1:
+#                print("%.3f" % jac_matrix[j][k], end=']\n')
+#            elif k == num_clusters - 1:
+#                print("%.3f" % jac_matrix[j][k], end='],\n')
+#            else:
+#                print("%.3f" % jac_matrix[j][k], end=',')
+#    print(']')
 
     return jac_matrix
 
