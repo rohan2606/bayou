@@ -184,7 +184,7 @@ class Model():
             # last step by importace_sampling
             # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
 	    # P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
-            self.probY = -1 * self.loss_enc * 8 + 1 * (self.get_multinormal_lnprob(self.psi_encoder) \
+            self.probY = -1 * self.loss_enc * 8 +  8 / 256 * (self.get_multinormal_lnprob(self.psi_encoder) \
                                       - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance))
             self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
             self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)
