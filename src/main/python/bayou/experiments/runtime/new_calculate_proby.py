@@ -172,7 +172,7 @@ class Decoder_Model:
     def __init__(self, predictor, mc_iter, topK=10):
         self.predictor = predictor
         self.mc_iter = mc_iter
-        self.topK = 10
+        self.topK = topK
 
         # Load
 
@@ -223,7 +223,7 @@ if __name__ == "__main__":
 
     # get the input JSON
     programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_4/', 10)
-    max_cut_off_accept = 10
+    max_cut_off_accept = 100
     #get the probs
     j=3
     program = programs[j]

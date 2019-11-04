@@ -89,6 +89,7 @@ def index(clargs):
         start = 18*step
         end = 100*step
         end = min(end , config.num_batches)
+        k = 0
         print(f'Running from {start} to {end}')
         for j in range(end):
             if j < start:
@@ -106,7 +107,7 @@ def index(clargs):
                 programs.append(prog_json)
 
             if (j+1) % step == 0 or (j+1) == config.num_batches:
-                k = (j+1)//step
+                k += 1 #(j+1)//step
                 fileName = "Program_output_" + str(k) + ".json"
                 print('\nWriting to {}...'.format(fileName), end='')
                 with open(fileName, 'w') as f:

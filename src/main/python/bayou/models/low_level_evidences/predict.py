@@ -154,7 +154,7 @@ class BayesianPredictor(object):
             self.loss = self.gen_loss + 8/8* self.gen_loss_FS + 1/8 * self.loss_RE  
 
 
-        self.probY =  -1 * self.loss * 8 + \
+        self.probY =  -1 * self.loss * 8 + 8/256 * \
                              self.get_multinormal_lnprob(self.psi_encoder) - \
                              self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance)
         self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
