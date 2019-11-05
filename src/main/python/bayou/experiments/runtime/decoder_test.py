@@ -21,7 +21,7 @@ import tensorflow as tf
 import argparse
 import os
 import sys
-import json
+import simplejson as json
 import pickle
 
 import time
@@ -244,7 +244,7 @@ class Decoder_Model:
         monteCarloIterations = self.mc_iter
         sum_probY = [None for i in range(len(self.predictor.nodes))]
         for mc_iter in range(monteCarloIterations):
-            psi = np.tile(psis[mc_iter],(self.predictor.predictor.config.batch_size,1))
+            psi = psis[mc_iter] #np.tile(psis[mc_iter],(self.predictor.predictor.config.batch_size,1))
             program_db = []
             for batch_num, (nodes, edges, targets, ret, fp, jsons) in enumerate(zip(self.predictor.nodes, self.predictor.edges, self.predictor.targets, self.predictor.ret_type, self.predictor.formal_param, self.predictor.js_programs)):
                 probYgivenZ = self.predictor.predictor.get_probY_given_psi(nodes, edges, targets, ret, fp, psi)
@@ -259,6 +259,10 @@ class Decoder_Model:
                      program_db.append((js['body'], dict_ast[key], dict_api_calls[key], batch_prob[i]))
 
             top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)
+            json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3])} for item in top_progs]
+            with open('log/mc_iter_logger_' + str(mc_iter)  + '.json', 'w') as f:
+                 json.dump({'Iteration':mc_iter, 'Programs':json_top_progs}, f, indent=4)
+           
             
             distance100 = self.get_jaccard_distance(top_progs, 100, type='body')
             distance10 = self.get_jaccard_distance(top_progs, 10, type='body')
@@ -318,7 +322,7 @@ if __name__ == "__main__":
     #print(program)
     #print("Working with program no :: " + str(j))
     
-    program = {'types':['ArrayList'], 'apicalls':['add']} 
+    program = {'types':['HashMap'], 'apicalls':['get']} 
 
     # initiate the server
     max_cut_off_accept = 100
@@ -342,8 +346,8 @@ if __name__ == "__main__":
     psis = []
     while(len(psis) < clargs.mc_iter):
          psi, eA, eB = encoder.get_latent_space(program)
-         psi = np.vsplit(psi, len(psi))
-         psis.extend(psi)
+         #psi = np.vsplit(psi, len(psi))
+         psis.append(psi)
     decoder = Decoder_Model(pred, clargs.mc_iter, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs)
     decoder_top_progs = decoder.get_running_comparison(program, psis)
     for top_prog in decoder_top_progs[:10]:
