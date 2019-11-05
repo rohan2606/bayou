@@ -29,13 +29,21 @@ import ijson
 from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
 from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
 from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
-from bayou.models.low_level_evidences.test import get_c_minus_cstar
-
-from bayou.experiments.predictMethods.SearchDB.utils import get_jaccard_distace_api
+from bayou.experiments.predictMethods.SearchDB.utils import get_jaccard_distace_api, get_api_dict,get_ast_dict,get_sequence_dict
 
 
 import bayou.models.low_level_evidences.predict
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
+
+
+
+print("Loading API Dictionary")
+dict_api_calls = get_api_dict()
+print("Loading AST Dictionary")
+dict_ast = get_ast_dict()
+print("Loading Seq Dictionary")
+dict_seq = None #get_sequence_dict()
+
 
 class Get_Example_JSONs:
 
@@ -116,9 +124,10 @@ class Encoder_Model:
 
 
 class Rev_Encoder_Model_2:
-    def __init__(self, predictor):
+    def __init__(self, predictor, topK=10):
 
         self.predictor = predictor
+        self.topK = topK
         return
 
 
@@ -131,12 +140,13 @@ class Rev_Encoder_Model_2:
             batch_prob = get_c_minus_cstar(encA, encB, RevEncA, RevEncB, probY, self.predictor.predictor.config.latent_size)
 
             for i, js in enumerate(jsons):
-                 program_db.append((js['body'], batch_prob[i]))
+                 key = js['file'] + "/" + js['method']
+                 program_db.append((js['body'], dict_ast[key], dict_api_calls[key], batch_prob[i]))
             #if batch_num > 200:
             #   break
             print(f'Batch# {batch_num}/{len(self.predictor.nodes)}',end='\r')
 
-        top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:10]
+        top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)[:self.topK]
         return top_progs
 
 
@@ -169,15 +179,47 @@ class Rev_Encoder_Model:
 
 class Decoder_Model:
 
-    def __init__(self, predictor, mc_iter, topK=10):
+    def __init__(self, predictor, mc_iter, topK=10, golden_programs=list()):
         self.predictor = predictor
         self.mc_iter = mc_iter
         self.topK = topK
+        self.golden_programs = golden_programs
+        return
 
         # Load
 
+    def map_type_2_idx(self, type):
+       if type == 'body':
+          return 0
+       if type == 'ast':
+          return 1
+       if type == 'api':
+          return 2
 
-    def get_running_comparison(self, program, psis, golden_programs=list()):
+    def get_cutoffed_progs(self, progs, cutoff, type):
+
+       index = self.map_type_2_idx(type)
+       progs = [ prog[index] for prog in progs[:cutoff]]
+       other_programs = [ prog[index] for prog in self.golden_programs[:cutoff] ]
+       return progs, other_programs
+
+    def get_existence_distance(self, progs, cutoff=None, type='body'):
+       
+       progs, other_programs = self.get_cutoffed_progs(progs, cutoff, type) 
+       count = 0
+       for prog in progs:
+           if prog in other_programs:
+               count += 1
+       return count / len(other_programs)
+
+
+    def get_jaccard_distance(self, progs, cutoff=None, type='body'):
+       
+       progs, other_programs = self.get_cutoffed_progs(progs, cutoff, type) 
+       return get_jaccard_distace_api(set(progs), set(other_programs))       
+   
+
+    def get_running_comparison(self, program, psis):
 
         monteCarloIterations = self.mc_iter
         sum_probY = [None for i in range(len(self.predictor.nodes))]
@@ -193,18 +235,45 @@ class Decoder_Model:
                 batch_prob = sum_probY[batch_num] - np.log(mc_iter+1)
 
                 for i, js in enumerate(jsons):
-                     program_db.append((js['body'], batch_prob[i]))
+                     key = js['file'] + "/" + js['method']
+                     program_db.append((js['body'], dict_ast[key], dict_api_calls[key], batch_prob[i]))
 
-            top_progs = sorted(program_db, key=lambda x: x[1], reverse=True)[:self.topK]
+            top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)
+            
+            distance100 = self.get_jaccard_distance(top_progs, 100, type='body')
+            distance10 = self.get_jaccard_distance(top_progs, 10, type='body')
+            distance5 = self.get_jaccard_distance(top_progs, 5, type='body')
+            distance3 = self.get_jaccard_distance(top_progs, 3, type='body')
+            distance1 = self.get_jaccard_distance(top_progs, 1, type='body')
+            
+            print(f"Monte Carlo Iteration: {mc_iter}, Body : Jaccard Distance[1/3/5/10/100]: {distance1} / {distance3} / {distance5} / {distance10} / {distance100} /")
+            
+            distance100 = self.get_existence_distance(top_progs, 100, type='body')
+            distance10 = self.get_existence_distance(top_progs, 10, type='body')
+            distance5 = self.get_existence_distance(top_progs, 5, type='body')
+            distance3 = self.get_existence_distance(top_progs, 3, type='body')
+            distance1 = self.get_existence_distance(top_progs, 1, type='body')
+        
+            print(f"Monte Carlo Iteration: {mc_iter}, Body : Existence Distance[1/3/5/10/100]: {distance1} / {distance3} / {distance5} / {distance10} / {distance100} /")
+            
+            distance100 = self.get_jaccard_distance(top_progs, 100, type='ast')
+            distance10 = self.get_jaccard_distance(top_progs, 10, type='ast')
+            distance5 = self.get_jaccard_distance(top_progs, 5, type='ast')
+            distance3 = self.get_jaccard_distance(top_progs, 3, type='ast')
+            distance1 = self.get_jaccard_distance(top_progs, 1, type='ast')
+            
+            print(f"Monte Carlo Iteration: {mc_iter}, AST : Jaccard Distance[1/3/5/10/100]: {distance1} / {distance3} / {distance5} / {distance10} / {distance100} /")
 
-            count = 0
-            for top_prog in top_progs:
-                if top_prog[0] in golden_programs:
-                    count += 1
-            distance100 = count / len(golden_programs)
-            print(f"Monte Carlo Iteration: {mc_iter}, Distance[1/3/5/10/100]: {distance100}/")
-            #print(f"Monte Carlo Iteration: {mc_iter}, Distance[1/3/5/10/100]: {distance1}/{distance3}/{distance5}/{distance10}/{distance100}/")
-            #print("=====================================")
+            distance100 = self.get_existence_distance(top_progs, 100, type='ast')
+            distance10 = self.get_existence_distance(top_progs, 10, type='ast')
+            distance5 = self.get_existence_distance(top_progs, 5, type='ast')
+            distance3 = self.get_existence_distance(top_progs, 3, type='ast')
+            distance1 = self.get_existence_distance(top_progs, 1, type='ast')
+        
+            print(f"Monte Carlo Iteration: {mc_iter}, AST : Existence Distance[1/3/5/10/100]: {distance1} / {distance3} / {distance5} / {distance10} / {distance100} /")
+            
+            
+            print("===================================== \n")
         return top_progs
 
 
@@ -235,14 +304,14 @@ if __name__ == "__main__":
     # initiate the server
     pred = Predictor(prob_mode=False)
     encoder = Encoder_Model(pred)
-    rev_encoder = Rev_Encoder_Model_2(pred)
+    rev_encoder = Rev_Encoder_Model_2(pred, topK=max_cut_off_accept)
     #rev_encoder = Rev_Encoder_Model()
 
     psi, eA, eB = encoder.get_latent_space(program)
-    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:max_cut_off_accept]
+    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])
     
     for top_prog in rev_encoder_top_progs:
-        print(top_prog[1])
+        print(top_prog[2])
         print(top_prog[0])
     
     print("=====================================")
@@ -255,10 +324,10 @@ if __name__ == "__main__":
          psi, eA, eB = encoder.get_latent_space(program)
          psi = np.vsplit(psi, len(psi))
          psis.extend(psi)
-    decoder = Decoder_Model(pred, clargs.mc_iter, topK=max_cut_off_accept )
-    decoder_top_progs = decoder.get_running_comparison(program, psis, golden_programs=[item[0] for item in rev_encoder_top_progs])
+    decoder = Decoder_Model(pred, clargs.mc_iter, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs)
+    decoder_top_progs = decoder.get_running_comparison(program, psis)
     for top_prog in decoder_top_progs:
-        print(top_prog[1])
+        print(top_prog[2])
         print(top_prog[0])
     
     print("=====================================")
