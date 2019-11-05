@@ -41,7 +41,7 @@ from bayou.models.low_level_evidences.test import get_c_minus_cstar
 
 
 print("Loading API Dictionary")
-dict_api_calls = get_api_dict()
+dict_api_calls = defaultdict(str) #get_api_dict()
 print("Loading AST Dictionary")
 dict_ast = get_ast_dict()
 print("Loading Seq Dictionary")
@@ -311,17 +311,17 @@ if __name__ == "__main__":
     sys.setrecursionlimit(clargs.python_recursion_limit)
 
     # get the input JSON
-    programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_4/', 10)
-    max_cut_off_accept = 100
-    #get the probs
-    j=3
-    program = programs[j]
-    print(program)
-    print("Working with program no :: " + str(j))
+    #programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_4/', 10)
+    ##get the probs
+    #j=5
+    #program = programs[j]
+    #print(program)
+    #print("Working with program no :: " + str(j))
     
-
+    program = {'types':['ArrayList'], 'apicalls':['add']} 
 
     # initiate the server
+    max_cut_off_accept = 100
     pred = Predictor(prob_mode=False)
     encoder = Encoder_Model(pred)
     rev_encoder = Rev_Encoder_Model_2(pred, topK=max_cut_off_accept)
