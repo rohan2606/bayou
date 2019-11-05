@@ -26,6 +26,9 @@ import pickle
 
 import time
 import ijson
+from collections import defaultdict
+
+
 from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
 from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
 from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
@@ -215,8 +218,25 @@ class Decoder_Model:
 
     def get_jaccard_distance(self, progs, cutoff=None, type='body'):
        
-       progs, other_programs = self.get_cutoffed_progs(progs, cutoff, type) 
-       return get_jaccard_distace_api(set(progs), set(other_programs))       
+       progs, other_programs = self.get_cutoffed_progs(progs, cutoff, type)
+       
+       progs_dict = defaultdict(int)
+       for prog in progs:
+           progs_dict[prog] += 1
+   
+       other_progs_dict = defaultdict(int)
+       for prog in other_programs:
+           other_progs_dict[prog] += 1
+      
+       nume = 0
+       denom = 0
+       for prog in progs_dict.keys():
+           if prog in other_progs_dict:
+               nume += min(progs_dict[prog] , other_progs_dict[prog])
+           denom += progs_dict[prog] 
+
+
+       return nume / denom #get_jaccard_distace_api(set(progs), set(other_programs))       
    
 
     def get_running_comparison(self, program, psis):
@@ -310,8 +330,8 @@ if __name__ == "__main__":
     psi, eA, eB = encoder.get_latent_space(program)
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])
     
-    for top_prog in rev_encoder_top_progs:
-        print(top_prog[2])
+    for top_prog in rev_encoder_top_progs[:10]:
+        print(top_prog[3])
         print(top_prog[0])
     
     print("=====================================")
@@ -326,8 +346,8 @@ if __name__ == "__main__":
          psis.extend(psi)
     decoder = Decoder_Model(pred, clargs.mc_iter, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs)
     decoder_top_progs = decoder.get_running_comparison(program, psis)
-    for top_prog in decoder_top_progs:
-        print(top_prog[2])
+    for top_prog in decoder_top_progs[:10]:
+        print(top_prog[3])
         print(top_prog[0])
     
     print("=====================================")
