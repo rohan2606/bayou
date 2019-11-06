@@ -38,7 +38,7 @@ from bayou.experiments.predictMethods.SearchDB.utils import get_jaccard_distace_
 import bayou.models.low_level_evidences.predict
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
 
-
+from functools import reduce
 
 print("Loading API Dictionary")
 dict_api_calls = defaultdict(str) #get_api_dict()
@@ -152,6 +152,7 @@ class Rev_Encoder_Model_2:
             #if batch_num > 200:
             #   break
             print(f'Batch# {batch_num}/{len(self.predictor.nodes)}',end='\r')
+        print('Done')
 
         top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)[:self.topK]
         return top_progs
@@ -233,6 +234,7 @@ class Decoder_Model:
     def get_running_comparison(self, program, psis):
 
         monteCarloIterations = self.mc_iter
+        probY_iter = [None for i in range(monteCarloIterations)]
         sum_probY = [None for i in range(len(self.predictor.nodes))]
         for mc_iter in range(monteCarloIterations):
             psi = psis[mc_iter] #np.tile(psis[mc_iter],(self.predictor.predictor.config.batch_size,1))
@@ -255,8 +257,6 @@ class Decoder_Model:
 
             top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)
             json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3])} for item in top_progs]
-            with open('log/mc_iter_logger_' + str(mc_iter)  + '.json', 'w') as f:
-                 json.dump({'Iteration':mc_iter, 'Programs':json_top_progs}, f, indent=4)
            
             
             
@@ -265,11 +265,25 @@ class Decoder_Model:
             distance5_ex, distance5_jac = self.get_distances(top_progs, 5, type='ast')
             distance3_ex, distance3_jac = self.get_distances(top_progs, 3, type='ast')
             distance1_ex, distance1_jac = self.get_distances(top_progs, 1, type='ast')
+            
         
             print(f"Monte Carlo Iteration: {mc_iter}, AST : Existence Distance[1/3/5/10/100]: {distance1_ex} / {distance3_ex} / {distance5_ex} / {distance10_ex} / {distance100_ex} /")
             print(f"Monte Carlo Iteration: {mc_iter}, AST : Jaccard Distance[1/3/5/10/100]: {distance1_jac} / {distance3_jac} / {distance5_jac} / {distance10_jac} / {distance100_jac} /")
             
+            probY_iter[mc_iter] = reduce(lambda x,y :x+y , sum_probY)
+       
+            deviations = [] 
+            final_probY = probY_iter[-1]
+            for j, probY_ in enumerate(probY_iter):
+                deviation = np.sum((probY_ - final_probY)**2)
+                deviations.append(deviation)
+            print(f"Deviation at iter {mc_iter} is {deviations}")
+            distance_jsons = {'AST Exist[1/3/5/10/100]':[distance1_ex, distance3_ex, distance5_ex, distance10_ex, distance100_ex], 'AST Jaccard[1/3/5/10/100]':[distance1_jac, distance3_jac, distance5_jac, distance10_jac, distance100_jac]}
+            deviations_jsons = [str(item) for item in deviations]
+            with open('log/mc_iter_logger_' + str(mc_iter)  + '.json', 'w') as f:
+                 json.dump({'Iteration':mc_iter, 'Programs':json_top_progs, 'Distances':distance_jsons, 'Deviations':deviations_jsons}, f, indent=4)
             print("===================================== \n")
+
         return top_progs
 
 
@@ -288,7 +302,7 @@ if __name__ == "__main__":
 
     # get the input JSON
     
-    program = {'types':['Iterator'], 'apicalls':['hasNext', 'remove']} 
+    program = {'types':['BufferedReader'], 'apicalls':['readLine']} 
 
     # initiate the server
     max_cut_off_accept = 100
