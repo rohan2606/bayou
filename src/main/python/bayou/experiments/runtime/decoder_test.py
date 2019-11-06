@@ -144,7 +144,11 @@ class Rev_Encoder_Model_2:
 
             for i, js in enumerate(jsons):
                  key = js['file'] + "/" + js['method']
-                 program_db.append((js['body'], dict_ast[key], dict_api_calls[key], batch_prob[i]))
+                 prog_ast = eval(dict_ast[key])
+                 rt_temp = ret[i]
+                 fp_temp = fp[i]
+                 prog_ast_full = {'prog_ast':prog_ast, 'ret':str(rt_temp), 'fp': str(fp_temp)}
+                 program_db.append((js['body'], prog_ast_full, dict_api_calls[key], batch_prob[i]))
             #if batch_num > 200:
             #   break
             print(f'Batch# {batch_num}/{len(self.predictor.nodes)}',end='\r')
@@ -153,32 +157,32 @@ class Rev_Encoder_Model_2:
         return top_progs
 
 
-class Rev_Encoder_Model:
-    def __init__(self):
-        self.numThreads = 30
-        self.batch_size = 1
-        self.minJSONs = 2000
-        self.maxJSONs = 2001
-        self.dimension = 256
-        self.topK = 100
-        self.scanner = self.get_database_scanner()
-        return
-
-    def get_database_scanner(self):
-
-        JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=self.numThreads, dimension=self.dimension, batch_size=self.batch_size, minJSONs=self.minJSONs , maxJSONs=self.maxJSONs)
-        listOfColDB = JSONReader.readAllJSONs()
-        scanner = searchFromDB(listOfColDB, self.topK, self.batch_size)
-        return scanner
-
-
-    def get_result(self, encA, encB):
-        embIt_json = [{'a1':encA, 'b1':encB}]
-        embIt_batch = EmbeddingBatch(embIt_json, 1, 256)
-        topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = self.numThreads)
-        topKProgs = topKProgsBatch[0]
-        return [prog.body for prog in topKProgs]
-
+#class Rev_Encoder_Model:
+#    def __init__(self):
+#        self.numThreads = 30
+#        self.batch_size = 1
+#        self.minJSONs = 2000
+#        self.maxJSONs = 2001
+#        self.dimension = 256
+#        self.topK = 100
+#        self.scanner = self.get_database_scanner()
+#        return
+#
+#    def get_database_scanner(self):
+#
+#        JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=self.numThreads, dimension=self.dimension, batch_size=self.batch_size, minJSONs=self.minJSONs , maxJSONs=self.maxJSONs)
+#        listOfColDB = JSONReader.readAllJSONs()
+#        scanner = searchFromDB(listOfColDB, self.topK, self.batch_size)
+#        return scanner
+#
+#
+#    def get_result(self, encA, encB):
+#        embIt_json = [{'a1':encA, 'b1':encB}]
+#        embIt_batch = EmbeddingBatch(embIt_json, 1, 256)
+#        topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = self.numThreads)
+#        topKProgs = topKProgsBatch[0]
+#        return [prog.body for prog in topKProgs]
+#
 
 class Decoder_Model:
 
@@ -188,8 +192,6 @@ class Decoder_Model:
         self.topK = topK
         self.golden_programs = golden_programs
         return
-
-        # Load
 
     def map_type_2_idx(self, type):
        if type == 'body':
@@ -206,37 +208,26 @@ class Decoder_Model:
        other_programs = [ prog[index] for prog in self.golden_programs[:cutoff] ]
        return progs, other_programs
 
-    def get_existence_distance(self, progs, cutoff=None, type='body'):
-       
+
+    def get_distances(self, progs, cutoff=None, type='body'):
        progs, other_programs = self.get_cutoffed_progs(progs, cutoff, type) 
-       count = 0
-       for prog in progs:
-           if prog in other_programs:
-               count += 1
-       return count / len(other_programs)
-
-
-    def get_jaccard_distance(self, progs, cutoff=None, type='body'):
+       count1 = 0.000 # to avoid recursion probability
+       count2 = 0.000 # 
+       for prog1 in progs:
+           for prog2 in other_programs:
+               if prog1 == prog2:
+                   count1 += 1
+                   break
+       for prog1 in other_programs:
+           for prog2 in progs:
+               if prog1 == prog2:
+                   count2 += 1
+                   break
+       count = count1 + count2
+       existence =  count1/len(progs)
+       jaccard = count / (len(progs) + len(other_programs))
+       return existence , count / (len(progs) + len(other_programs))
        
-       progs, other_programs = self.get_cutoffed_progs(progs, cutoff, type)
-       
-       progs_dict = defaultdict(int)
-       for prog in progs:
-           progs_dict[prog] += 1
-   
-       other_progs_dict = defaultdict(int)
-       for prog in other_programs:
-           other_progs_dict[prog] += 1
-      
-       nume = 0
-       denom = 0
-       for prog in progs_dict.keys():
-           if prog in other_progs_dict:
-               nume += min(progs_dict[prog] , other_progs_dict[prog])
-           denom += progs_dict[prog] 
-
-
-       return nume / denom #get_jaccard_distace_api(set(progs), set(other_programs))       
    
 
     def get_running_comparison(self, program, psis):
@@ -256,7 +247,11 @@ class Decoder_Model:
 
                 for i, js in enumerate(jsons):
                      key = js['file'] + "/" + js['method']
-                     program_db.append((js['body'], dict_ast[key], dict_api_calls[key], batch_prob[i]))
+                     prog_ast = eval(dict_ast[key])
+                     rt_temp = ret[i]
+                     fp_temp = fp[i]
+                     prog_ast_full = {'prog_ast':prog_ast, 'ret':str(rt_temp), 'fp': str(fp_temp)}
+                     program_db.append((js['body'], prog_ast_full, dict_api_calls[key], batch_prob[i]))
 
             top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)
             json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3])} for item in top_progs]
@@ -264,38 +259,15 @@ class Decoder_Model:
                  json.dump({'Iteration':mc_iter, 'Programs':json_top_progs}, f, indent=4)
            
             
-            distance100 = self.get_jaccard_distance(top_progs, 100, type='body')
-            distance10 = self.get_jaccard_distance(top_progs, 10, type='body')
-            distance5 = self.get_jaccard_distance(top_progs, 5, type='body')
-            distance3 = self.get_jaccard_distance(top_progs, 3, type='body')
-            distance1 = self.get_jaccard_distance(top_progs, 1, type='body')
             
-            print(f"Monte Carlo Iteration: {mc_iter}, Body : Jaccard Distance[1/3/5/10/100]: {distance1} / {distance3} / {distance5} / {distance10} / {distance100} /")
-            
-            distance100 = self.get_existence_distance(top_progs, 100, type='body')
-            distance10 = self.get_existence_distance(top_progs, 10, type='body')
-            distance5 = self.get_existence_distance(top_progs, 5, type='body')
-            distance3 = self.get_existence_distance(top_progs, 3, type='body')
-            distance1 = self.get_existence_distance(top_progs, 1, type='body')
+            distance100_ex, distance100_jac = self.get_distances(top_progs, 100, type='ast')
+            distance10_ex, distance10_jac = self.get_distances(top_progs, 10, type='ast')
+            distance5_ex, distance5_jac = self.get_distances(top_progs, 5, type='ast')
+            distance3_ex, distance3_jac = self.get_distances(top_progs, 3, type='ast')
+            distance1_ex, distance1_jac = self.get_distances(top_progs, 1, type='ast')
         
-            print(f"Monte Carlo Iteration: {mc_iter}, Body : Existence Distance[1/3/5/10/100]: {distance1} / {distance3} / {distance5} / {distance10} / {distance100} /")
-            
-            distance100 = self.get_jaccard_distance(top_progs, 100, type='ast')
-            distance10 = self.get_jaccard_distance(top_progs, 10, type='ast')
-            distance5 = self.get_jaccard_distance(top_progs, 5, type='ast')
-            distance3 = self.get_jaccard_distance(top_progs, 3, type='ast')
-            distance1 = self.get_jaccard_distance(top_progs, 1, type='ast')
-            
-            print(f"Monte Carlo Iteration: {mc_iter}, AST : Jaccard Distance[1/3/5/10/100]: {distance1} / {distance3} / {distance5} / {distance10} / {distance100} /")
-
-            distance100 = self.get_existence_distance(top_progs, 100, type='ast')
-            distance10 = self.get_existence_distance(top_progs, 10, type='ast')
-            distance5 = self.get_existence_distance(top_progs, 5, type='ast')
-            distance3 = self.get_existence_distance(top_progs, 3, type='ast')
-            distance1 = self.get_existence_distance(top_progs, 1, type='ast')
-        
-            print(f"Monte Carlo Iteration: {mc_iter}, AST : Existence Distance[1/3/5/10/100]: {distance1} / {distance3} / {distance5} / {distance10} / {distance100} /")
-            
+            print(f"Monte Carlo Iteration: {mc_iter}, AST : Existence Distance[1/3/5/10/100]: {distance1_ex} / {distance3_ex} / {distance5_ex} / {distance10_ex} / {distance100_ex} /")
+            print(f"Monte Carlo Iteration: {mc_iter}, AST : Jaccard Distance[1/3/5/10/100]: {distance1_jac} / {distance3_jac} / {distance5_jac} / {distance10_jac} / {distance100_jac} /")
             
             print("===================================== \n")
         return top_progs
@@ -315,14 +287,8 @@ if __name__ == "__main__":
     sys.setrecursionlimit(clargs.python_recursion_limit)
 
     # get the input JSON
-    #programs = Get_Example_JSONs.getExampleJsons('../predictMethods/log/expNumber_4/', 10)
-    ##get the probs
-    #j=5
-    #program = programs[j]
-    #print(program)
-    #print("Working with program no :: " + str(j))
     
-    program = {'types':['HashMap'], 'apicalls':['get']} 
+    program = {'types':['Iterator'], 'apicalls':['hasNext', 'remove']} 
 
     # initiate the server
     max_cut_off_accept = 100
@@ -333,6 +299,9 @@ if __name__ == "__main__":
 
     psi, eA, eB = encoder.get_latent_space(program)
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])
+    json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3])} for item in rev_encoder_top_progs]
+    with open('log/golden_prog_logger.json', 'w') as f:
+        json.dump({'Programs':json_top_progs}, f, indent=4)
     
     for top_prog in rev_encoder_top_progs[:10]:
         print(top_prog[3])
@@ -346,7 +315,6 @@ if __name__ == "__main__":
     psis = []
     while(len(psis) < clargs.mc_iter):
          psi, eA, eB = encoder.get_latent_space(program)
-         #psi = np.vsplit(psi, len(psi))
          psis.append(psi)
     decoder = Decoder_Model(pred, clargs.mc_iter, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs)
     decoder_top_progs = decoder.get_running_comparison(program, psis)
