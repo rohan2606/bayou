@@ -62,12 +62,14 @@ class Predictor:
 
     def __init__(self, prob_mode=True):
         #set clargs.continue_from = True while testing, it continues from old saved config
+
+        self.batch_size = 500
         clargs.continue_from = True
         print('Loading Model, please wait _/\_ ...')
         model = bayou.models.low_level_evidences.predict.BayesianPredictor
 
         self.sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, self.sess, batch_size=500, prob_mode=prob_mode)# goes to predict.BayesianPredictor
+        self.predictor = model(clargs.save, self.sess, batch_size=self.batch_size, prob_mode=prob_mode)# goes to predict.BayesianPredictor
 
         print ('Model Loaded, All Ready to Predict Evidences!!')
 
@@ -103,7 +105,7 @@ class Predictor:
         model = bayou.models.low_level_evidences.predict.BayesianPredictor
 
         self.sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, self.sess, batch_size=500, prob_mode=prob_mode)# goes to predict.BayesianPredictor
+        self.predictor = model(clargs.save, self.sess, batch_size=self.batch_size, prob_mode=prob_mode)# goes to predict.BayesianPredictor
 
         print ('Model Re - Loaded, All Ready to Predict Evidences!!')
         return
@@ -227,7 +229,7 @@ class Decoder_Model:
        count = count1 + count2
        existence =  count1/len(progs)
        jaccard = count / (len(progs) + len(other_programs))
-       return existence , count / (len(progs) + len(other_programs))
+       return round(existence,3) , round(jaccard,3) 
        
    
 
@@ -273,9 +275,9 @@ class Decoder_Model:
             probY_iter[mc_iter] = reduce(lambda x,y :x+y , sum_probY)
        
             deviations = [] 
-            final_probY = probY_iter[-1]
-            for j, probY_ in enumerate(probY_iter):
-                deviation = np.sum((probY_ - final_probY)**2)
+            final_probY = probY_iter[mc_iter]
+            for j, probY_ in enumerate(probY_iter[:mc_iter+1]):
+                deviation = round(np.sqrt(np.mean((probY_ - final_probY)**2)),3)
                 deviations.append(deviation)
             print(f"Deviation at iter {mc_iter} is {deviations}")
             distance_jsons = {'AST Exist[1/3/5/10/100]':[distance1_ex, distance3_ex, distance5_ex, distance10_ex, distance100_ex], 'AST Jaccard[1/3/5/10/100]':[distance1_jac, distance3_jac, distance5_jac, distance10_jac, distance100_jac]}
