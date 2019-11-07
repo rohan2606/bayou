@@ -368,7 +368,10 @@ if __name__ == "__main__":
     while(len(psis) < clargs.mc_iter):
          psi, eA, eB = encoder.get_latent_space(program)
          psis.append(psi)
-    decoder = Decoder_Model(pred, clargs.mc_iter, rev_enc_exec_time_tf, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs_tf)
+
+    ## Please note that here cpu time is being used but programs are taken from TF. One reason is it is hard to get RT/FP from Program_output.json files if not indexed differently
+    ## Second is that there are discrepancies in the result. This is most likely due to precision in a2 and b2 numbers stored in DB. 
+    decoder = Decoder_Model(pred, clargs.mc_iter, rev_enc_exec_time_cpu, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs_tf)
     decoder_top_progs = decoder.get_running_comparison(program, psis)
     for top_prog in decoder_top_progs[:10]:
         print(top_prog[3])
