@@ -12,6 +12,8 @@ class skinnyProgramInBatch():
         self.batch_size = batch_size
         self.index = index2ColDB
 
+        self.ret_type = programJson['rt']
+        self.form_param = programJson['fp']
         # self.distance = [np.inf for i in range(batch_size)]
 
 

@@ -144,7 +144,7 @@ if __name__ == '__main__':
                         help='output file to print probabilities')
 
     #clargs = parser.parse_args()
-    clargs = parser.parse_args(['--save', 'save_500_ndss_decoder/',
+    clargs = parser.parse_args(['--save', 'save_500_new_drop_skinny_seq',
         '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json'])
 
     sys.setrecursionlimit(clargs.python_recursion_limit)

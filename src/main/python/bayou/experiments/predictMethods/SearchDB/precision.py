@@ -86,6 +86,7 @@ if __name__=="__main__":
                 programList = list()
 
                 for j, prog in enumerate(topKProgs):
+                    prog = prog[0]
 
                     key = prog.fileName + "/" + prog.methodName
 
