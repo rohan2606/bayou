@@ -147,8 +147,8 @@ class Rev_Encoder_Model_2:
             for i, js in enumerate(jsons):
                  key = js['file'] + "/" + js['method']
                  prog_ast = eval(dict_ast[key])
-                 rt_temp = ret[i]
-                 fp_temp = fp[i]
+                 rt_temp = [val.item() for val in ret[i]]
+                 fp_temp = [val.item() for val in fp[i] ]
                  prog_ast_full = {'prog_ast':prog_ast, 'ret':str(rt_temp), 'fp': str(fp_temp)}
                  program_db.append((js['body'], prog_ast_full, dict_api_calls[key], batch_prob[i]))
             print(f'Batch# {batch_num}/{len(self.predictor.nodes)}',end='\r')
@@ -253,7 +253,6 @@ class Decoder_Model:
         monteCarloIterations = self.mc_iter
         probY_iter = [None for i in range(monteCarloIterations)]
         sum_probY = [None for i in range(len(self.predictor.nodes))]
-        slowdowns = []
         total_decoder_time = 0.
         for mc_iter in range(monteCarloIterations):
             psi = psis[mc_iter] #np.tile(psis[mc_iter],(self.predictor.predictor.config.batch_size,1))
@@ -277,10 +276,6 @@ class Decoder_Model:
             end = time.perf_counter()
             mc_iter_time = (end-start)
             total_decoder_time += mc_iter_time
-            slowdown = [None for _ in range(len(self.time_base))]
-            for i, t in enumerate(self.time_base):
-                 slowdown[i] = round(total_decoder_time / t, 3)
-            slowdowns.append(slowdown)
 
             top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)
             json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3])} for item in top_progs[:self.topK]]
@@ -306,12 +301,13 @@ class Decoder_Model:
                 coeff_of_variations.append(coeff_of_variation)
             print(f"Standard Deviation till iter {mc_iter} is {std_deviations}")
             print(f"Coeff of Variation till iter {mc_iter} is {coeff_of_variations}")
-            print(f"Slow-down    till    iter    {mc_iter} is {slowdowns}")
             distance_jsons = {'AST Exist[1/3/5/10/100]':[distance1_ex, distance3_ex, distance5_ex, distance10_ex, distance100_ex], 'AST Jaccard[1/3/5/10/100]':[distance1_jac, distance3_jac, distance5_jac, distance10_jac, distance100_jac]}
             deviations_jsons = [str(item) for item in std_deviations]
             variations_jsons = [str(item) for item in coeff_of_variations]
+            slowdown = round(total_decoder_time / self.time_base, 3)
+            print(f"Slow-down    till    iter    {mc_iter} is {slowdown}")
             with open('log/mc_iter_logger_' + str(mc_iter)  + '.json', 'w') as f:
-                 json.dump({'Iteration':mc_iter, 'Time':str(mc_iter_time), 'Slowdown':str(slowdowns), 'Programs':json_top_progs, 'Distances':distance_jsons, 'Deviations':deviations_jsons, 'Variations':variations_jsons}, f, indent=4)
+                 json.dump({'Iteration':mc_iter, 'Time':str(mc_iter_time), 'Slowdown':str(slowdown), 'Programs':json_top_progs, 'Distances':distance_jsons, 'Deviations':deviations_jsons, 'Variations':variations_jsons}, f, indent=4)
             print("===================================== \n")
 
         return top_progs
@@ -338,20 +334,22 @@ if __name__ == "__main__":
     max_cut_off_accept = 100
     pred = Predictor(prob_mode=False)
     encoder = Encoder_Model(pred)
-    #rev_encoder = Rev_Encoder_Model_2(pred, topK=max_cut_off_accept)
-    rev_encoder_t8 = Rev_Encoder_Model(numThreads=8, topK=max_cut_off_accept)
+    rev_encoder_tf = Rev_Encoder_Model_2(pred, topK=max_cut_off_accept)
+    #rev_encoder_t8 = Rev_Encoder_Model(numThreads=8, topK=max_cut_off_accept)
 
     psi, eA, eB = encoder.get_latent_space(program)
 
     rev_enc_exec_time = []
-    for t in [1, 2, 4, 8]:
-       start = time.perf_counter()
-       rev_encoder_top_progs = rev_encoder_t8.get_result(eA[0], eB[0], numThreads=t)
-       end = time.perf_counter()
-       rev_enc_exec_time.append(end-start)
+    #for t in [1, 2, 4, 8]:
+    start = time.perf_counter()
+    #rev_encoder_top_progs = rev_encoder_t8.get_result(eA[0], eB[0], numThreads=1)
+    rev_encoder_top_progs = rev_encoder_tf.get_result(eA[0], eB[0])
+    end = time.perf_counter()
+    rev_enc_exec_time = end - start #.append(end-start)
     json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3]) } for item in rev_encoder_top_progs]
     with open('log/golden_prog_logger.json', 'w') as f:
-        json.dump({'Programs':json_top_progs , 'Time':[str(t) for t in rev_enc_exec_time]}, f, indent=4)
+        #json.dump({'Programs':json_top_progs , 'Time':[str(t) for t in rev_enc_exec_time]}, f, indent=4)
+        json.dump({'Programs':json_top_progs , 'Time':rev_enc_exec_time}, f, indent=4)
     
     for top_prog in rev_encoder_top_progs[:10]:
         print(top_prog[3])
