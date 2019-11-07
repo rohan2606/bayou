@@ -254,6 +254,7 @@ class Decoder_Model:
         probY_iter = [None for i in range(monteCarloIterations)]
         sum_probY = [None for i in range(len(self.predictor.nodes))]
         total_decoder_time = 0.
+        
         for mc_iter in range(monteCarloIterations):
             psi = psis[mc_iter] #np.tile(psis[mc_iter],(self.predictor.predictor.config.batch_size,1))
             program_db = []
@@ -335,23 +336,26 @@ if __name__ == "__main__":
     pred = Predictor(prob_mode=False)
     encoder = Encoder_Model(pred)
     rev_encoder_tf = Rev_Encoder_Model_2(pred, topK=max_cut_off_accept)
-    #rev_encoder_t8 = Rev_Encoder_Model(numThreads=8, topK=max_cut_off_accept)
+    rev_encoder_cpu = Rev_Encoder_Model(numThreads=8, topK=max_cut_off_accept)
 
     psi, eA, eB = encoder.get_latent_space(program)
 
-    rev_enc_exec_time = []
-    #for t in [1, 2, 4, 8]:
     start = time.perf_counter()
-    #rev_encoder_top_progs = rev_encoder_t8.get_result(eA[0], eB[0], numThreads=1)
-    rev_encoder_top_progs = rev_encoder_tf.get_result(eA[0], eB[0])
+    rev_encoder_top_progs_tf = rev_encoder_tf.get_result(eA[0], eB[0])
     end = time.perf_counter()
-    rev_enc_exec_time = end - start #.append(end-start)
-    json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3]) } for item in rev_encoder_top_progs]
-    with open('log/golden_prog_logger.json', 'w') as f:
-        #json.dump({'Programs':json_top_progs , 'Time':[str(t) for t in rev_enc_exec_time]}, f, indent=4)
-        json.dump({'Programs':json_top_progs , 'Time':rev_enc_exec_time}, f, indent=4)
+    rev_enc_exec_time_tf = end - start #.append(end-start)
+    json_top_progs_tf = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3]) } for item in rev_encoder_top_progs_tf]
+    with open('log/golden_prog_logger_tf.json', 'w') as f:
+        json.dump({'Programs':json_top_progs_tf , 'Time':rev_enc_exec_time_tf}, f, indent=4)
     
-    for top_prog in rev_encoder_top_progs[:10]:
+    start = time.perf_counter()
+    rev_encoder_top_progs_cpu = rev_encoder_cpu.get_result(eA[0], eB[0])
+    end = time.perf_counter()
+    rev_enc_exec_time_cpu = end - start #.append(end-start)
+    json_top_progs_cpu = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3]) } for item in rev_encoder_top_progs_cpu]
+    with open('log/golden_prog_logger_cpu.json', 'w') as f:
+        json.dump({'Programs':json_top_progs_cpu , 'Time':rev_enc_exec_time_cpu}, f, indent=4)
+    for top_prog in rev_encoder_top_progs_cpu[:10]:
         print(top_prog[3])
         print(top_prog[0])
     
@@ -364,7 +368,7 @@ if __name__ == "__main__":
     while(len(psis) < clargs.mc_iter):
          psi, eA, eB = encoder.get_latent_space(program)
          psis.append(psi)
-    decoder = Decoder_Model(pred, clargs.mc_iter, rev_enc_exec_time, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs)
+    decoder = Decoder_Model(pred, clargs.mc_iter, rev_enc_exec_time_tf, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs_tf)
     decoder_top_progs = decoder.get_running_comparison(program, psis)
     for top_prog in decoder_top_progs[:10]:
         print(top_prog[3])
