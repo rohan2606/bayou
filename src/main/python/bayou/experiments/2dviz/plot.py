@@ -32,6 +32,11 @@ from scripts.ast_extractor import get_ast_paths
 from bayou.models.low_level_evidences.predict import BayesianPredictor
 from bayou.models.low_level_evidences.utils import read_config
 
+from bayou.experiments.predictMethods.SearchDB.utils import get_ast_dict
+
+print("Loading AST Dictionary")
+dict_ast = get_ast_dict()
+
 def plot(clargs):
     sess = tf.InteractiveSession()
     predictor = BayesianPredictor(clargs.save, sess)
@@ -41,29 +46,30 @@ def plot(clargs):
     print("config read")
     # Plot for indicidual evidences
     for ev in config.evidence:
-        if not (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name' or ev.name=='apicalls' ):
-            continue
+        #if not (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name' or ev.name=='apicalls' ):
+        #    continue
         print(ev.name)
         with open(clargs.input_file[0], 'rb') as f:
             deriveAndScatter(f, predictor, [ev])
 
-    # # Plot with all Evidences
-    # with open(clargs.input_file[0], 'rb') as f:
-    #     deriveAndScatter(f, predictor, [ev for ev in config.evidence if (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name')])
-    #
+     # Plot with all Evidences
+    with open(clargs.input_file[0], 'rb') as f:
+        deriveAndScatter(f, predictor, [ev for ev in config.evidence if (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name')])
+    
 
 
-    # print('Reverse Encoder Plot')
-    # with open(clargs.input_file[0], 'rb') as f:
-    #     useAttributeAndScatter(f, 'b2')
+    print('Reverse Encoder Plot')
+    with open(clargs.input_file[0], 'rb') as f:
+        useAttributeAndScatter(f, 'b2')
 
 
-def useAttributeAndScatter(f, att, max_nums=1000):
+def useAttributeAndScatter(f, att, max_nums=10000):
     psis = []
     labels = []
     item_num = 0
     for program in ijson.items(f, 'programs.item'):
-        api_call = get_api(get_calls_from_ast(program['ast']['_nodes']))
+        key = program['file'] + "/" + program['method']
+        api_call = get_api(get_calls_from_ast(eval(dict_ast[key])['_nodes']))
         if api_call != 'N/A':
             labels.append(api_call)
             if att not in program:
@@ -84,7 +90,8 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
     labels = []
     item_num = 0
     for program in ijson.items(f, 'programs.item'):
-        shortProgram = {'ast':program['ast']}
+        key = program['file'] + "/" + program['method']
+        shortProgram = {'ast':eval(dict_ast[key])}
         for ev in evList:
             if ev.name == "callsequences":
                 ev.name = "sequences"
