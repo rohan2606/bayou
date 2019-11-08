@@ -32,7 +32,7 @@ def get_log_iter_progs(fname):
     return slowdown, variations, exist_distance, jac_distance
 
 
-def multi_log_data(log_file='log', max_log_data=30):
+def multi_log_data(log_file='log', max_log_data=25):
     prefix = log_file + '/mc_iter_logger_'
     suffix = '.json'
 
@@ -41,7 +41,7 @@ def multi_log_data(log_file='log', max_log_data=30):
     jac_distances = []
 
     # variations need not be accumulated, already done in the log file
-    for file_id in range(0, max_log_data+1):
+    for file_id in range(0, max_log_data):
         file_name = prefix + str(file_id) + suffix
         slowdown, variations, exist_distance, jac_distance = get_log_iter_progs(file_name)
         slowdowns.append(float(slowdown))
@@ -62,6 +62,40 @@ def transpose_distance(distances_with_iters):
     return [distance1, distance3, distance5, distance10, distance100]
 
 
+
+
+def get_many_log_data():
+    folders = get_log_folders()
+    
+    arr_of_slowdowns = []
+    arr_of_variations = []
+    arr_of_exist_distances = []
+    arr_of_jac_distances = []
+
+    #accepted_folders = ['log2_Br_rL', 'log3_arraylist_add2List', 'log_hashmap', 'log_split_ok_jaccard', 'log_int2List']
+    accepted_folders = ['log2_Br_rL', 'log3_arraylist_add2List', 'log_hashmap', 'log_int2List']
+    for folder in folders:
+        if not folder in accepted_folders:
+           continue
+        slowdowns, variations, exist_distances, jac_distances = get_major_log_data(folder)
+        arr_of_slowdowns.append(slowdowns)
+        arr_of_variations.append(variations)
+        arr_of_exist_distances.append(exist_distances)
+        arr_of_jac_distances.append(jac_distances)
+    
+    arr_of_slowdowns = np.array(arr_of_slowdowns)
+    arr_of_variations = np.array(arr_of_variations)
+    arr_of_exist_distances = np.array(arr_of_exist_distances)
+    arr_of_jac_distances = np.array(arr_of_jac_distances)
+
+    
+    arr_of_slowdowns = np.mean(arr_of_slowdowns, axis=0)
+    arr_of_variations = np.mean(arr_of_variations, axis=0)
+    arr_of_exist_distances = np.mean(arr_of_exist_distances, axis=0)
+    arr_of_jac_distances = np.mean(arr_of_jac_distances, axis=0)
+    return arr_of_slowdowns, arr_of_variations, arr_of_exist_distances, arr_of_jac_distances
+    
+    
 
 def get_major_log_data(log_file):
     slowdowns, variations, exist_distances, jac_distances = multi_log_data(log_file=log_file , max_log_data=30)
@@ -90,26 +124,23 @@ def plot(slowdowns, variations, exist_distance, jaccard_distance, name='output.p
     plt.plot(ind, variations, color='k', label='Co-efficient of variation')
     plt.ylabel('Distances')      
     
-    #y = variations
-    #
-    #axes2 = plt.twinx()
-    #axes2.plot(ind, y, color='k', label='Variations')
+    y = variations
+    
+    axes2 = plt.twinx()
+    #plt.ylim(0.0, 65.0)
+    width=0.35
+    #axes2.bar(ind, slowdowns, width, color='r') #, yerr=menStd, label='Men means')
+    #plt.bar(ind+width, womenMeans, width, color='y', yerr=womenStd, label='Women means')
+    axes2.plot(ind, slowdowns, color='k', label='Slowdown')
     #axes2.set_ylim(0, max(y))
-    #axes2.set_ylabel('Line plot')
+    axes2.set_ylabel('Slowdowns')
     
     plt.savefig(name)
 
 
 
 if __name__ == '__main__':
-    folders = get_log_folders()
-    print(folders)
-    slowdowns, variations, exist_distances, jac_distances = get_major_log_data('log1_Br_rL')
-    
-    print(len(slowdowns))
-    print(len(variations))
-    print(exist_distances)
-    print(jac_distances)
+    slowdowns, variations, exist_distances, jac_distances = get_many_log_data()
 
     plot(slowdowns, variations, exist_distances[0], jac_distances[0], name='output_distance_1.png')
     plot(slowdowns, variations, exist_distances[1], jac_distances[1], name='output_distance_3.png')

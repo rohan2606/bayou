@@ -329,8 +329,10 @@ if __name__ == "__main__":
 
     # get the input JSON
     
-    program = {'types':['BufferedReader'], 'apicalls':['readLine']} 
+    program = {'formalParam':['int[]'] , 'returnType':'List<Integer>'} 
+    
 
+    print(program)
     # initiate the server
     max_cut_off_accept = 100
     pred = Predictor(prob_mode=False)
