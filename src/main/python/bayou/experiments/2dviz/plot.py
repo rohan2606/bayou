@@ -45,10 +45,12 @@ def plot(clargs):
         config = read_config(json.load(f), chars_vocab=True)
     print("config read")
     # Plot for indicidual evidences
-    for ev in config.evidence:
+    for j, ev in enumerate(config.evidence):
        #if not (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name' or ev.name=='apicalls' ):
        #    continue
         print(ev.name)
+        if j <= 7:
+           continue 
         with open(clargs.input_file[0], 'rb') as f:
             deriveAndScatter(f, predictor, [ev])
 
@@ -89,8 +91,25 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
     psis = []
     labels = []
     item_num = 0
+ 
+    del_file = True
+    del_method = True
+    for ev in evList:
+        if ev.name == 'class_name':
+            del_file = False
+        if ev.name == 'method_name':
+            del_method = False
+   
     for program in ijson.items(f, 'programs.item'):
         key = program['file'] + "/" + program['method']
+        
+        if del_method:
+             del program['method']
+
+        if del_file:
+             del program['file']
+
+
         shortProgram = {'ast':eval(dict_ast[key])}
         red_flag = False
         for ev in evList:
@@ -129,7 +148,6 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
             labels.append(api_call)
             psis.append(predictor.get_a1b1(shortProgram)[1][0])
             item_num += 1
-
         if item_num > max_nums:
             break
 
