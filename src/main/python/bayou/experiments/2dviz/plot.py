@@ -39,22 +39,22 @@ dict_ast = get_ast_dict()
 
 def plot(clargs):
     sess = tf.InteractiveSession()
-    predictor = BayesianPredictor(clargs.save, sess)
+    predictor = BayesianPredictor(clargs.save, sess, prob_mode=False)
     print("model loaded")
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
     print("config read")
     # Plot for indicidual evidences
     for ev in config.evidence:
-        #if not (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name' or ev.name=='apicalls' ):
-        #    continue
+       #if not (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name' or ev.name=='apicalls' ):
+       #    continue
         print(ev.name)
         with open(clargs.input_file[0], 'rb') as f:
             deriveAndScatter(f, predictor, [ev])
 
      # Plot with all Evidences
     with open(clargs.input_file[0], 'rb') as f:
-        deriveAndScatter(f, predictor, [ev for ev in config.evidence if (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name')])
+        deriveAndScatter(f, predictor, [ev for ev in config.evidence])
     
 
 
@@ -92,6 +92,7 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
     for program in ijson.items(f, 'programs.item'):
         key = program['file'] + "/" + program['method']
         shortProgram = {'ast':eval(dict_ast[key])}
+        red_flag = False
         for ev in evList:
             if ev.name == "callsequences":
                 ev.name = "sequences"
@@ -110,11 +111,18 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
             if ev.name == "surrounding_evidence":
                 ev.name = "Surrounding_Evidences"
             if ev.name not in program:
+                red_flag = True
                 continue
             shortProgram[ev.name] = program[ev.name]
 
-        # if len(evList) == 1 and len(program[evList[0].name]) == 0:
-        #     continue
+        if 'returnType' not in shortProgram:
+            shortProgram['returnType'] = 'None'
+        if 'formalParam' not in shortProgram:
+            shortProgram['formalParam'] = ['None']
+
+        
+        if red_flag is True: #len(evList) == 1 and len(program[evList[0].name]) == 0:
+             continue
 
         api_call = get_api(get_calls_from_ast(shortProgram['ast']['_nodes']))
         if api_call != 'N/A':
