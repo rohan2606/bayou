@@ -45,14 +45,10 @@ def plot(clargs):
         config = read_config(json.load(f), chars_vocab=True)
     print("config read")
     # Plot for indicidual evidences
-    for j, ev in enumerate(config.evidence):
-       #if not (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name' or ev.name=='apicalls' ):
-       #    continue
-        print(ev.name)
-        if j <= 7:
-           continue 
-        with open(clargs.input_file[0], 'rb') as f:
-            deriveAndScatter(f, predictor, [ev])
+    #for j, ev in enumerate(config.evidence):
+    #    print(ev.name)
+    #    with open(clargs.input_file[0], 'rb') as f:
+    #        deriveAndScatter(f, predictor, [ev])
 
      # Plot with all Evidences
     with open(clargs.input_file[0], 'rb') as f:
@@ -129,7 +125,7 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
                 ev.name = "method"
             if ev.name == "surrounding_evidence":
                 ev.name = "Surrounding_Evidences"
-            if ev.name not in program:
+            if len(evList)==1 and ev.name not in program:
                 red_flag = True
                 continue
             shortProgram[ev.name] = program[ev.name]
