@@ -23,7 +23,7 @@ from bayou.models.low_level_evidences.utils import get_var_list
 
 
 class Model():
-    def __init__(self, config, iterator, infer=False, bayou_mode=True):
+    def __init__(self, config, iterator, infer=False, prob_mode=True):
         assert config.model == 'lle', 'Trying to load different model implementation: ' + config.model
         self.config = config
 
@@ -48,9 +48,10 @@ class Model():
 
             self.encoder = BayesianEncoder(config, ev_data, surr_input, surr_input_fp, infer)
             samples_1 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
-
-            self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
-
+            if prob_mode:
+                  self.psi_encoder = self.encoder.psi_mean + tf.sqrt(self.encoder.psi_covariance) * samples_1
+            else:
+                  self.psi_encoder = self.encoder.psi_mean
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
             embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
@@ -58,9 +59,10 @@ class Model():
             embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
             self.reverse_encoder = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges, ev_data[4], embRT, ev_data[5], embFS)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
-
-            self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
-
+            if prob_mode:
+                  self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
+            else:
+                  self.psi_reverse_encoder = self.reverse_encoder.psi_mean
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder", reuse=tf.AUTO_REUSE):
 
@@ -182,7 +184,7 @@ class Model():
             # last step by importace_sampling
             # this self.prob_Y is approximate and you need to introduce one more tensor dimension to do this efficiently over multiple trials
 	    # P(Y) = P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
-            self.probY = -1 * self.loss_enc * 8 + 1 * (self.get_multinormal_lnprob(self.psi_encoder) \
+            self.probY = -1 * self.loss_enc * 8 +  8 / 256 * (self.get_multinormal_lnprob(self.psi_encoder) \
                                       - self.get_multinormal_lnprob(self.psi_encoder,self.encoder.psi_mean,self.encoder.psi_covariance))
             self.EncA, self.EncB = self.calculate_ab(self.encoder.psi_mean , self.encoder.psi_covariance)
             self.RevEncA, self.RevEncB = self.calculate_ab(self.reverse_encoder.psi_mean , self.reverse_encoder.psi_covariance)

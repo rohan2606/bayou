@@ -22,7 +22,7 @@ def load_data():
 
 def reduce_nums(inputs, nodes, edges, targets, js_programs):
 
-    max_data = 100000
+    max_data = 1000000
 
     new_inputs = [inp[:max_data] for inp in inputs[:-1]]
     surr_new_inputs = [surr_inp[:max_data] for surr_inp in inputs[-1][:-1]]

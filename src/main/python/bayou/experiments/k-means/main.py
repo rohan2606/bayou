@@ -29,8 +29,7 @@ from sklearn.manifold import TSNE
 from sklearn import decomposition
 
 from scripts.ast_extractor import get_ast_paths
-from bayou.models.low_level_evidences.predict import BayesianPredictor
-from bayou.models.low_level_evidences.utils import read_config
+
 
 from scipy.cluster.vq import kmeans2
 from bayou.experiments.predictMethods.SearchDB.utils import get_api_dict,get_ast_dict,get_sequence_dict
@@ -39,20 +38,27 @@ def load_desires():
     print("Loading API Dictionary")
     dict_api_calls = get_api_dict()
     print("Loading AST Dictionary")
-    dict_ast = get_ast_dict()
+    dict_ast = None #get_ast_dict()
     print("Loading Seq Dictionary")
     dict_seq = get_sequence_dict()
     return dict_api_calls, dict_ast, dict_seq
 
 
 def main(clargs):
+    
+    if clargs.index == 'b2':
+        from bayou.models.low_level_evidences.predict import BayesianPredictor
+        from bayou.models.low_level_evidences.utils import read_config
+    else:
+        from bayou.models.non_prob.predict import BayesianPredictor
+        from bayou.models.non_prob.utils import read_config
+    
     sess = tf.InteractiveSession()
     predictor = BayesianPredictor(clargs.save, sess)
     print("model loaded")
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
     print("config read")
-
     dict_api_calls, dict_ast, dict_seq = load_desires()
 
     print('API Call Jaccard Calculations')
@@ -63,16 +69,16 @@ def main(clargs):
     with open(clargs.input_file[0], 'rb') as f:
         jac_seq_matrix = call_k_means(f, clargs.index, dict_seq)
 
-    print('AST Jaccard Calculations')
-    with open(clargs.input_file[0], 'rb') as f:
-        jac_ast_matrix = call_k_means(f, clargs.index, dict_ast)
+    #print('AST Jaccard Calculations')
+    #with open(clargs.input_file[0], 'rb') as f:
+    #    jac_ast_matrix = call_k_means(f, clargs.index, dict_ast)
 
     plt.matshow(jac_api_matrix)
     plt.savefig('clustered_apis_k.png')
     plt.matshow(jac_seq_matrix)
     plt.savefig('clustered_seqs_k.png')
-    plt.matshow(jac_ast_matrix)
-    plt.savefig('clustered_asts_k.png')
+    #plt.matshow(jac_ast_matrix)
+    #plt.savefig('clustered_asts_k.png')
     return
 
 
@@ -93,7 +99,10 @@ def call_k_means(f, att, dict_api_calls, max_nums=10000):
 
     clusters, clustered_apis = k_means(psis, apis)
 
-    sorted_ids = [i[0] for i in sorted(enumerate(clustered_apis), key=lambda x:get_intra_cluster_jaccards(x[1]), reverse=True)]
+    cluster_jaccards = [get_intra_cluster_jaccards(x) for x in clustered_apis]
+
+    #print(sorted(cluster_jaccards, reverse=True))
+    sorted_ids = [i[0] for i in sorted(enumerate(cluster_jaccards), key=lambda x:x[1], reverse=True)]
 
     clusters = [clusters[i] for i in sorted_ids]
     clustered_apis = [clustered_apis[i] for i in sorted_ids]
@@ -108,23 +117,26 @@ def call_k_means(f, att, dict_api_calls, max_nums=10000):
     jac_matrix = np.zeros((num_clusters, num_clusters))
     for j, clustered_apis_j in enumerate(clustered_apis):
         for k, clustered_apis_k in enumerate(clustered_apis):
-            if k >= j:
+            if k > j:
                 jac = get_inter_cluster_jaccards(clustered_apis_j, clustered_apis_k)
+                jac_matrix[j][k] = jac
+            elif k == j:
+                jac = get_intra_cluster_jaccards(clustered_apis_j)
                 jac_matrix[j][k] = jac
             else:
                 jac_matrix[j][k] = jac_matrix[k][j]
 
-    # print('', end='[')
-    # for j in range(num_clusters):
-    #     print('', end='[')
-    #     for k in range(num_clusters):
-    #         if k == num_clusters - 1 and j == num_clusters - 1:
-    #             print("%.3f" % jac_matrix[j][k], end=']\n')
-    #         elif k == num_clusters - 1:
-    #             print("%.3f" % jac_matrix[j][k], end='],\n')
-    #         else:
-    #             print("%.3f" % jac_matrix[j][k], end=',')
-    # print(']')
+#    print('', end='[')
+#    for j in range(num_clusters):
+#        print('', end='[')
+#        for k in range(num_clusters):
+#            if k == num_clusters - 1 and j == num_clusters - 1:
+#                print("%.3f" % jac_matrix[j][k], end=']\n')
+#            elif k == num_clusters - 1:
+#                print("%.3f" % jac_matrix[j][k], end='],\n')
+#            else:
+#                print("%.3f" % jac_matrix[j][k], end=',')
+#    print(']')
 
     return jac_matrix
 
@@ -167,8 +179,10 @@ def get_intra_cluster_jaccards(clustered_apis_k):
 
     dis_i = 0.
     count = 0
-    for api_i in clustered_apis_k:
-        for api_j in clustered_apis_k:
+    for i, api_i in enumerate(clustered_apis_k):
+        for j, api_j in enumerate(clustered_apis_k):
+            if j <= i:
+                continue
             dis_i += get_jaccard_distace(api_i, api_j)
             count += 1
 
@@ -199,6 +213,6 @@ if __name__ == '__main__':
                         help='directory to load model from')
     parser.add_argument('--top', type=int, default=10,
                         help='plot only the top-k labels')
-    parser.add_argument('--index', choices=['b2', 'psi_rev_enc'])
+    parser.add_argument('--index', required=True, choices=['b2', 'prog_psi_rev'])
     clargs = parser.parse_args()
     main(clargs)

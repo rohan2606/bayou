@@ -32,38 +32,42 @@ from scripts.ast_extractor import get_ast_paths
 from bayou.models.low_level_evidences.predict import BayesianPredictor
 from bayou.models.low_level_evidences.utils import read_config
 
+from bayou.experiments.predictMethods.SearchDB.utils import get_ast_dict
+
+print("Loading AST Dictionary")
+dict_ast = get_ast_dict()
+
 def plot(clargs):
     sess = tf.InteractiveSession()
-    predictor = BayesianPredictor(clargs.save, sess)
+    predictor = BayesianPredictor(clargs.save, sess, prob_mode=False)
     print("model loaded")
     with open(os.path.join(clargs.save, 'config.json')) as f:
         config = read_config(json.load(f), chars_vocab=True)
     print("config read")
     # Plot for indicidual evidences
-    for ev in config.evidence:
-        if not (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name' or ev.name=='apicalls' ):
-            continue
-        print(ev.name)
-        with open(clargs.input_file[0], 'rb') as f:
-            deriveAndScatter(f, predictor, [ev])
+    #for j, ev in enumerate(config.evidence):
+    #    print(ev.name)
+    #    with open(clargs.input_file[0], 'rb') as f:
+    #        deriveAndScatter(f, predictor, [ev])
 
-    # # Plot with all Evidences
-    # with open(clargs.input_file[0], 'rb') as f:
-    #     deriveAndScatter(f, predictor, [ev for ev in config.evidence if (ev.name=='classtype' or ev.name=='surrounding_evidence' or ev.name=='method_name' or ev.name=='class_name')])
-    #
+     # Plot with all Evidences
+    with open(clargs.input_file[0], 'rb') as f:
+        deriveAndScatter(f, predictor, [ev for ev in config.evidence])
+    
 
 
-    # print('Reverse Encoder Plot')
-    # with open(clargs.input_file[0], 'rb') as f:
-    #     useAttributeAndScatter(f, 'b2')
+    print('Reverse Encoder Plot')
+    with open(clargs.input_file[0], 'rb') as f:
+        useAttributeAndScatter(f, 'b2')
 
 
-def useAttributeAndScatter(f, att, max_nums=1000):
+def useAttributeAndScatter(f, att, max_nums=10000):
     psis = []
     labels = []
     item_num = 0
     for program in ijson.items(f, 'programs.item'):
-        api_call = get_api(get_calls_from_ast(program['ast']['_nodes']))
+        key = program['file'] + "/" + program['method']
+        api_call = get_api(get_calls_from_ast(eval(dict_ast[key])['_nodes']))
         if api_call != 'N/A':
             labels.append(api_call)
             if att not in program:
@@ -83,8 +87,27 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
     psis = []
     labels = []
     item_num = 0
+ 
+    del_file = True
+    del_method = True
+    for ev in evList:
+        if ev.name == 'class_name':
+            del_file = False
+        if ev.name == 'method_name':
+            del_method = False
+   
     for program in ijson.items(f, 'programs.item'):
-        shortProgram = {'ast':program['ast']}
+        key = program['file'] + "/" + program['method']
+        
+        if del_method:
+             del program['method']
+
+        if del_file:
+             del program['file']
+
+
+        shortProgram = {'ast':eval(dict_ast[key])}
+        red_flag = False
         for ev in evList:
             if ev.name == "callsequences":
                 ev.name = "sequences"
@@ -102,19 +125,25 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
                 ev.name = "method"
             if ev.name == "surrounding_evidence":
                 ev.name = "Surrounding_Evidences"
-            if ev.name not in program:
+            if len(evList)==1 and ev.name not in program:
+                red_flag = True
                 continue
             shortProgram[ev.name] = program[ev.name]
 
-        # if len(evList) == 1 and len(program[evList[0].name]) == 0:
-        #     continue
+        if 'returnType' not in shortProgram:
+            shortProgram['returnType'] = 'None'
+        if 'formalParam' not in shortProgram:
+            shortProgram['formalParam'] = ['None']
+
+        
+        if red_flag is True: #len(evList) == 1 and len(program[evList[0].name]) == 0:
+             continue
 
         api_call = get_api(get_calls_from_ast(shortProgram['ast']['_nodes']))
         if api_call != 'N/A':
             labels.append(api_call)
             psis.append(predictor.get_a1b1(shortProgram)[1][0])
             item_num += 1
-
         if item_num > max_nums:
             break
 
