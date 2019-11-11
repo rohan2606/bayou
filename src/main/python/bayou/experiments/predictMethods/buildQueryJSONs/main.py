@@ -77,16 +77,16 @@ if __name__ == "__main__":
     queryFilesSampled = logdir + "/L1SampledQueryFileNamesfiles.txt"
     queryFilesInJson = logdir + '/L3JSONFiles.txt'
 
-    cleanUp(logdir = logdir)
-    sampleFiles(queryFilesSampled, k=10000)
-    runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
+    #cleanUp(logdir = logdir)
+    #sampleFiles(queryFilesSampled, k=100000)
+    #runDomDriver(queryFilesSampled, queryFilesInJson, logdir)
 
     with open('/home/ubuntu/savedSearchModel/config.json') as f:
         config = read_config(json.load(f), chars_vocab=True)
 
 
     EmbS = embedding_server()
-    for expNumber in range(7):
+    for expNumber in range(11):
          exp_logdir = logdir + "/expNumber_" + str(expNumber)
          count = processJSONs(queryFilesInJson,  exp_logdir, config, expNumber = expNumber)
          EmbS.getEmbeddings(exp_logdir)
