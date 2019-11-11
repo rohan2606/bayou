@@ -162,28 +162,28 @@ def modifyInputForExperiment(sample, expNumber, config):
                 del sample[ev]
 
     elif expNumber == 7: ## sequences
-        for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+        for ev in ['method', 'file', 'javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
 
     elif expNumber == 8: ## keywords
-        for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'sequences', 'apicalls', 'types']:
+        for ev in ['method','file','javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'sequences', 'apicalls', 'types']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
 
     elif expNumber == 9: ## apicalls
-        for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'sequences', 'types', 'keywords']:
+        for ev in ['method', 'file', 'javaDoc', 'Surrounding_Evidences', 'classTypes', 'returnType', 'formalParam', 'sequences', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
         sample['formalParam'] = ['None']
 
     elif expNumber == 10: ## returnType
-        for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'formalParam', 'sequences', 'apicalls', 'types', 'keywords']:
+        for ev in ['method','file','javaDoc', 'Surrounding_Evidences', 'classTypes', 'formalParam', 'sequences', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['formalParam'] = ['None']
