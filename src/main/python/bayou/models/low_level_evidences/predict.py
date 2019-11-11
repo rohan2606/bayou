@@ -203,10 +203,7 @@ class BayesianPredictor(object):
         return psi_encoder, EncA, EncB
 
 
-    def get_rev_enc_ab(self, nodes, edges, targets, ret, fp, jsons):
-
-        inputs = self.wrange_inputs(jsons)
-
+    def get_rev_enc_ab(self, nodes, edges, targets, ret, fp, inputs):
         feed = {}
         for j, _ in enumerate(self.config.evidence[:-1]):
             feed[self.inputs[j].name] = inputs[j]
@@ -321,6 +318,8 @@ class BayesianPredictor(object):
         feed[self.nodes.name] = nodes
         feed[self.edges.name] = edges
         feed[self.targets.name] = targets
+        feed[self.ret_type_placeholder] = inputs[4] 
+        feed[self.formal_param_placeholder] = inputs[5] 
 
         [EncA, EncB, RevEncA, RevEncB, probY] = self.sess.run( [  self.EncA, self.EncB , self.RevEncA, self.RevEncB , self.probY ] , feed )
         return EncA, EncB, RevEncA, RevEncB, probY, ignored
