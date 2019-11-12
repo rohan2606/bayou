@@ -40,8 +40,11 @@ def load_desires():
     print("Loading AST Dictionary")
     dict_ast = None #get_ast_dict()
     print("Loading Seq Dictionary")
-    dict_seq = get_sequence_dict()
+    dict_seq = None #get_sequence_dict()
     return dict_api_calls, dict_ast, dict_seq
+
+
+
 
 
 def main(clargs):
@@ -53,6 +56,10 @@ def main(clargs):
         from bayou.models.non_prob.predict import BayesianPredictor
         from bayou.models.non_prob.utils import read_config
     
+
+
+    num_centroids = 20
+
     sess = tf.InteractiveSession()
     predictor = BayesianPredictor(clargs.save, sess)
     print("model loaded")
@@ -63,26 +70,45 @@ def main(clargs):
 
     print('API Call Jaccard Calculations')
     with open(clargs.input_file[0], 'rb') as f:
-        jac_api_matrix = call_k_means(f, clargs.index, dict_api_calls)
+        jac_api_matrix, jac_api_vector = call_k_means(f, clargs.index, dict_api_calls, num_centroids=num_centroids)
 
-    print('Seq Calls Jaccard Calculations')
-    with open(clargs.input_file[0], 'rb') as f:
-        jac_seq_matrix = call_k_means(f, clargs.index, dict_seq)
+    #print('Seq Calls Jaccard Calculations')
+    #with open(clargs.input_file[0], 'rb') as f:
+    #    jac_seq_matrix, jac_seq_vector = call_k_means(f, clargs.index, dict_seq, num_centroids=num_centroids)
 
     #print('AST Jaccard Calculations')
     #with open(clargs.input_file[0], 'rb') as f:
     #    jac_ast_matrix = call_k_means(f, clargs.index, dict_ast)
 
-    plt.matshow(jac_api_matrix)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    cax = ax.matshow(jac_api_matrix, interpolation='nearest')
+    fig.colorbar(cax)
+    xticks = list(range(num_centroids))
+    yticks = list(range(num_centroids))
+
+    ax.set_xticks(xticks)
+    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] )
+    ax.set_yticks(yticks)
+    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] )
+
+    plt.xlabel('cluster number',fontsize=11)
+    plt.ylabel('cluster number',fontsize=11)
+    #plt.matshow(jac_api_matrix)
     plt.savefig('clustered_apis_k.png')
-    plt.matshow(jac_seq_matrix)
-    plt.savefig('clustered_seqs_k.png')
+
+    #plt.matshow(jac_seq_matrix)
+    #plt.savefig('clustered_seqs_k.png')
+    
+    with open('inter_jaccard.json','w') as f:
+         json.dump({'jaccard_intra_cluster':jac_api_vector},f,indent=4)
+   
     #plt.matshow(jac_ast_matrix)
     #plt.savefig('clustered_asts_k.png')
     return
 
 
-def call_k_means(f, att, dict_api_calls, max_nums=10000):
+def call_k_means(f, att, dict_api_calls, max_nums=100, num_centroids=20):
     psis = []
     apis = []
     item_num = 0
@@ -97,11 +123,12 @@ def call_k_means(f, att, dict_api_calls, max_nums=10000):
         if item_num > max_nums:
             break
 
-    clusters, clustered_apis = k_means(psis, apis)
+    clusters, clustered_apis = k_means(psis, apis, num_centroids=num_centroids)
 
     cluster_jaccards = [get_intra_cluster_jaccards(x) for x in clustered_apis]
 
     #print(sorted(cluster_jaccards, reverse=True))
+    intra_cluster_jaccards = sorted(cluster_jaccards, reverse=True)
     sorted_ids = [i[0] for i in sorted(enumerate(cluster_jaccards), key=lambda x:x[1], reverse=True)]
 
     clusters = [clusters[i] for i in sorted_ids]
@@ -138,7 +165,7 @@ def call_k_means(f, att, dict_api_calls, max_nums=10000):
 #                print("%.3f" % jac_matrix[j][k], end=',')
 #    print(']')
 
-    return jac_matrix
+    return jac_matrix,  intra_cluster_jaccards 
 
 
 def get_jaccard_distace(a,b):
@@ -178,7 +205,7 @@ def k_means(psis, apis, num_centroids = 20, max_cap=200):
 def get_intra_cluster_jaccards(clustered_apis_k):
 
     dis_i = 0.
-    count = 0
+    count = 0.001
     for i, api_i in enumerate(clustered_apis_k):
         for j, api_j in enumerate(clustered_apis_k):
             if j <= i:
@@ -200,7 +227,7 @@ def get_inter_cluster_jaccards(clustered_apis_j, clustered_apis_k):
     num_items_1 = len(clustered_apis_j)
     num_items_2 = len(clustered_apis_k)
 
-    return dis_ / (num_items_1 * num_items_2 )
+    return dis_ / (num_items_1 * num_items_2  + 0.0001)
 
 
 
