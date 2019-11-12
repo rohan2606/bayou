@@ -1,5 +1,5 @@
 folder=$1
-python test.py  --save /home/ubuntu/save_500_new_drop_skinny_seq
+python test.py  --evidence writer --save /home/ubuntu/save_500_new_drop_skinny_seq
 
 cd plots
 mkdir $folder
