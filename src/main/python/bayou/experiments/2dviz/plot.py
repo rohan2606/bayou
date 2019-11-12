@@ -33,6 +33,7 @@ from bayou.models.low_level_evidences.predict import BayesianPredictor
 from bayou.models.low_level_evidences.utils import read_config
 
 from bayou.experiments.predictMethods.SearchDB.utils import get_ast_dict
+from  copy import deepcopy
 
 print("Loading AST Dictionary")
 dict_ast = get_ast_dict()
@@ -50,15 +51,31 @@ def plot(clargs):
     #    with open(clargs.input_file[0], 'rb') as f:
     #        deriveAndScatter(f, predictor, [ev])
 
+
+
+
+     # Plot with all Evidences
+    print('Plot with API , Types and Keywords')
+    with open(clargs.input_file[0], 'rb') as f:
+        deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[:4])])
+
+
+    print('Plot with all evidences till method headers')
      # Plot with all Evidences
     with open(clargs.input_file[0], 'rb') as f:
-        deriveAndScatter(f, predictor, [ev for ev in config.evidence])
+        deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[4:])])
+
+
+    print('Plot with all evidences')
+     # Plot with all Evidences
+    with open(clargs.input_file[0], 'rb') as f:
+        deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence)])
     
 
 
-    print('Reverse Encoder Plot')
-    with open(clargs.input_file[0], 'rb') as f:
-        useAttributeAndScatter(f, 'b2')
+    #print('Reverse Encoder Plot')
+    #with open(clargs.input_file[0], 'rb') as f:
+    #    useAttributeAndScatter(f, 'b2')
 
 
 def useAttributeAndScatter(f, att, max_nums=10000):
@@ -84,6 +101,7 @@ def useAttributeAndScatter(f, att, max_nums=10000):
 
 
 def deriveAndScatter(f, predictor, evList, max_nums=10000):
+
     psis = []
     labels = []
     item_num = 0
@@ -95,7 +113,8 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
             del_file = False
         if ev.name == 'method_name':
             del_method = False
-   
+
+
     for program in ijson.items(f, 'programs.item'):
         key = program['file'] + "/" + program['method']
         
