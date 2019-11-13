@@ -40,11 +40,34 @@ def load_desires():
     print("Loading AST Dictionary")
     dict_ast = None #get_ast_dict()
     print("Loading Seq Dictionary")
-    dict_seq = None #get_sequence_dict()
+    dict_seq = get_sequence_dict()
     return dict_api_calls, dict_ast, dict_seq
 
 
 
+
+def plotter(matrix, vector, name='temp'):
+   
+    num_centroids = len(vector) 
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    cax = ax.matshow(matrix, interpolation='nearest')
+    fig.colorbar(cax)
+    xticks = list(range(num_centroids))
+    yticks = list(range(num_centroids))
+
+    ax.set_xticks(xticks)
+    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] )
+    ax.set_yticks(yticks)
+    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] )
+
+    plt.xlabel('cluster number',fontsize=11)
+    plt.ylabel('cluster number',fontsize=11)
+    plt.savefig(name + '.png')
+    with open(name + '.json','w') as f:
+         json.dump({'jaccard_intra_cluster':vector},f,indent=4)
+    return
+   
 
 
 def main(clargs):
@@ -56,8 +79,6 @@ def main(clargs):
         from bayou.models.non_prob.predict import BayesianPredictor
         from bayou.models.non_prob.utils import read_config
     
-
-
     num_centroids = 20
 
     sess = tf.InteractiveSession()
@@ -72,43 +93,22 @@ def main(clargs):
     with open(clargs.input_file[0], 'rb') as f:
         jac_api_matrix, jac_api_vector = call_k_means(f, clargs.index, dict_api_calls, num_centroids=num_centroids)
 
-    #print('Seq Calls Jaccard Calculations')
-    #with open(clargs.input_file[0], 'rb') as f:
-    #    jac_seq_matrix, jac_seq_vector = call_k_means(f, clargs.index, dict_seq, num_centroids=num_centroids)
+    plotter(jac_api_matrix, jac_api_vector, name='api_jaccard')
+
+    print('Seq Calls Jaccard Calculations')
+    with open(clargs.input_file[0], 'rb') as f:
+        jac_seq_matrix, jac_seq_vector = call_k_means(f, clargs.index, dict_seq, num_centroids=num_centroids)
+
+    plotter(jac_seq_matrix, jac_seq_vector, name='seq_jaccard')
 
     #print('AST Jaccard Calculations')
     #with open(clargs.input_file[0], 'rb') as f:
     #    jac_ast_matrix = call_k_means(f, clargs.index, dict_ast)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    cax = ax.matshow(jac_api_matrix, interpolation='nearest')
-    fig.colorbar(cax)
-    xticks = list(range(num_centroids))
-    yticks = list(range(num_centroids))
-
-    ax.set_xticks(xticks)
-    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] )
-    ax.set_yticks(yticks)
-    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] )
-
-    plt.xlabel('cluster number',fontsize=11)
-    plt.ylabel('cluster number',fontsize=11)
-    #plt.matshow(jac_api_matrix)
-    plt.savefig('clustered_apis_k.png')
-
-    #plt.matshow(jac_seq_matrix)
-    #plt.savefig('clustered_seqs_k.png')
-    
-    with open('inter_jaccard.json','w') as f:
-         json.dump({'jaccard_intra_cluster':jac_api_vector},f,indent=4)
-   
-    #plt.matshow(jac_ast_matrix)
-    #plt.savefig('clustered_asts_k.png')
     return
 
 
-def call_k_means(f, att, dict_api_calls, max_nums=100, num_centroids=20):
+def call_k_means(f, att, dict_api_calls, max_nums=10000, num_centroids=20):
     psis = []
     apis = []
     item_num = 0
