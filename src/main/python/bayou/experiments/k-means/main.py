@@ -108,7 +108,7 @@ def main(clargs):
     return
 
 
-def call_k_means(f, att, dict_api_calls, max_nums=10000, num_centroids=20):
+def call_k_means(f, att, dict_api_calls, max_nums=100000, num_centroids=20):
     psis = []
     apis = []
     item_num = 0

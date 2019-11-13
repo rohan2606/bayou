@@ -90,6 +90,10 @@ def modifyInputForExperiment(sample, expNumber, config):
     sample['method_name_not_ev'] = sample['method']
     sample['file_name_not_ev'] = sample['file']
 
+    sample['returnType_not_ev'] = sample['returnType'] if sample['returnType'] in config.evidence[4].vocab else '__UDT__'
+    sample['formalParam_not_ev'] = [j if j in config.evidence[5].vocab  else '__UDT__' for j in sample['formalParam']]
+
+
     ## You need to have all sorrounding infos
     for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
         if ev not in sample:

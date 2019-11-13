@@ -41,7 +41,7 @@ def exact_match(strA, strB):
 
 def exact_match_ast(dictstrA, strB):
 
-    dictA = eval(dictstrA.replace("u'", "'"))
+    dictA = eval(dictstrA) #.replace("u'", "'"))
     dictB = eval(strB)
     if dictA == dictB:
         return True
@@ -87,7 +87,8 @@ def get_api_dict():
     return dict_api_calls
 
 def get_ast_dict():
-    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_ast_all_data.pkl", "rb") as f:
+    #with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_ast_all_data.pkl", "rb") as f:
+    with open("/home/ubuntu/DATABASE/DataWEvidence/outputFiles/dict_ast_full_all_data.pkl", "rb") as f:
         dict_ast = pickle.load(f)
     return dict_ast
 
@@ -105,8 +106,20 @@ def get_your_desires(js):
     desiredBody = re.sub(r'\*\*(.*?)\*\/', '', desiredBody)
     desireAPIcalls = js['testapicalls']
     desireSeqs = js['testsequences']
-    desireAST = str(js['ast'])
-    return desiredBody, desireAPIcalls, desireSeqs, desireAST
+
+    #desireAST = str(js['ast'])
+    desireAST = js['ast']
+
+    # config tests are already done in build query jsons, hence skipped here, 
+    # but that is TODO
+    returnType = js['returnType_not_ev']
+    #returnType = returnType if returnType in ret_dict else '__UDT__'
+
+    formalParam = js['formalParam_not_ev']
+    #formalParam = [j if j in fp_dict else '__UDT__' for j in formalParam]    
+    bigger_ast = str({'ast':desireAST, 'returnType':returnType, 'formalParam':formalParam })
+
+    return desiredBody, desireAPIcalls, desireSeqs, bigger_ast
 
 
 def rank_statistic(_rank, total, prev_hits, cutoff):
