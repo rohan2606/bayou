@@ -73,7 +73,8 @@ def get_many_log_data():
     arr_of_jac_distances = []
 
     #accepted_folders = ['log2_Br_rL', 'log3_arraylist_add2List', 'log_hashmap', 'log_split_ok_jaccard', 'log_int2List']
-    accepted_folders = ['log2_Br_rL', 'log3_arraylist_add2List', 'log_hashmap', 'log_int2List']
+    #accepted_folders = ['log2_Br_rL', 'log3_arraylist_add2List', 'log_hashmap', 'log_int2List']
+    accepted_folders = ['log1_Br_rL', 'log3_arraylist_add2List', 'log_hashmap', 'log_int2List']
     for folder in folders:
         if not folder in accepted_folders:
            continue
@@ -111,31 +112,52 @@ def get_log_folders():
 
 def plot(slowdowns, variations, exist_distance, jaccard_distance, name='output.png'):
     plt.figure()          
-    N = len(slowdowns)
-    ind = np.arange(N)
-    
+    width=0.25
+  
+    slowdowns = np.insert(slowdowns, 1, slowdowns[0]) 
+    variations = np.insert(variations, 0, variations[0])
+    exist_distance = np.insert(exist_distance, 0, exist_distance[0])
+    jaccard_distance = np.insert(jaccard_distance, 0, jaccard_distance[0])
+
+
+ 
     exist_distance = [(1-val) for val in exist_distance] 
     jaccard_distance = [(1 - val) for val in jaccard_distance] 
     #plt.ylim(0.0, 65.0)
-    #plt.bar(ind, menMeans, width, color='r', yerr=menStd, label='Men means')
-    #plt.bar(ind+width, womenMeans, width, color='y', yerr=womenStd, label='Women means')
-    plt.plot(ind, exist_distance, color='r', label='Exist Distance')
-    plt.plot(ind, jaccard_distance, color='b', label='Jaccard Distance')
-    plt.plot(ind, variations, color='k', label='Co-efficient of variation')
+
+    freq = 5
+    exist_distance = exist_distance[::freq]
+    jaccard_distance = jaccard_distance[::freq]
+    slowdowns = slowdowns[::freq]
+    variations = variations[::freq]
+    N = len(slowdowns)
+    ind = np.arange(N) 
+        
+    # plt bar supports yerr arg, test that
+    #plt.bar(ind, exist_distance, width, color='b', label='Avg. Exist Distance')
+    #plt.bar(ind+width, jaccard_distance, width, color='r', label='Avg. Jaccard Distance')
+    #plt.bar(ind+2*width, variations, width, color='g', label='Avg. Co-eff of Var')
+    
+    plt.plot(ind, exist_distance, color='b', label='Avg. Exist Distance')
+    plt.plot(ind, jaccard_distance, color='r', label='Avg. Jaccard Distance')
+    plt.plot(ind, variations, color='g', label='Avg. Co-eff of Var')
+    
     plt.ylabel('Distances')      
-    
-    y = variations
-    
+       
+    plt.grid(True)
+    plt.legend() 
     axes2 = plt.twinx()
     #plt.ylim(0.0, 65.0)
-    width=0.35
-    #axes2.bar(ind, slowdowns, width, color='r') #, yerr=menStd, label='Men means')
-    #plt.bar(ind+width, womenMeans, width, color='y', yerr=womenStd, label='Women means')
+    axes2.bar(ind, slowdowns, width, color='r') #, yerr=menStd, label='Men means')
+    #plt.bar(ind+width, womenMeans, width, color='y', label='Women means')
     axes2.plot(ind, slowdowns, color='k', label='Slowdown')
     #axes2.set_ylim(0, max(y))
     axes2.set_ylabel('Slowdowns')
-    
+
+    plt.xticks(ind, [i*freq for i in ind] )    
+    #plt.grid(True)
     plt.savefig(name)
+
 
 
 
