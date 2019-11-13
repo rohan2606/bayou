@@ -111,7 +111,8 @@ def get_log_folders():
 
 
 def plot(slowdowns, variations, exist_distance, jaccard_distance, name='output.png'):
-    plt.figure()          
+    fig = plt.figure()    
+    ax = plt.subplot(111)      
     width=0.25
   
     slowdowns = np.insert(slowdowns, 1, slowdowns[0]) 
@@ -138,24 +139,42 @@ def plot(slowdowns, variations, exist_distance, jaccard_distance, name='output.p
     #plt.bar(ind+width, jaccard_distance, width, color='r', label='Avg. Jaccard Distance')
     #plt.bar(ind+2*width, variations, width, color='g', label='Avg. Co-eff of Var')
     
-    plt.plot(ind, exist_distance, color='b', label='Avg. Exist Distance')
-    plt.plot(ind, jaccard_distance, color='r', label='Avg. Jaccard Distance')
-    plt.plot(ind, variations, color='g', label='Avg. Co-eff of Var')
+    plt.plot(ind, exist_distance, color='darkred', marker='8', linewidth=2, markersize=6, label='Avg. Exist Distance')
+    plt.plot(ind, jaccard_distance, color='darkgreen', marker='v', linewidth=2, markersize=6, label='Avg. Jaccard Distance')
+    plt.plot(ind, variations, marker='X',color='blueviolet', linewidth=2, markersize=6, label='Avg. Co-eff of Var')
     
-    plt.ylabel('Distances')      
+    plt.ylabel('Distance')      
+    plt.xlabel('Iteration')
        
     plt.grid(True)
-    plt.legend() 
+
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                 box.width, box.height * 0.9])
+
+    # Put a legend below current axis
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
+          fancybox=True, shadow=True, ncol=3)
+
+    #plt.legend() 
     axes2 = plt.twinx()
     #plt.ylim(0.0, 65.0)
-    axes2.bar(ind, slowdowns, width, color='r') #, yerr=menStd, label='Men means')
+    axes2.bar(ind, slowdowns, width, color='coral', edgecolor='k', alpha=1.0, linewidth=1.8) #, yerr=menStd, label='Men means')
     #plt.bar(ind+width, womenMeans, width, color='y', label='Women means')
-    axes2.plot(ind, slowdowns, color='k', label='Slowdown')
+    axes2.plot(ind, slowdowns, color='k', linestyle='dashed', label='Slowdown')
     #axes2.set_ylim(0, max(y))
-    axes2.set_ylabel('Slowdowns')
+    axes2.set_ylabel('Slowdown')
+    #axes2.set_xlabel('Iterations')
+    box = axes2.get_position()
+    axes2.set_position([box.x0, box.y0 + box.height * 0.1,
+                 box.width, box.height * 0.9])
 
     plt.xticks(ind, [i*freq for i in ind] )    
-    #plt.grid(True)
+    #axes2.xaxis.grid(True)
+    #axes2.yaxis.grid(True)
+
+    ax.set_zorder(axes2.get_zorder()+1)
+    ax.patch.set_visible(False)
     plt.savefig(name)
 
 
