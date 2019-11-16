@@ -215,8 +215,11 @@ class surr_methodName(SetsOfSequences):
         for program in list_of_programs:
             methodName = program['surr_methodName'] if 'surr_methodName' in program else []
             methodName = methodName.split('@')[0]
-            tokens = self.split_words_underscore_plus_camel(methodName)
-            read_programs.append(self.word2num(tokens , infer))
+            if infer and methodName=='None':
+               read_programs.append([0])
+            else:
+               tokens = self.split_words_underscore_plus_camel(methodName)
+               read_programs.append(self.word2num(tokens , infer))
 
         return read_programs # number_of_surr_methods * lenght_of_methodName(4)
 
@@ -257,9 +260,12 @@ class surr_formalParam(SetsOfSomething):
             list_of_var_name_ids = []
             varNames = program['surr_header_vars'] if 'surr_header_vars' in program else []
             for varName in varNames:
-                tokens = self.split_words_underscore_plus_camel(varName)
-                var_name_ids = self.word2num(tokens, 1,infer)
-                list_of_var_name_ids.append(var_name_ids)
+                if infer and varName == 'None':
+                    list_of_var_name_ids.append([0])
+                else:
+                    tokens = self.split_words_underscore_plus_camel(varName)
+                    var_name_ids = self.word2num(tokens, 1,infer)
+                    list_of_var_name_ids.append(var_name_ids)
             surr_formals_vars.append(list_of_var_name_ids)
 
 
