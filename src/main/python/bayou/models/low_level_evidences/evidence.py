@@ -664,11 +664,11 @@ class SurroundingEvidence(Evidence):
         return evidences
 
 
-
     def encode(self, inputs, config, infer):
         with tf.variable_scope(self.name):
             encodings = [ev.encode(i, config, infer) for ev, i in zip(config.surrounding_evidence, inputs)]
             # list of number_of_ev :: batch_size * number_of_methods * latent_size
+
             encodings = tf.stack(encodings, axis=3)
             # batch_size * number_of_methods * latent_size * list_of_number_of_ev
             encodings = tf.reshape(encodings, [config.batch_size, self.max_nums, -1])
@@ -681,14 +681,20 @@ class SurroundingEvidence(Evidence):
             #done
 
             encodings_flat = tf.layers.dense(encodings, config.latent_size)
-            
-            #zero check in method level
+
             zeros = tf.zeros_like(encodings_flat)
+            if not infer:
+                rand = tf.random_uniform( (config.batch_size, self.max_nums) )
+                rand = tf.tile(tf.expand_dims(rand, axis=2),[1,1,config.latent_size])
+                encodings_flat = tf.where(tf.less(rand, self.ev_call_drop_prob) , encodings_flat, zeros)
+
+            #zero check in method level
             cond = tf.not_equal(tf.reduce_sum(encodings, axis=2), 0)
             cond = tf.tile(tf.expand_dims(cond, axis=2),[1,1,config.latent_size])
-            
+
             encodings_flat = tf.where( cond, encodings_flat , zeros)
 
             #batch_size * number_of_methods * latent_size
             encodings_flat = tf.reduce_sum(encodings_flat, axis=1)
         return encodings_flat
+
