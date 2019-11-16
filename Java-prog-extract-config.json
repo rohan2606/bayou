@@ -379,7 +379,7 @@
 		"java.util.jar.Manifest",
 		"java.awt.AlphaCompositesasdas"
 			],
-  "max-seqs": 2,
-  "max-seq-length": 8,
+  "max-seqs": 8,
+  "max-seq-length": 32,
   "javadoc-type": "full"
 }

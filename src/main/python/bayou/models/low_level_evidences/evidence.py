@@ -440,6 +440,9 @@ class MethodName(Sequences):
     def read_data_point(self, program, infer):
         methodName = program['method'] if 'method' in program else ''
         methodName = methodName.split('@')[0]
+        if infer and methodName=='None':
+             return [[0]]
+
         method_name_tokens = self.split_words_underscore_plus_camel(methodName)
         return [self.word2num(method_name_tokens, infer)]
 
@@ -459,6 +462,8 @@ class ClassName(Sequences):
         className = program['file'] if 'file' in program else ''
         className = className.split('/')[-1]
         className = className.split('.')[0]
+        if infer and className=='None':
+             return [[0]]
         class_name_tokens = self.split_words_underscore_plus_camel(className)
         return [self.word2num(class_name_tokens, infer)]
 
