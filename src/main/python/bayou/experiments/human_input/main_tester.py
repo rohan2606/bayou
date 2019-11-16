@@ -68,7 +68,7 @@ class Predictor:
         model = bayou.models.low_level_evidences.predict.BayesianPredictor
 
         sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, sess, batch_size=500)# goes to predict.BayesianPredictor
+        self.predictor = model(clargs.save, sess, batch_size=1)# goes to predict.BayesianPredictor
 
         print ('Model Loaded, All Ready to Predict Evidences!!')
 
@@ -96,10 +96,10 @@ class Rev_Encoder_Model:
     def __init__(self):
         self.numThreads = 30
         self.batch_size = 1
-        self.minJSONs = 0
-        self.maxJSONs = 69
+        self.minJSONs = 1
+        self.maxJSONs =  9 #308 #9
         self.dimension = 256
-        self.topK = 100
+        self.topK = 20
         self.scanner = self.get_database_scanner()
         return
 
@@ -116,7 +116,7 @@ class Rev_Encoder_Model:
         embIt_batch = EmbeddingBatch(embIt_json, 1, 256)
         topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = self.numThreads)
         topKProgs = topKProgsBatch[0]
-        return [prog.body for prog in topKProgs]
+        return [(prog[0].body, prog[1]) for prog in topKProgs]
 
 
 
@@ -130,7 +130,6 @@ if __name__ == "__main__":
     parser.add_argument('input_file', type=str, nargs=1,
                         help='input data file')
     parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq')
-    parser.add_argument('--mc_iter', type=int, default=1)
 
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
@@ -154,10 +153,12 @@ if __name__ == "__main__":
 
     print("=====================================")
     _, eA, eB = encoder.get_latent_space(json.loads(programs))
+
     rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:rev_encoder.topK]
 
     for j, top_prog in enumerate(rev_encoder_top_progs):
        print('Rank ::' +  str(j))
-       print(top_prog)
+       print('Prob ::' + str(top_prog[1]))
+       print(top_prog[0])
     print("=====================================")
 
