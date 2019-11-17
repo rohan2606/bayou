@@ -40,7 +40,6 @@ from bayou.models.low_level_evidences.test import get_c_minus_cstar
 from extract_evidence import extract_evidence
 
 import subprocess
-import shutil
 
 class Java_Reader:
 
@@ -49,7 +48,7 @@ class Java_Reader:
         subprocess.call(['java', '-jar', \
         '/home/ubuntu/bayou/tool_files/maven_3_3_9/dom_driver/target/dom_driver-1.0-jar-with-dependencies.jar', \
         '-f', filepath, '-c', '/home/ubuntu/bayou/Java-prog-extract-config.json', \
-        '-o', 'problems/output.json'])
+        '-o', 'log/output.json'])
         return
 
     def getExampleJsons(logdir, items):
@@ -135,6 +134,9 @@ if __name__ == "__main__":
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
 
+    if not os.path.exists('log'):
+       os.makedirs('log')
+
     print(clargs.input_file)
     # initiate the server
     pred = Predictor()
@@ -146,11 +148,22 @@ if __name__ == "__main__":
     filename = clargs.input_file[0]
     Java_Reader.useDomDriver(filename)
 
-    shutil.copy(filename, 'log/query.java')
+
+    input_qry_lines = open(filename).read().split('\n')
+    output_qry_lines = []
+    for line in input_qry_lines:
+        out_line = line.replace('PDB_FILL','CODE_SEARCH')
+        out_line = out_line.replace('None','<?>')
+        output_qry_lines.append(out_line + '\n')
+    with open('log/query.java', 'w') as f:
+         f.writelines(output_qry_lines)
 
 
-    programs = Java_Reader.getExampleJsons('problems/output.json',10)
+    programs = Java_Reader.getExampleJsons('log/output.json',10)
 
+
+    with open('log/output_wSurr.json', 'w') as f:
+         json.dump(json.loads(programs), f, indent=4)
     print(programs)
     print("=====================================")
     #get the probs
