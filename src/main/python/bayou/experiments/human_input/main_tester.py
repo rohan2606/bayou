@@ -40,6 +40,7 @@ from bayou.models.low_level_evidences.test import get_c_minus_cstar
 from extract_evidence import extract_evidence
 
 import subprocess
+import shutil
 
 class Java_Reader:
 
@@ -145,6 +146,9 @@ if __name__ == "__main__":
     filename = clargs.input_file[0]
     Java_Reader.useDomDriver(filename)
 
+    shutil.copy(filename, 'log/query.java')
+
+
     programs = Java_Reader.getExampleJsons('problems/output.json',10)
 
     print(programs)
@@ -160,5 +164,7 @@ if __name__ == "__main__":
        print('Rank ::' +  str(j))
        print('Prob ::' + str(top_prog[1]))
        print(top_prog[0])
+       with open('log/program'+str(j)+'.java','w') as f:
+            f.write(top_prog[0])
     print("=====================================")
 

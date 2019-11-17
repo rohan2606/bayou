@@ -459,9 +459,14 @@ class ClassName(Sequences):
         self.vocab_size = 1
 
     def read_data_point(self, program, infer):
-        className = program['file'] if 'file' in program else ''
-        className = className.split('/')[-1]
-        className = className.split('.')[0]
+        if 'className' in program:
+            className = program['className']
+        elif 'file' in program:
+            className = program['file'] if 'file'
+            className = className.split('/')[-1]
+            className = className.split('.')[0]
+        else:
+            return [[0]]
         if infer and className=='None':
              return [[0]]
         class_name_tokens = self.split_words_underscore_plus_camel(className)
