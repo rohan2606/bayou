@@ -66,10 +66,10 @@ public class Visitor extends ASTVisitor {
         List<String> formalParam;
         List<String> classTypes;
 
-
+        String className;
 
         public JSONOutputWrapper(String methodName, String body, DSubTree ast, List<Sequence> sequences,  String returnType, List<String> formalParam,
-        List<String> classTypes , String javaDoc) {
+        List<String> classTypes , String javaDoc, String className) {
 
             this.file = options.file;
             this.method = methodName;
@@ -83,6 +83,8 @@ public class Visitor extends ASTVisitor {
             this.formalParam = formalParam;
             this.classTypes = classTypes;
             this.javaDoc = javaDoc;
+
+            this.className = className;
 
         }
     }
@@ -111,6 +113,8 @@ public class Visitor extends ASTVisitor {
             allTypes = new ArrayList<>();
             allTypes.addAll(Arrays.asList(cls.getFields()));
 
+            String className = cls.getName().getIdentifier();
+
             List<String> classTypes = new ArrayList<>();
             for (FieldDeclaration type : allTypes){
               classTypes.add(type.getType().toString());
@@ -134,10 +138,8 @@ public class Visitor extends ASTVisitor {
             List<MethodDeclaration> publicMethods = allMethods.stream().filter(m -> !m.isConstructor() && Modifier.isPublic(m.getModifiers())).collect(Collectors.toList());
 
 
-
             for (MethodDeclaration m : allMethods){
                   // System.out.println(m.resolveBinding());
-
                   String javadoc = Utils.getJavadoc(m, options.JAVADOC_TYPE);
                   callStack.push(m);
                   DSubTree ast = new DOMMethodDeclaration(m).handle();
@@ -166,7 +168,7 @@ public class Visitor extends ASTVisitor {
                     ast.updateSequences(sequences, options.MAX_SEQS, options.MAX_SEQ_LENGTH);
                     List<Sequence> uniqSequences = new ArrayList<>(new HashSet<>(sequences));
                     if (uniqSequences.size() > 0)
-                        addToJson(methodName, body, ast, uniqSequences, returnType, formalParam, classTypes, javaDoc);
+                        addToJson(methodName, body, ast, uniqSequences, returnType, formalParam, classTypes, javaDoc, className);
                 } catch (DASTNode.TooManySequencesException e) {
                     System.err.println("Too many sequences from AST");
                 } catch (DASTNode.TooLongSequenceException e) {
@@ -179,8 +181,8 @@ public class Visitor extends ASTVisitor {
     }
 
     private void addToJson(String methodName, String body, DSubTree ast, List<Sequence> sequences,  String returnType,
-    List<String> formalParam, List<String> classTypes , String javaDoc) {
-       JSONOutputWrapper out = new JSONOutputWrapper(methodName, body, ast, sequences, returnType, formalParam, classTypes, javaDoc);
+    List<String> formalParam, List<String> classTypes , String javaDoc, String className) {
+       JSONOutputWrapper out = new JSONOutputWrapper(methodName, body, ast, sequences, returnType, formalParam, classTypes, javaDoc, className);
        _js.programs.add(out);
    }
 
