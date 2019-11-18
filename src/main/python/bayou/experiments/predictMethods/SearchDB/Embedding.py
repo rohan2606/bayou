@@ -6,7 +6,7 @@ class EmbeddingBatch():
 
     def __init__(self, batchProgram, batch_size, dimension):
 
-        self.A = np.zeros([batch_size] , dtype=np.float32)
+        self.A = np.zeros([batch_size] , dtype=np.float32) - 0.5
         self.B = np.zeros([batch_size, dimension] , dtype=np.float32 )
         self.js = [None for i in range(batch_size)]
 

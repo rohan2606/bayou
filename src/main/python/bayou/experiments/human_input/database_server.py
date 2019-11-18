@@ -11,6 +11,9 @@ from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
 from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
 
 
+# TODO 
+# We do not support more than 10 qry programs now
+
 
 class Rev_Encoder_Model:
     def __init__(self, batch_size=1, topK=10):
@@ -33,7 +36,10 @@ class Rev_Encoder_Model:
 
     def dump_result(self, all_qry_progs):
         reverse_encoder_batch_top_progs = self.get_results(all_qry_progs)
+        num_qrys = len(all_qry_progs['eAs'])
         for j, rev_encoder_top_progs in enumerate(reverse_encoder_batch_top_progs):
+            if not j < num_qrys: # batch_size is fixed at 10
+               break
             for i, top_prog in enumerate(rev_encoder_top_progs):
                #print('Rank ::' +  str(i))
                #print('Prob ::' + str(top_prog[1]))
