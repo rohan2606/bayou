@@ -93,13 +93,13 @@ class Encoder_Model:
 
 
 class Rev_Encoder_Model:
-    def __init__(self):
+    def __init__(self, batch_size=1, topK=10):
         self.numThreads = 30
-        self.batch_size = 1
+        self.batch_size = batch_size
         self.minJSONs = 1
         self.maxJSONs =  9 #308 #9
         self.dimension = 256
-        self.topK = 20
+        self.topK = topK
         self.scanner = self.get_database_scanner()
         return
 
@@ -111,12 +111,15 @@ class Rev_Encoder_Model:
         return scanner
 
 
-    def get_result(self, encA, encB):
-        embIt_json = [{'a1':encA, 'b1':encB}]
-        embIt_batch = EmbeddingBatch(embIt_json, 1, 256)
+    def get_result(self, encAs, encBs):
+        
+        embIt_json = []
+        for encA, encB in zip(encAs, encBs):
+             embIt_json.append({'a1':encA, 'b1':encB})
+
+        embIt_batch = EmbeddingBatch(embIt_json, self.batch_size, 256)
         topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = self.numThreads)
-        topKProgs = topKProgsBatch[0]
-        return [(prog[0].body, prog[1]) for prog in topKProgs]
+        return [[(prog[0].body, prog[1]) for prog in topKProgs[:self.topK]] for topKProgs in topKProgsBatch]
 
 
 
@@ -129,7 +132,8 @@ if __name__ == "__main__":
     help='set recursion limit for the Python interpreter')
     parser.add_argument('input_file', type=str, nargs=1,
                         help='input data file')
-    parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq')
+    parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq_surr')
+    parser.add_argument('--topK', type=int, default=10)
 
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
@@ -137,47 +141,61 @@ if __name__ == "__main__":
     if not os.path.exists('log'):
        os.makedirs('log')
 
-    print(clargs.input_file)
-    # initiate the server
+
     pred = Predictor()
     encoder = Encoder_Model(pred)
+
+    eAs, eBs = [], []
+    programs = []
+    if os.path.isfile(clargs.input_file[0]):
+        qry_files = [clargs.input_file[0]]
+    elif os.path.isdir(clargs.input_file[0]):
+        qry_files = []
+        for filename in sorted(os.listdir(clargs.input_file[0])):
+            if os.path.isfile(clargs.input_file[0] + '/' + filename):
+                 qry_files.append(clargs.input_file[0] + '/' + filename)
+    
+    for j, filename in enumerate(qry_files): 
+    	Java_Reader.useDomDriver(filename)
+
+    	input_qry_lines = open(filename).read().split('\n')
+    	output_qry_lines = []
+    	for line in input_qry_lines:
+    	    out_line = line.replace('PDB_FILL','CODE_SEARCH')
+    	    out_line = out_line.replace('None','<?>')
+    	    output_qry_lines.append(out_line + '\n')
+
+    	log_folder = 'log/' + 'qry_' + str(j) + '/'
+    	if not os.path.exists(log_folder):
+    	    os.makedirs(log_folder)
+    	with open(log_folder + 'query.java', 'w') as f:
+    	     f.writelines(output_qry_lines)
+
+
+    	program = Java_Reader.getExampleJsons( 'log/output.json',10)
+
+
+    	with open(log_folder + 'output_wSurr.json', 'w') as f:
+    	     json.dump(json.loads(program), f, indent=4)
+
+    	_, eA, eB = encoder.get_latent_space(json.loads(program))
+    	eAs.append(eA)
+    	eBs.append(eB)
+    	programs.append(program)
+
+
     #rev_encoder = Rev_Encoder_Model_2(pred)
-    rev_encoder = Rev_Encoder_Model()
+    rev_encoder = Rev_Encoder_Model(batch_size = len(eAs), topK=clargs.topK)
+    rev_encoder_batch_top_progs = rev_encoder.get_result(eAs, eBs)
 
-    # get the input JSON
-    filename = clargs.input_file[0]
-    Java_Reader.useDomDriver(filename)
+    for j, rev_encoder_top_progs in enumerate(rev_encoder_batch_top_progs):
+    	print(programs[j])
+    	for i, top_prog in enumerate(rev_encoder_top_progs):
+    	   print('Rank ::' +  str(i))
+    	   print('Prob ::' + str(top_prog[1]))
+    	   print(top_prog[0])
+    	   with open('log/qry_' + str(j) + '/program'+str(i)+'.java','w') as f:
+    	        f.write(top_prog[0])
+    	print("=====================================")
 
-
-    input_qry_lines = open(filename).read().split('\n')
-    output_qry_lines = []
-    for line in input_qry_lines:
-        out_line = line.replace('PDB_FILL','CODE_SEARCH')
-        out_line = out_line.replace('None','<?>')
-        output_qry_lines.append(out_line + '\n')
-    with open('log/query.java', 'w') as f:
-         f.writelines(output_qry_lines)
-
-
-    programs = Java_Reader.getExampleJsons('log/output.json',10)
-
-
-    with open('log/output_wSurr.json', 'w') as f:
-         json.dump(json.loads(programs), f, indent=4)
-    print(programs)
-    print("=====================================")
-    #get the probs
-
-    print("=====================================")
-    _, eA, eB = encoder.get_latent_space(json.loads(programs))
-
-    rev_encoder_top_progs = rev_encoder.get_result(eA[0], eB[0])[:rev_encoder.topK]
-
-    for j, top_prog in enumerate(rev_encoder_top_progs):
-       print('Rank ::' +  str(j))
-       print('Prob ::' + str(top_prog[1]))
-       print(top_prog[0])
-       with open('log/program'+str(j)+'.java','w') as f:
-            f.write(top_prog[0])
-    print("=====================================")
-
+    os.remove('log/output.json')

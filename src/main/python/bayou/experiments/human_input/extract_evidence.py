@@ -8,7 +8,7 @@ from scripts.evidence_extractor import shorten
 import re
 import random
 
-
+from collections import defaultdict
 
 def stripJavaDoc(stringBody):
     return re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))
@@ -70,19 +70,13 @@ def extract_evidence(fileName):
         if '__PDB_FILL__' not in program['body']:
             continue
 
+        body = program['body'].replace('\n','')
+        try:
+            extra_inputs = re.search('__PDB_FILL__\((.+?)\);', body).group(1)
+            extra_inputs = eval(eval(extra_inputs))
+        except AttributeError:
+             extra_inputs = defaultdict(list) # apply your error handling
 
-
-        apicalls,types,keywords,sequence = [],[],[],[] 
-        for string in re.findall(r"\S+", program['body']): # separates out all lines of a program
-            if 'call:' in string:
-                apicalls.append(string.split(":")[1])
-            if 'type:' in string:
-                types.append(string.split(":")[1])
-            if 'keyword:' in string:
-                keywords.append(string.split(":")[1])
-            if 'sequence:' in string:
-                for call in string.split(":")[1:]:
-                    sequence.append(call)
 
         # calls = gather_calls(program['ast'])
         # apicalls = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.APICalls.from_call(call)
@@ -97,21 +91,19 @@ def extract_evidence(fileName):
         # file_name = program['file']
         # method_name = program['method']
 
-        sample['apicalls'] = apicalls
-        sample['types'] = types
-        sample['keywords'] = keywords
+        sample['apicalls'] = extra_inputs['apicalls'] if 'apicalls' in extra_inputs else []
+        sample['types'] = extra_inputs['types'] if 'types' in extra_inputs else []
+        sample['keywords'] = extra_inputs['keywords'] if 'keywords' in extra_inputs else []
+        sample['testsequences'] = extra_inputs['sequence'] if 'sequence' in extra_inputs else [] #sequences
+        sample['sequences'] = extra_inputs['sequence'] if 'sequence' in extra_inputs else []  #sequences
 
+        
         sample['body'] = stripJavaDoc(sample['body'])
 
         method_name = program['method']
 
-        sequences = sequence #program['sequences']
-        sample['testsequences'] = sequences
-        sample['sequences'] = sequences
-
         # Take in classTypes and sample a few
-        sample['classTypes'] = set(program['classTypes']) if 'classTypes' in program else set()
-        sample['classTypes'] = list(sample['classTypes'])
+        sample['classTypes'] = list(set(program['classTypes'])) if 'classTypes' in program else []
 
         sample['Surrounding_Evidences']=[]
         #    (Key = File_Name Value = dict(Key = String Method_Name, Value = [String ReturnType, List[String] FormalParam , List[String] Sequences] ))
