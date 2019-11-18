@@ -462,7 +462,7 @@ class ClassName(Sequences):
         if 'className' in program:
             className = program['className']
         elif 'file' in program:
-            className = program['file'] if 'file'
+            className = program['file'] 
             className = className.split('/')[-1]
             className = className.split('.')[0]
         else:

@@ -30,13 +30,10 @@ import ijson
 from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
 from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
 from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
-from bayou.models.low_level_evidences.test import get_c_minus_cstar
-
-from bayou.experiments.predictMethods.SearchDB.utils import get_jaccard_distace_api
 
 
-import bayou.models.low_level_evidences.predict
-from bayou.models.low_level_evidences.test import get_c_minus_cstar
+import socket
+
 from extract_evidence import extract_evidence
 
 import subprocess
@@ -59,37 +56,6 @@ class Java_Reader:
 
 
 
-class Predictor:
-
-    def __init__(self):
-        #set clargs.continue_from = True while testing, it continues from old saved config
-        clargs.continue_from = True
-        print('Loading Model, please wait _/\_ ...')
-        model = bayou.models.low_level_evidences.predict.BayesianPredictor
-
-        sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, sess, batch_size=1)# goes to predict.BayesianPredictor
-
-        print ('Model Loaded, All Ready to Predict Evidences!!')
-
-        return
-
-    def chunks(self, l, n):
-        """Yield successive n-sized chunks from l."""
-        chunks = []
-        for i in range(0, len(l), n):
-            chunks.append(l[i:i + n])
-        return chunks
-
-class Encoder_Model:
-
-    def __init__(self, predictor):
-        self.predictor = predictor
-        return
-
-    def get_latent_space(self, program):
-        _, EncA, EncB = self.predictor.predictor.get_psi_encoder(program)
-        return _, EncA, EncB
 
 
 class Rev_Encoder_Model:
@@ -97,7 +63,7 @@ class Rev_Encoder_Model:
         self.numThreads = 30
         self.batch_size = batch_size
         self.minJSONs = 1
-        self.maxJSONs =  9 #308 #9
+        self.maxJSONs =  10
         self.dimension = 256
         self.topK = topK
         self.scanner = self.get_database_scanner()
@@ -122,7 +88,15 @@ class Rev_Encoder_Model:
         return [[(prog[0].body, prog[1]) for prog in topKProgs[:self.topK]] for topKProgs in topKProgsBatch]
 
 
-
+def client_socket(st):
+	client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	client.connect((socket.gethostname(), 5000))
+	byt = st.encode()
+	client.send(byt)
+	from_server = client.recv(1000000)
+	from_server.decode()
+	client.close()
+	return from_server
 
 
 if __name__ == "__main__":
@@ -132,18 +106,15 @@ if __name__ == "__main__":
     help='set recursion limit for the Python interpreter')
     parser.add_argument('input_file', type=str, nargs=1,
                         help='input data file')
-    parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq_surr')
     parser.add_argument('--topK', type=int, default=10)
 
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
 
+
+
     if not os.path.exists('log'):
        os.makedirs('log')
-
-
-    pred = Predictor()
-    encoder = Encoder_Model(pred)
 
     eAs, eBs = [], []
     programs = []
@@ -177,12 +148,13 @@ if __name__ == "__main__":
 
     	with open(log_folder + 'output_wSurr.json', 'w') as f:
     	     json.dump(json.loads(program), f, indent=4)
-
-    	_, eA, eB = encoder.get_latent_space(json.loads(program))
+        
+    	server_data = client_socket(program)
+    	server_data = json.loads(server_data)
+    	eA, eB = server_data['eA'], server_data['eB']
     	eAs.append(eA)
     	eBs.append(eB)
     	programs.append(program)
-
 
     #rev_encoder = Rev_Encoder_Model_2(pred)
     rev_encoder = Rev_Encoder_Model(batch_size = len(eAs), topK=clargs.topK)
