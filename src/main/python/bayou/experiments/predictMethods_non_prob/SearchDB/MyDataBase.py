@@ -37,10 +37,10 @@ class MyColumnDatabaseWBatch():
 
     def cosine_similarity(self, a, b):
        norm_denom_a = np.linalg.norm(a,axis=1)
-       norm_a = a/norm_denom_a[:,None]
+       norm_a = a/(norm_denom_a[:,None]+0.0001)
        
        norm_denom_b = np.linalg.norm(b, axis=1)
-       norm_b = b/norm_denom_b[:, None]
+       norm_b = b/(norm_denom_b[:, None]+0.0001)
        
        sim = np.dot(norm_a, np.transpose(norm_b))
        return sim #(1 - sim)
