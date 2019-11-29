@@ -67,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
     help='set recursion limit for the Python interpreter')
 
-    parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq_surr')
+    parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq_surr_cont')
 
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)

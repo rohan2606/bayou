@@ -6,6 +6,7 @@ import socket
 import json
 import os
 
+
 from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
 from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
 from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
@@ -20,10 +21,11 @@ class Rev_Encoder_Model:
         self.numThreads = 30
         self.batch_size = batch_size
         self.minJSONs = 1
-        self.maxJSONs =  10
+        self.maxJSONs =  90 #308
         self.dimension = 256
         self.topK = topK
         self.scanner = self.get_database_scanner()
+        self.max_to_print = 10
         return
 
     def get_database_scanner(self):
@@ -40,10 +42,20 @@ class Rev_Encoder_Model:
         for j, rev_encoder_top_progs in enumerate(reverse_encoder_batch_top_progs):
             if not j < num_qrys: # batch_size is fixed at 10
                break
+            programs_already = dict() 
+            unq_progs = 0
             for i, top_prog in enumerate(rev_encoder_top_progs):
-               #print('Rank ::' +  str(i))
-               #print('Prob ::' + str(top_prog[1]))
-               #print(top_prog[0])
+               text = top_prog[0]
+               if text not in programs_already:
+                   programs_already[text] = 1
+                   unq_progs += 1
+               else:
+                   continue
+               if unq_progs > self.max_to_print:
+                   break
+               print('Rank ::' +  str(i))
+               print('Prob ::' + str(top_prog[1]))
+               print(top_prog[0])
                _folder = 'log/qry_' + str(j)
                if not os.path.exists(_folder):
                     os.makedirs(_folder)
@@ -104,7 +116,7 @@ if __name__ == "__main__":
 
 
     #rev_encoder = Rev_Encoder_Model_2(pred)
-    rev_encoder = Rev_Encoder_Model(batch_size=10, topK=5)
+    rev_encoder = Rev_Encoder_Model(batch_size=15, topK=100)
     #rev_encoder_batch_top_progs = rev_encoder.get_result(eAs, eBs)
     
     socket_server(rev_encoder)
