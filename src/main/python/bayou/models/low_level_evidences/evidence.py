@@ -522,7 +522,7 @@ class JavaDoc(Sequences):
         self.vocab = dict()
         self.vocab['None'] = 0
         self.vocab_size = 1
-        self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/home/ubuntu/GoogleNews-vectors-negative300.bin', binary=True)
+        #self.word2vecModel = gensim.models.KeyedVectors.load_word2vec_format('/rm38/GoogleNews-vectors-negative300.bin', binary=True)
         self.n_Dims=300
 
 
@@ -560,15 +560,15 @@ class JavaDoc(Sequences):
     def init_sigma(self, config):
         with tf.variable_scope(self.name):
             #REPLACE BY WORD2VEC
-            # self.emb = tf.get_variable('emb', [self.vocab_size, self.units])
+            self.emb = tf.get_variable('emb', [self.vocab_size, self.n_Dims])
 
-            vecrep_words = np.zeros((self.vocab_size,self.n_Dims), dtype=np.float32)
-            for key in self.vocab:
-            	vocab_ind = self.vocab[key]
-            	if key in self.word2vecModel:
-            		vecrep_words[vocab_ind] = self.word2vecModel[key]
+            #vecrep_words = np.zeros((self.vocab_size,self.n_Dims), dtype=np.float32)
+            #for key in self.vocab:
+            #	vocab_ind = self.vocab[key]
+            # 	if key in self.word2vecModel:
+            #		vecrep_words[vocab_ind] = self.word2vecModel[key]
 
-            self.emb = tf.Variable(vecrep_words, name='emb',trainable=True)
+            #self.emb = tf.Variable(vecrep_words, name='emb',trainable=True)
         # with tf.variable_scope('global_sigma', reuse=tf.AUTO_REUSE):
             #self.sigma = tf.Variable(0.10, name='sigma', trainable=True) #tf.get_variable('sigma', [])
             self.sigma = tf.get_variable('sigma', [])

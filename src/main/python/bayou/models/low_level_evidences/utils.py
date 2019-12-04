@@ -51,7 +51,7 @@ def get_var_list():
     javadoc_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/mean/javadoc') + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope='Encoder/javadoc')
 
     surrounding_vars = []
-    for ev in ['classtype' , 'sorrreturntype' , 'sorrformalparam' , 'sorrcallsequences']:
+    for ev in ['method_name', 'class_name','javadoc','surrounding_evidence', 'classtype']:
           mean = 'Encoder/mean/' + ev
           sigma = 'Encoder/' + ev
           surrounding_vars += tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope=mean) + tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,scope=sigma)
