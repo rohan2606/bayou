@@ -31,9 +31,13 @@ from sklearn import decomposition
 from scripts.ast_extractor import get_ast_paths
 from bayou.models.low_level_evidences.predict import BayesianPredictor
 from bayou.models.low_level_evidences.utils import read_config
+from bayou.models.low_level_evidences.utils import gather_calls
+import bayou.models.low_level_evidences.evidence
+
 
 from bayou.experiments.predictMethods.SearchDB.utils import get_ast_dict
 from  copy import deepcopy
+from itertools import chain
 
 print("Loading AST Dictionary")
 dict_ast = get_ast_dict()
@@ -55,27 +59,27 @@ def plot(clargs):
 
 
      # Plot with all Evidences
-    print('Plot with API , Types and Keywords')
-    with open(clargs.input_file[0], 'rb') as f:
-        deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[:4])])
+    #print('Plot with API , Types and Keywords')
+    #with open(clargs.input_file[0], 'rb') as f:
+    #    deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[:4])])
 
 
-    print('Plot with all surrounding evidences')
-     # Plot with all Evidences
-    with open(clargs.input_file[0], 'rb') as f:
-        deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[7:])])
+    #print('Plot with all surrounding evidences')
+    # # Plot with all Evidences
+    #with open(clargs.input_file[0], 'rb') as f:
+    #    deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[4:])])
 
 
-    print('Plot with all evidences')
-     # Plot with all Evidences
-    with open(clargs.input_file[0], 'rb') as f:
-        deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence)])
+    #print('Plot with all evidences')
+    # # Plot with all Evidences
+    #with open(clargs.input_file[0], 'rb') as f:
+    #    deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence)])
     
 
 
-    #print('Reverse Encoder Plot')
-    #with open(clargs.input_file[0], 'rb') as f:
-    #    useAttributeAndScatter(f, 'b2')
+    print('Reverse Encoder Plot')
+    with open(clargs.input_file[0], 'rb') as f:
+        useAttributeAndScatter(f, 'b2')
 
 
 def useAttributeAndScatter(f, att, max_nums=10000):
@@ -84,7 +88,7 @@ def useAttributeAndScatter(f, att, max_nums=10000):
     item_num = 0
     for program in ijson.items(f, 'programs.item'):
         key = program['file'] + "/" + program['method']
-        api_call = get_api(get_calls_from_ast(eval(dict_ast[key])['_nodes']))
+        api_call = get_api(get_calls_from_ast(eval(dict_ast[key])['ast']['_nodes']))
         if api_call != 'N/A':
             labels.append(api_call)
             if att not in program:
@@ -124,8 +128,7 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
         if del_file:
              del program['file']
 
-
-        shortProgram = {'ast':eval(dict_ast[key])}
+        shortProgram = {'ast':program['ast'] } #eval(dict_ast[key])}
         red_flag = False
         for ev in evList:
             if ev.name == "callsequences":
@@ -184,9 +187,9 @@ def fitTSEandplot(psis, labels, name):
     scatter(clargs, zip(psis_2d, labels), name)
 
 def get_api(calls):
-    calls = [call.replace('$NOT$', '') for call in calls]
-    apis = [[re.findall(r"[\w']+", call)[:3]] for call in calls]
-    apis = [call for _list in apis for calls in _list for call in calls]
+    #calls = [call.replace('$NOT$', '') for call in calls]
+    #apis = [[re.findall(r"[\w']+", call)[:3]] for call in calls]
+    apis = calls #/keywor/[call for _list in apis for calls in _list for call in calls]
     label = "N/A"
     guard = []
     for api in apis:
@@ -202,6 +205,7 @@ def get_api(calls):
 
 
 def scatter(clargs, data, name):
+
     dic = {}
     for psi_2d, label in data:
         if label == 'N/A':
@@ -216,27 +220,48 @@ def scatter(clargs, data, name):
         del dic[label]
 
 
-    labels = dic.keys()
+    #labels = dic.keys()
+    labels = ['swing', 'awt', 'security', 'math', 'sql', 'net' ,'xml', 'crypto' ]
     colors = cm.rainbow(np.linspace(0, 1, len(dic)))
+
+    #print(labels)
+    #print(colors)   
+
+    fig = plt.figure()    
+    ax = plt.subplot(111)    
+
     plotpoints = []
     for label, color in zip(labels, colors):
         x = list(map(lambda s: s[0], dic[label]))
         y = list(map(lambda s: s[1], dic[label]))
         plotpoints.append(plt.scatter(x, y, color=color))
 
-    plt.legend(plotpoints, labels, scatterpoints=1, loc='lower left', ncol=3, fontsize=12)
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                 box.width, box.height * 0.9])
+
+    plt.legend(plotpoints, labels, scatterpoints=1, loc='upper center',  bbox_to_anchor=(0.5, -0.055), ncol=4, fontsize=13, fancybox=True, shadow=True)
     plt.axhline(0, color='black')
     plt.axvline(0, color='black')
-    plt.savefig(os.path.join(os.getcwd(), "plots/tSNE_" + name + ".jpeg"), bbox_inches='tight')
+    # Put a legend below current axis
+    #ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
+    #      fancybox=True, shadow=True, ncol=3)
+    plt.rcParams.update({'font.size': 14})
+    plt.savefig(os.path.join(os.getcwd(), "plots/tSNE_" + name + ".png"), bbox_inches='tight')
     # plt.show()
 
 
 def get_calls_from_ast(ast):
-    calls = []
-    _, ast_paths = get_ast_paths(ast)
-    for path in ast_paths:
-        calls += [call[0] for call in path]
-    return calls
+    
+    #sample = dict(program)
+    calls = gather_calls(ast) #program['ast'])
+    apicalls = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.APICalls.from_call(call)
+                                             for call in calls])))
+    types = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Types.from_call(call)
+                                          for call in calls])))
+    keywords = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.Keywords.from_call(call)
+                                                    for call in calls])))
+    return keywords
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
