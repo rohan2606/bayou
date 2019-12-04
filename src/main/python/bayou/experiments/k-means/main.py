@@ -37,10 +37,10 @@ from bayou.experiments.predictMethods.SearchDB.utils import get_api_dict,get_ast
 def load_desires():
     print("Loading API Dictionary")
     dict_api_calls = get_api_dict()
-    print("Loading AST Dictionary")
+    #print("Loading AST Dictionary")
     dict_ast = None #get_ast_dict()
-    print("Loading Seq Dictionary")
-    dict_seq = get_sequence_dict()
+    #print("Loading Seq Dictionary")
+    dict_seq = None# get_sequence_dict()
     return dict_api_calls, dict_ast, dict_seq
 
 
@@ -51,18 +51,24 @@ def plotter(matrix, vector, name='temp'):
     num_centroids = len(vector) 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    cax = ax.matshow(matrix, interpolation='nearest')
-    fig.colorbar(cax)
+    cax = ax.matshow(matrix, interpolation='nearest' , cmap=matplotlib.cm.get_cmap('Blues'))
+    cax.set_clim(0.0, 0.5)
+    cbar = fig.colorbar(cax)
+    cbar.set_label('Average Jaccard Similarity', size=14)
+    cbar.ax.tick_params(labelsize=14)
+
     xticks = list(range(num_centroids))
     yticks = list(range(num_centroids))
 
     ax.set_xticks(xticks)
-    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] )
+    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] , fontsize=14)
     ax.set_yticks(yticks)
-    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] )
+    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] , fontsize=14)
+    ax.xaxis.set_ticks_position('top')
 
-    plt.xlabel('cluster number',fontsize=11)
-    plt.ylabel('cluster number',fontsize=11)
+
+    plt.xlabel('Cluster Number',fontsize=14)
+    plt.ylabel('Cluster Number',fontsize=14)
     plt.savefig(name + '.png')
     with open(name + '.json','w') as f:
          json.dump({'jaccard_intra_cluster':vector},f,indent=4)
@@ -95,11 +101,11 @@ def main(clargs):
 
     plotter(jac_api_matrix, jac_api_vector, name='api_jaccard')
 
-    print('Seq Calls Jaccard Calculations')
-    with open(clargs.input_file[0], 'rb') as f:
-        jac_seq_matrix, jac_seq_vector = call_k_means(f, clargs.index, dict_seq, num_centroids=num_centroids)
+    #print('Seq Calls Jaccard Calculations')
+    #with open(clargs.input_file[0], 'rb') as f:
+    #    jac_seq_matrix, jac_seq_vector = call_k_means(f, clargs.index, dict_seq, num_centroids=num_centroids)
 
-    plotter(jac_seq_matrix, jac_seq_vector, name='seq_jaccard')
+    #plotter(jac_seq_matrix, jac_seq_vector, name='seq_jaccard')
 
     #print('AST Jaccard Calculations')
     #with open(clargs.input_file[0], 'rb') as f:
