@@ -1,5 +1,7 @@
 import tensorflow as tf
-import bayou.models.low_level_evidences.predict
+import bayou.models.non_prob.predict
+
+
 import argparse
 import sys
 import socket
@@ -11,14 +13,15 @@ class Predictor:
         #set clargs.continue_from = True while testing, it continues from old saved config
         clargs.continue_from = True
         print('Loading Model, please wait _/\_ ...')
-        model = bayou.models.low_level_evidences.predict.BayesianPredictor
+        model = bayou.models.non_prob.predict.BayesianPredictor
 
         sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, sess, batch_size=1)# goes to predict.BayesianPredictor
+        self.predictor = model(clargs.save, sess) #, batch_size=500)# goes to predict.BayesianPredictor
 
         print ('Model Loaded, All Ready to Predict Evidences!!')
 
         return
+
 
 
 class Encoder_Model:
@@ -28,8 +31,8 @@ class Encoder_Model:
         return
 
     def get_latent_space(self, program):
-        _, EncA, EncB = self.predictor.predictor.get_psi_encoder(program)
-        return _, EncA, EncB
+        psi_enc = self.predictor.predictor.get_psi_encoder(program)
+        return psi_enc
 
 
 def socket_server(encoder):
@@ -46,12 +49,8 @@ def socket_server(encoder):
 	         data.decode()
 	         if not data: break
 	         #from_client += data
-	         print(data)
-	         _, eA, eB = encoder.get_latent_space(json.loads(data))
-	         eA = eA[0].item()
-	         eB = [val.item() for val in eB[0]] 	 
-	         #send_data='i am server'
-	         js = {'eA':eA, 'eB':eB}
+	         psi_enc = encoder.get_latent_space(json.loads(data))
+	         js = {'psi_enc':[psi.item() for psi in psi_enc[0]]}
 	         send_data = json.dumps(js)
 	         conn.send(send_data.encode())
 	conn.close()
@@ -67,7 +66,7 @@ if __name__ == "__main__":
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
     help='set recursion limit for the Python interpreter')
 
-    parser.add_argument('--save', type=str, default='/home/ubuntu/save_500_new_drop_skinny_seq_surr_cont')
+    parser.add_argument('--save', type=str, default='/home/ubuntu/savedSearchModel_non_prob_old_v2')
 
     clargs = parser.parse_args()
     sys.setrecursionlimit(clargs.python_recursion_limit)
@@ -75,7 +74,6 @@ if __name__ == "__main__":
 
     pred = Predictor()
     encoder = Encoder_Model(pred)
-    
+
     socket_server(encoder)
-    
 

@@ -27,17 +27,16 @@ import re
 
 import time
 import ijson
-from bayou.experiments.predictMethods_non_prob.SearchDB.parallelReadJSON import parallelReadJSON
-from bayou.experiments.predictMethods_non_prob.SearchDB.searchFromDB import searchFromDB
-from bayou.experiments.predictMethods_non_prob.SearchDB.Embedding import EmbeddingBatch
+import json
+
 
 from bayou.experiments.predictMethods_non_prob.SearchDB.utils import get_jaccard_distace_api
 
 
-import bayou.models.non_prob.predict
 from bayou.experiments.human_input.extract_evidence import extract_evidence
 
 import subprocess
+import socket
 
 class Java_Reader:
 
@@ -46,7 +45,7 @@ class Java_Reader:
         subprocess.call(['java', '-jar', \
         '/home/ubuntu/bayou/tool_files/maven_3_3_9/dom_driver/target/dom_driver-1.0-jar-with-dependencies.jar', \
         '-f', filepath, '-c', '/home/ubuntu/bayou/Java-prog-extract-config.json', \
-        '-o', 'problems/output.json'])
+        '-o', 'log/output.json'])
         return
 
     def getExampleJsons(logdir, items):
@@ -56,60 +55,31 @@ class Java_Reader:
         return extracted_ev
 
 
-
-class Predictor:
-
-    def __init__(self):
-        #set clargs.continue_from = True while testing, it continues from old saved config
-        clargs.continue_from = True
-        print('Loading Model, please wait _/\_ ...')
-        model = bayou.models.non_prob.predict.BayesianPredictor
-
-        sess = tf.InteractiveSession()
-        self.predictor = model(clargs.save, sess) #, batch_size=500)# goes to predict.BayesianPredictor
-
-        print ('Model Loaded, All Ready to Predict Evidences!!')
-
-        return
+def client_socket_database(st):
+	client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	client.connect((socket.gethostname(), 5001))
+	byt = st.encode()
+	client.send(byt)
+	from_server = client.recv(1000000)
+	from_server.decode()
+	client.close()
+	return from_server
 
 
-class Encoder_Model:
-
-    def __init__(self, predictor):
-        self.predictor = predictor
-        return
-
-    def get_latent_space(self, program):
-        psi_enc = self.predictor.predictor.get_psi_encoder(program)
-        return psi_enc
 
 
-class Rev_Encoder_Model:
-    def __init__(self, db_location):
-        self.numThreads = 30
-        self.batch_size = 1
-        self.minJSONs = 1
-        self.maxJSONs = 10
-        self.dimension = 256
-        self.topK = 10
-        self.db_location = db_location
-        self.scanner = self.get_database_scanner()
-        return
-
-    def get_database_scanner(self):
-
-        JSONReader = parallelReadJSON(self.db_location, numThreads=self.numThreads, dimension=self.dimension, batch_size=self.batch_size, minJSONs=self.minJSONs , maxJSONs=self.maxJSONs)
-        listOfColDB = JSONReader.readAllJSONs()
-        scanner = searchFromDB(listOfColDB, self.topK, self.batch_size)
-        return scanner
+def client_socket(st):
+	client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	client.connect((socket.gethostname(), 5000))
+	byt = st.encode()
+	client.send(byt)
+	from_server = client.recv(1000000)
+	from_server.decode()
+	client.close()
+	return from_server
 
 
-    def get_result(self, ev_psi):
-        embIt_json = [{'ev_psi':ev_psi}]
-        embIt_batch = EmbeddingBatch(embIt_json, 1, 256)
-        topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = self.numThreads)
-        topKProgs = topKProgsBatch[0]
-        return [prog.body for prog in topKProgs]
+
 
 
 
@@ -130,27 +100,59 @@ if __name__ == "__main__":
     sys.setrecursionlimit(clargs.python_recursion_limit)
 
     print(clargs.input_file)
-    # initiate the server
-    pred = Predictor()
-    encoder = Encoder_Model(pred)
-    #rev_encoder = Rev_Encoder_Model_2(pred)
-    rev_encoder = Rev_Encoder_Model(clargs.db_location)
+
+
+
+
+
+    if not os.path.exists('log'):
+       os.makedirs('log')
+
+    psi_encs = []
+    programs = []
+    if os.path.isfile(clargs.input_file[0]):
+        qry_files = [clargs.input_file[0]]
+    elif os.path.isdir(clargs.input_file[0]):
+        qry_files = []
+        for filename in sorted(os.listdir(clargs.input_file[0])):
+            if os.path.isfile(clargs.input_file[0] + '/' + filename):
+                 qry_files.append(clargs.input_file[0] + '/' + filename)
+
+
+    for j, filename in enumerate(qry_files):
+    	Java_Reader.useDomDriver(filename)
+
+    	input_qry_lines = open(filename).read().split('\n')
+    	output_qry_lines = []
+    	for line in input_qry_lines:
+    	    out_line = line.replace('PDB_FILL','CODE_SEARCH')
+    	    out_line = out_line.replace('None','<?>')
+    	    output_qry_lines.append(out_line + '\n')
+
+    	log_folder = 'log/' + 'qry_' + str(j) + '/'
+    	if not os.path.exists(log_folder):
+    	    os.makedirs(log_folder)
+    	with open(log_folder + 'query.java', 'w') as f:
+    	     f.writelines(output_qry_lines)
+
+
+    	program = Java_Reader.getExampleJsons( 'log/output.json',10)
+
+
+    	with open(log_folder + 'output_wSurr.json', 'w') as f:
+    	     json.dump(json.loads(program), f, indent=4)
+
+    	server_data = client_socket(program)
+    	server_data = json.loads(server_data)
+    	psi_enc = server_data['psi_enc']
+    	psi_encs.append(psi_enc)
+    	programs.append(program)
 
     # get the input JSON
-    filename = clargs.input_file[0]
-    Java_Reader.useDomDriver(filename)
 
-    programs = Java_Reader.getExampleJsons('problems/output.json',10)
 
-    print(programs)
-    print("=====================================")
-    #get the probs
+    all_qry_progs = {'psis_encs':psi_encs}
+    server_data = client_socket_database(json.dumps(all_qry_progs))
+    server_data.decode()
+    print(server_data)
 
-    print("=====================================")
-    ev_psi = encoder.get_latent_space(json.loads(programs))
-    rev_encoder_top_progs = rev_encoder.get_result(ev_psi[0])[:rev_encoder.topK]
-
-    for j, top_prog in enumerate(rev_encoder_top_progs):
-       print('Rank ::' +  str(j))
-       print(top_prog)
-    print("=====================================")

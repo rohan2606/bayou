@@ -103,7 +103,10 @@ if __name__ == "__main__":
             if os.path.isfile(clargs.input_file[0] + '/' + filename):
                  qry_files.append(clargs.input_file[0] + '/' + filename)
     
-    for j, filename in enumerate(qry_files): 
+    for j, filename in enumerate(qry_files):
+ 
+
+    	print(j, filename)
     	Java_Reader.useDomDriver(filename)
 
     	input_qry_lines = open(filename).read().split('\n')
@@ -120,7 +123,7 @@ if __name__ == "__main__":
     	     f.writelines(output_qry_lines)
 
 
-    	program = Java_Reader.getExampleJsons( 'log/output.json',10)
+    	program = Java_Reader.getExampleJsons( 'log/output.json',15)
 
 
     	with open(log_folder + 'output_wSurr.json', 'w') as f:
