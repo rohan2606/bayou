@@ -54,21 +54,21 @@ def plotter(matrix, vector, name='temp'):
     cax = ax.matshow(matrix, interpolation='nearest' , cmap=matplotlib.cm.get_cmap('Blues'))
     cax.set_clim(0.0, 0.5)
     cbar = fig.colorbar(cax)
-    cbar.set_label('Average Jaccard Similarity', size=14)
-    cbar.ax.tick_params(labelsize=14)
+    cbar.set_label('Average Jaccard Similarity', size=16)
+    cbar.ax.tick_params(labelsize=16)
 
     xticks = list(range(num_centroids))
     yticks = list(range(num_centroids))
 
     ax.set_xticks(xticks)
-    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] , fontsize=14)
+    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] , fontsize=16)
     ax.set_yticks(yticks)
-    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] , fontsize=14)
-    ax.xaxis.set_ticks_position('top')
+    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] , fontsize=16)
+    ax.xaxis.set_ticks_position('bottom')
 
 
-    plt.xlabel('Cluster Number',fontsize=14)
-    plt.ylabel('Cluster Number',fontsize=14)
+    plt.xlabel('Cluster Number',fontsize=16)
+    plt.ylabel('Cluster Number',fontsize=16)
     plt.savefig(name + '.png')
     with open(name + '.json','w') as f:
          json.dump({'jaccard_intra_cluster':vector},f,indent=4)
@@ -114,7 +114,7 @@ def main(clargs):
     return
 
 
-def call_k_means(f, att, dict_api_calls, max_nums=100000, num_centroids=20):
+def call_k_means(f, att, dict_api_calls, max_nums=100000, num_centroids=10):
     psis = []
     apis = []
     item_num = 0
