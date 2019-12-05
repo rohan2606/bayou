@@ -27,7 +27,7 @@ import pickle
 import time
 import ijson
 from collections import defaultdict
-
+from itertools import chain
 
 from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
 from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
@@ -39,6 +39,10 @@ import bayou.models.low_level_evidences.predict
 from bayou.models.low_level_evidences.test import get_c_minus_cstar
 
 from functools import reduce
+
+import bayou.models.low_level_evidences.evidence
+from bayou.models.low_level_evidences.utils import gather_calls
+import scripts.ast_extractor
 
 print("Loading API Dictionary")
 dict_api_calls = defaultdict(str) #get_api_dict()
@@ -63,7 +67,7 @@ class Predictor:
     def __init__(self, prob_mode=True):
         #set clargs.continue_from = True while testing, it continues from old saved config
 
-        self.batch_size = 2000
+        self.batch_size = 1000
         clargs.continue_from = True
         print('Loading Model, please wait _/\_ ...')
         model = bayou.models.low_level_evidences.predict.BayesianPredictor
@@ -221,30 +225,31 @@ class Decoder_Model:
 
     def get_cutoffed_progs(self, progs, cutoff, type):
 
-       index = self.map_type_2_idx(type)
-       progs = [ prog[index] for prog in progs[:cutoff]]
-       other_programs = [ prog[index] for prog in self.golden_programs[:cutoff] ]
+       #index = self.map_type_2_idx(type)
+       progs = [ prog for prog in progs[:cutoff]]
+       other_programs = [ prog for prog in self.golden_programs[:cutoff] ]
        return progs, other_programs
+
+   
+    def get_apicalls(self, program_ast):
+       calls = gather_calls(program_ast['prog_ast']['ast']['_nodes'])
+       apicalls = list(set(chain.from_iterable([bayou.models.low_level_evidences.evidence.APICalls.from_call(call)
+                                                for call in calls])))
+       return apicalls
 
 
     def get_distances(self, progs, cutoff=None, type='body'):
-       progs, other_programs = self.get_cutoffed_progs(progs, cutoff, type) 
-       count1 = 0.000 # to avoid recursion probability
-       count2 = 0.000 # 
+       progs, other_programs = self.get_cutoffed_progs(progs, cutoff, type)
+       other_programs =  [item[1] for item in other_programs] #self.get_cutoffed_progs(progs, cutoff, type)
+       progs =  [item[1] for item in progs] #self.get_cutoffed_progs(progs, cutoff, type)
+       jaccard = 0.000 # to avoid recursion probability
        for prog1 in progs:
+           apis1 = self.get_apicalls(prog1) 
            for prog2 in other_programs:
-               if prog1 == prog2:
-                   count1 += 1
-                   break
-       for prog1 in other_programs:
-           for prog2 in progs:
-               if prog1 == prog2:
-                   count2 += 1
-                   break
-       count = count1 + count2
-       existence =  count1/len(progs)
-       jaccard = count / (len(progs) + len(other_programs))
-       return round(existence,3) , round(jaccard,3) 
+               apis2 = self.get_apicalls(prog2)
+               jaccard += get_jaccard_distace_api(apis1, apis2)
+       
+       return jaccard/(len(progs) * len(other_programs) ) 
        
    
 
@@ -281,14 +286,14 @@ class Decoder_Model:
             top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)
             json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3])} for item in top_progs[:self.topK]]
             
-            distance100_ex, distance100_jac = self.get_distances(top_progs, 100, type='ast')
-            distance10_ex, distance10_jac = self.get_distances(top_progs, 10, type='ast')
-            distance5_ex, distance5_jac = self.get_distances(top_progs, 5, type='ast')
-            distance3_ex, distance3_jac = self.get_distances(top_progs, 3, type='ast')
-            distance1_ex, distance1_jac = self.get_distances(top_progs, 1, type='ast')
+            distance100_jac = self.get_distances(top_progs, 100, type='ast')
+            distance10_jac = self.get_distances(top_progs, 10, type='ast')
+            distance5_jac = self.get_distances(top_progs, 5, type='ast')
+            distance3_jac = self.get_distances(top_progs, 3, type='ast')
+            distance1_jac = self.get_distances(top_progs, 1, type='ast')
             
         
-            print(f"Monte Carlo Iteration: {mc_iter}, AST : Existence Distance[1/3/5/10/100]: {distance1_ex} / {distance3_ex} / {distance5_ex} / {distance10_ex} / {distance100_ex} /")
+            #print(f"Monte Carlo Iteration: {mc_iter}, AST : Existence Distance[1/3/5/10/100]: {distance1_ex} / {distance3_ex} / {distance5_ex} / {distance10_ex} / {distance100_ex} /")
             print(f"Monte Carlo Iteration: {mc_iter}, AST : Jaccard   Distance[1/3/5/10/100]: {distance1_jac} / {distance3_jac} / {distance5_jac} / {distance10_jac} / {distance100_jac} /")
             probY_iter[mc_iter] = reduce(lambda x,y :x+y , sum_probY)
        
@@ -302,7 +307,7 @@ class Decoder_Model:
                 coeff_of_variations.append(coeff_of_variation)
             print(f"Standard Deviation till iter {mc_iter} is {std_deviations}")
             print(f"Coeff of Variation till iter {mc_iter} is {coeff_of_variations}")
-            distance_jsons = {'AST Exist[1/3/5/10/100]':[distance1_ex, distance3_ex, distance5_ex, distance10_ex, distance100_ex], 'AST Jaccard[1/3/5/10/100]':[distance1_jac, distance3_jac, distance5_jac, distance10_jac, distance100_jac]}
+            distance_jsons = {'Distance[1/3/5/10/100]':[distance1_jac, distance3_jac, distance5_jac, distance10_jac, distance100_jac]}
             deviations_jsons = [str(item) for item in std_deviations]
             variations_jsons = [str(item) for item in coeff_of_variations]
             slowdown = round(total_decoder_time / self.time_base, 3)
@@ -329,7 +334,8 @@ if __name__ == "__main__":
 
     # get the input JSON
     
-    program = {'formalParam':['int[]'] , 'returnType':'List<Integer>'} 
+    #program = {'formalParam':['int[]'] , 'returnType':'List<Integer>'} 
+    program = {'types':['BufferedReader'] , 'apicalls':['readLine']} 
     
 
     print(program)
@@ -337,18 +343,18 @@ if __name__ == "__main__":
     max_cut_off_accept = 100
     pred = Predictor(prob_mode=False)
     encoder = Encoder_Model(pred)
-    rev_encoder_tf = Rev_Encoder_Model_2(pred, topK=max_cut_off_accept)
+    #rev_encoder_tf = Rev_Encoder_Model_2(pred, topK=max_cut_off_accept)
     rev_encoder_cpu = Rev_Encoder_Model(numThreads=8, topK=max_cut_off_accept)
 
     psi, eA, eB = encoder.get_latent_space(program)
 
-    start = time.perf_counter()
-    rev_encoder_top_progs_tf = rev_encoder_tf.get_result(eA[0], eB[0])
-    end = time.perf_counter()
-    rev_enc_exec_time_tf = end - start #.append(end-start)
-    json_top_progs_tf = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3]) } for item in rev_encoder_top_progs_tf]
-    with open('log/golden_prog_logger_tf.json', 'w') as f:
-        json.dump({'Programs':json_top_progs_tf , 'Time':rev_enc_exec_time_tf}, f, indent=4)
+    #start = time.perf_counter()
+    #rev_encoder_top_progs_tf = rev_encoder_tf.get_result(eA[0], eB[0])
+    #end = time.perf_counter()
+    #rev_enc_exec_time_tf = end - start #.append(end-start)
+    #json_top_progs_tf = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3]) } for item in rev_encoder_top_progs_tf]
+    #with open('log/golden_prog_logger_tf.json', 'w') as f:
+    #    json.dump({'Programs':json_top_progs_tf , 'Time':rev_enc_exec_time_tf}, f, indent=4)
     
     start = time.perf_counter()
     rev_encoder_top_progs_cpu = rev_encoder_cpu.get_result(eA[0], eB[0])
@@ -373,7 +379,7 @@ if __name__ == "__main__":
 
     ## Please note that here cpu time is being used but programs are taken from TF. One reason is it is hard to get RT/FP from Program_output.json files if not indexed differently
     ## Second is that there are discrepancies in the result. This is most likely due to precision in a2 and b2 numbers stored in DB. 
-    decoder = Decoder_Model(pred, clargs.mc_iter, rev_enc_exec_time_cpu, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs_tf)
+    decoder = Decoder_Model(pred, clargs.mc_iter, rev_enc_exec_time_cpu, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs_cpu)
     decoder_top_progs = decoder.get_running_comparison(program, psis)
     for top_prog in decoder_top_progs[:10]:
         print(top_prog[3])
