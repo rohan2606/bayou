@@ -158,8 +158,23 @@ class Rev_Encoder_Model_2:
             print(f'Batch# {batch_num}/{len(self.predictor.nodes)}',end='\r')
         print('Done')
 
-        top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)[:self.topK]
-        return top_progs
+        top_progs = sorted(program_db, key=lambda x: x[3], reverse=True) #[:self.topK]
+
+        unq_top_prog_asts = [top_progs[0]] 
+        ptr = 0
+        while(len(unq_top_prog_asts) < 100):
+            ptr = ptr+1
+            red_flag = False
+            new_ast = top_progs[ptr][1]
+            for prog in unq_top_prog_asts:
+                if prog[1]==new_ast:
+                   red_flag = True
+                   break
+            if not red_flag:
+                unq_top_prog_asts.append(top_progs[ptr])
+            
+
+        return unq_top_prog_asts
 
 
 class Rev_Encoder_Model:
@@ -167,7 +182,7 @@ class Rev_Encoder_Model:
         self.numThreads = numThreads
         self.batch_size = 1
         self.minJSONs = 1
-        self.maxJSONs = 25
+        self.maxJSONs = 10
         self.dimension = 256
         self.topK = topK
         self.scanner = self.get_database_scanner()
@@ -201,8 +216,24 @@ class Rev_Encoder_Model:
             fp_temp = prog.form_param
             prog_ast_full = {'prog_ast':prog_ast, 'ret':str(rt_temp), 'fp': str(fp_temp)}
             program_db.append((prog.body, prog_ast_full, dict_api_calls[key], prob))   
-        top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)[:self.topK]
-        return top_progs
+        top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)#[:self.topK]
+                
+        unq_top_prog_asts = [top_progs[0]]
+        ptr = 0
+        while(len(unq_top_prog_asts) < 100):
+            ptr = ptr+1
+            red_flag = False
+            new_ast = top_progs[ptr][1]
+            for prog in unq_top_prog_asts:
+                if prog[1]==new_ast:
+                   red_flag = True
+                   break
+            if not red_flag:
+                unq_top_prog_asts.append(top_progs[ptr])
+
+
+        return unq_top_prog_asts
+
 
 
 class Decoder_Model:
@@ -271,6 +302,7 @@ class Decoder_Model:
                 else:
                     sum_probY[batch_num] = np.logaddexp(sum_probY[batch_num], probYgivenZ)
                 batch_prob = sum_probY[batch_num] - np.log(mc_iter+1)
+
                 for i, js in enumerate(jsons):
                      key = js['file'] + "/" + js['method']
                      prog_ast = eval(dict_ast[key])
@@ -284,13 +316,29 @@ class Decoder_Model:
             total_decoder_time += mc_iter_time
 
             top_progs = sorted(program_db, key=lambda x: x[3], reverse=True)
-            json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3])} for item in top_progs[:self.topK]]
+
+            unq_top_prog_asts = [top_progs[0]]
+            ptr = 0
+            while(len(unq_top_prog_asts) < 100):
+                ptr = ptr+1
+                red_flag = False
+                new_ast = top_progs[ptr][1]
+                for prog in unq_top_prog_asts:
+                    if prog[1]==new_ast:
+                       red_flag = True
+                       break
+                if not red_flag:
+                    unq_top_prog_asts.append(top_progs[ptr])
+
+
+
+            json_top_progs = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3])} for item in unq_top_prog_asts[:self.topK]]
             
-            distance100_jac = self.get_distances(top_progs, 100, type='ast')
-            distance10_jac = self.get_distances(top_progs, 10, type='ast')
-            distance5_jac = self.get_distances(top_progs, 5, type='ast')
-            distance3_jac = self.get_distances(top_progs, 3, type='ast')
-            distance1_jac = self.get_distances(top_progs, 1, type='ast')
+            distance100_jac = self.get_distances(unq_top_prog_asts, 100, type='ast')
+            distance10_jac = self.get_distances(unq_top_prog_asts, 10, type='ast')
+            distance5_jac = self.get_distances(unq_top_prog_asts, 5, type='ast')
+            distance3_jac = self.get_distances(unq_top_prog_asts, 3, type='ast')
+            distance1_jac = self.get_distances(unq_top_prog_asts, 1, type='ast')
             
         
             #print(f"Monte Carlo Iteration: {mc_iter}, AST : Existence Distance[1/3/5/10/100]: {distance1_ex} / {distance3_ex} / {distance5_ex} / {distance10_ex} / {distance100_ex} /")
@@ -335,12 +383,14 @@ if __name__ == "__main__":
     # get the input JSON
     
     #program = {'formalParam':['int[]'] , 'returnType':'List<Integer>'} 
-    program = {'types':['BufferedReader'] , 'apicalls':['readLine']} 
+   # program = {'types':['ArrayList', 'HashMap'] , 'apicalls':['remove', 'add'], 'keywords':['exception', 'time'], 'method':'foo', 'classTypes':['byte', 'int', 'char', 'CallbackHandler'], 'javaDoc':'create a button in panel', 'className':'MyClass'} 
     
+    #program = {'types':['HashMap'], 'apicalls':['put']}
+    program = {'types':['BufferedReader'], 'apicalls':['readline', 'split', 'add']}
 
     print(program)
     # initiate the server
-    max_cut_off_accept = 100
+    max_cut_off_accept = 10000
     pred = Predictor(prob_mode=False)
     encoder = Encoder_Model(pred)
     #rev_encoder_tf = Rev_Encoder_Model_2(pred, topK=max_cut_off_accept)
@@ -363,6 +413,7 @@ if __name__ == "__main__":
     json_top_progs_cpu = [{'Body':item[0], 'ast':item[1], 'apicalls': item[2], 'Prob':str(item[3]) } for item in rev_encoder_top_progs_cpu]
     with open('log/golden_prog_logger_cpu.json', 'w') as f:
         json.dump({'Programs':json_top_progs_cpu , 'Time':rev_enc_exec_time_cpu}, f, indent=4)
+    
     for top_prog in rev_encoder_top_progs_cpu[:10]:
         print(top_prog[3])
         print(top_prog[0])
@@ -378,7 +429,8 @@ if __name__ == "__main__":
          psis.append(psi)
 
     ## Please note that here cpu time is being used but programs are taken from TF. One reason is it is hard to get RT/FP from Program_output.json files if not indexed differently
-    ## Second is that there are discrepancies in the result. This is most likely due to precision in a2 and b2 numbers stored in DB. 
+    ## Second is that there are discrepancies in the result. This is most likely due to precision in a2 and b2 numbers stored in DB.
+     
     decoder = Decoder_Model(pred, clargs.mc_iter, rev_enc_exec_time_cpu, topK=max_cut_off_accept, golden_programs=rev_encoder_top_progs_cpu)
     decoder_top_progs = decoder.get_running_comparison(program, psis)
     for top_prog in decoder_top_progs[:10]:
