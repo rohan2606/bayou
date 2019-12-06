@@ -52,23 +52,23 @@ def plotter(matrix, vector, name='temp'):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     cax = ax.matshow(matrix, interpolation='nearest' , cmap=matplotlib.cm.get_cmap('Blues'))
-    cax.set_clim(0.0, 0.5)
+    cax.set_clim(0.0,  max(vector) )
     cbar = fig.colorbar(cax)
-    cbar.set_label('Average Jaccard Similarity', size=16)
-    cbar.ax.tick_params(labelsize=16)
+    cbar.set_label('Average Jaccard Similarity', size=18)
+    cbar.ax.tick_params(labelsize=18)
 
     xticks = list(range(num_centroids))
     yticks = list(range(num_centroids))
 
     ax.set_xticks(xticks)
-    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] , fontsize=16)
+    ax.set_xticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in xticks] , fontsize=18)
     ax.set_yticks(yticks)
-    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] , fontsize=16)
+    ax.set_yticklabels( [str(val+1) if (val+1)==1 or (val+1)%5==0 else '' for val in yticks] , fontsize=18)
     ax.xaxis.set_ticks_position('bottom')
 
 
-    plt.xlabel('Cluster Number',fontsize=16)
-    plt.ylabel('Cluster Number',fontsize=16)
+    plt.xlabel('Cluster Number',fontsize=18)
+    plt.ylabel('Cluster Number',fontsize=18)
     plt.savefig(name + '.png')
     with open(name + '.json','w') as f:
          json.dump({'jaccard_intra_cluster':vector},f,indent=4)
@@ -195,7 +195,7 @@ def get_jaccard_distace(a,b):
     return distance
 
 
-def k_means(psis, apis, num_centroids = 20, max_cap=200):
+def k_means(psis, apis, num_centroids = 20, max_cap=1000):
 
     centroid, labels = kmeans2(np.array(psis), num_centroids)
     clusters = [[] for _ in range(num_centroids)]
