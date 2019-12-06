@@ -85,7 +85,7 @@ def main(clargs):
         from bayou.models.non_prob.predict import BayesianPredictor
         from bayou.models.non_prob.utils import read_config
     
-    num_centroids = 20
+    num_centroids = 10
 
     sess = tf.InteractiveSession()
     predictor = BayesianPredictor(clargs.save, sess)

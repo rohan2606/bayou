@@ -58,16 +58,16 @@ def plot(clargs):
 
 
 
-     # Plot with all Evidences
+    # Plot with all Evidences
     #print('Plot with API , Types and Keywords')
     #with open(clargs.input_file[0], 'rb') as f:
     #    deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[:4])])
 
 
-    #print('Plot with all surrounding evidences')
-    # # Plot with all Evidences
-    #with open(clargs.input_file[0], 'rb') as f:
-    #    deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[4:])])
+    print('Plot with all surrounding evidences')
+     # Plot with all Evidences
+    with open(clargs.input_file[0], 'rb') as f:
+        deriveAndScatter(f, predictor, [ev for ev in deepcopy(config.evidence[7:])])
 
 
     #print('Plot with all evidences')
@@ -77,9 +77,9 @@ def plot(clargs):
     
 
 
-    print('Reverse Encoder Plot')
-    with open(clargs.input_file[0], 'rb') as f:
-        useAttributeAndScatter(f, 'b2')
+    #print('Reverse Encoder Plot')
+    #with open(clargs.input_file[0], 'rb') as f:
+    #    useAttributeAndScatter(f, 'b2')
 
 
 def useAttributeAndScatter(f, att, max_nums=10000):
@@ -119,7 +119,14 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
             del_method = False
 
 
+
+    cutoff = 100000
+    cutoff_i = 0
     for program in ijson.items(f, 'programs.item'):
+        cutoff_i = cutoff_i + 1
+        if cutoff_i < cutoff:
+             continue
+ 
         key = program['file'] + "/" + program['method']
         
         if del_method:
@@ -129,6 +136,7 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
              del program['file']
 
         shortProgram = {'ast':program['ast'] } #eval(dict_ast[key])}
+        #shortProgram = {'ast':eval(dict_ast[key])['ast']}
         red_flag = False
         for ev in evList:
             if ev.name == "callsequences":
@@ -161,7 +169,9 @@ def deriveAndScatter(f, predictor, evList, max_nums=10000):
         if red_flag is True: #len(evList) == 1 and len(program[evList[0].name]) == 0:
              continue
 
+       
         api_call = get_api(get_calls_from_ast(shortProgram['ast']['_nodes']))
+        #print(api_call)
         if api_call != 'N/A':
             labels.append(api_call)
             psis.append(predictor.get_a1b1(shortProgram)[1][0])
@@ -240,13 +250,16 @@ def scatter(clargs, data, name):
     ax.set_position([box.x0, box.y0 + box.height * 0.1,
                  box.width, box.height * 0.9])
 
-    plt.legend(plotpoints, labels, scatterpoints=1, loc='upper center',  bbox_to_anchor=(0.5, -0.055), ncol=4, fontsize=13, fancybox=True, shadow=True)
+    ax.tick_params(axis="x", labelsize=14)
+    ax.tick_params(axis="y", labelsize=14)
+    plt.legend(plotpoints, labels, scatterpoints=1, loc='upper center',  bbox_to_anchor=(0.5, -0.055), ncol=4, fontsize=14, fancybox=True, shadow=True)
     plt.axhline(0, color='black')
     plt.axvline(0, color='black')
+
     # Put a legend below current axis
     #ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12),
     #      fancybox=True, shadow=True, ncol=3)
-    plt.rcParams.update({'font.size': 14})
+    #plt.rcParams.update({'font.size': 14})
     plt.savefig(os.path.join(os.getcwd(), "plots/tSNE_" + name + ".png"), bbox_inches='tight')
     # plt.show()
 
