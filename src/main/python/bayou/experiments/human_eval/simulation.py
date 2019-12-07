@@ -1,9 +1,10 @@
 import numpy as np
-np.set_printoptions(precision=10)
+import pandas as pd
 
+from copy import deepcopy
 from data import arka, akash, sushovan, swarna, binhang, sourav, meghana, dimitri, raj, letao, yuxin
 
-NUM_USERS = 10
+NUM_USERS = 11
 NUM_USERS_EXP = 1
 
 NUM_EXAMPLES = 15
@@ -11,9 +12,18 @@ NUM_METHODS = 4
 NUM_TRIALS = 100000
 
 
-# For an arbitrarily selected programmer, method A is not better than method B
-# In other words, For an arbitrarily selected programmer, method A is as good as method B
-# Alternate hypothesis, For an arbitrarily selected programmer, method B is better
+#H_0^{A,B} = not (An arbitrary user is more likely to prefer method A 
+#to method B)
+#H_0^{A,B} = An arbitrary user is not more likely to prefer method A to method B
+#H_0^{A,B} = For an arbitrary user method B is at least as good method A
+#H_0^{Rohan's,CodeHow} = For an arbitrary user CodeHow is at least as good Rohan's -> 0.0 (can be rejected) 
+#H_0^{Rohan's,Rohan's} = For an arbitrary user Rohan's is at least as good Rohan's = 1.0 (cannot be rejected)
+#H_0^{CodeHow,Rohan's} = For an arbitrary user Rohan's is at least as good CodeHow's -> 1 (cannot be rejected) 
+#
+#So:
+#
+#H_0^{Rohan's, CodeHow} = An arbitrary user is not more likely to 
+#prefer Rohan's method to CodeHow
 
 
 class User:
@@ -49,8 +59,8 @@ class Hypothesis_Testing:
                             ]
 
         self.method_names  =    ['Codex', 'Non_Prob', 'DeepCodeSearch', 'CodeHow' ]
-        self.user_names =['arka', 'akash', 'sushovan', 'swarna', 'binhang', 'sourav', 'meghana', 'dimitri', 'raj', 'letao']
-        self.user_data = [arka, akash, sushovan, swarna, binhang, sourav, meghana, dimitri, raj, letao]
+        self.user_names =['arka', 'akash', 'sushovan', 'swarna', 'binhang', 'sourav', 'meghana', 'dimitri', 'raj', 'letao', 'yuxin']
+        self.user_data = [arka, akash, sushovan, swarna, binhang, sourav, meghana, dimitri, raj, letao, yuxin]
 
 
         self.list_of_problems = self.define_problems()
@@ -99,49 +109,49 @@ class Hypothesis_Testing:
         idx = np.random.randint(low=0, high=len(self.list_of_users))
         return idx, self.list_of_users[idx]
 
-    def methodB_rated_better_than_methodA(self, user, methodA_id, methodB_id, problem_id):
+    def methodA_rated_better_than_methodB(self, user, methodA_id, methodB_id, problem_id):
         score1 = user.get_problem_ratings(methodA_id, problem_id)
         score2 = user.get_problem_ratings(methodB_id, problem_id)
         if score2 > score1:
-            return 1
-        elif score2 < score1:
             return -1
+        elif score2 < score1:
+            return 1
         else:
             return 0
 
 
-    def get_B_wins_this_person(self, userP, methodA, methodB):
-        BWinsThisPerson = 0;
+    def get_A_wins_this_person(self, userP, methodA, methodB):
+        AWinsThisPerson = 0;
         for j in range(NUM_EXAMPLES): #1 to 15:
           id, userP = self.get_random_user()
           problem_id, problem = self.get_random_problem()
-          BIsBetter = self.methodB_rated_better_than_methodA(userP, methodA.id, methodB.id, problem_id)
-          BWinsThisPerson = BWinsThisPerson + BIsBetter
+          AIsBetter = self.methodA_rated_better_than_methodB(userP, methodA.id, methodB.id, problem_id)
+          AWinsThisPerson = AWinsThisPerson + AIsBetter
 
-        if BWinsThisPerson > 0:
+        if AWinsThisPerson > 0:
             return True #BWinsThisTime++
 
-    def get_B_wins_this_time(self, methodA, methodB):
-        BWinsThisTime = 0
+    def get_A_wins_this_time(self, methodA, methodB):
+        AWinsThisTime = 0
         for i in range(NUM_USERS_EXP): #1 to 10:
             id, userP = self.get_random_user()
-            didBwin = self.get_B_wins_this_person(userP, methodA, methodB)
-            if didBwin:
-                BWinsThisTime = BWinsThisTime + 1
+            didAwin = self.get_A_wins_this_person(userP, methodA, methodB)
+            if didAwin:
+                AWinsThisTime = AWinsThisTime + 1
 
-        if BWinsThisTime > NUM_USERS_EXP/2:
+        if AWinsThisTime > NUM_USERS_EXP/2:
             return True #BWinsThisTime #MethodAAsGood++
 
 
 
     def get_p_value_AtoB(self, methodA, methodB):
-        MethodAAsGood = 0
+        MethodBAsGood = 0
         for attempt in range(NUM_TRIALS):
-            BIsBetter = self.get_B_wins_this_time(methodA, methodB)
-            if not BIsBetter:
-                 MethodAAsGood = MethodAAsGood+1
+            AIsBetter = self.get_A_wins_this_time(methodA, methodB)
+            if not AIsBetter:
+                 MethodBAsGood = MethodBAsGood+1
 
-        p_value = MethodAAsGood/NUM_TRIALS
+        p_value = MethodBAsGood/NUM_TRIALS
         return p_value
 
 
@@ -156,6 +166,27 @@ class Hypothesis_Testing:
         return p_value_matrix
 
 
+def transpose_correlation_matrix(matrixA, id1, id2, col_names):
+    temp = deepcopy(matrixA[id2])
+    matrixA[id2] = matrixA[id1]
+    matrixA[id1] = temp
 
-ps  = Hypothesis_Testing().get_p_value_matrix()
-print(np.matrix(ps))
+    temp = deepcopy(matrixA[:,id2])
+    matrixA[:,id2] = matrixA[:,id1]
+    matrixA[:,id1] = temp
+
+    temp = col_names[id2]
+    col_names[id2] = col_names[id1]
+    col_names[id1] = temp
+    return matrixA, col_names
+
+
+mat  = Hypothesis_Testing().get_p_value_matrix()
+np_mat = np.matrix(mat)
+cols = ["CODEC", "Non-Prob Codec", "Deep Code Search", "CodeHow"]
+#print(pd.DataFrame(np_mat, index=cols,columns=cols))
+
+np_mat, cols = transpose_correlation_matrix(np_mat, 1, 2, cols)
+np_mat, cols = transpose_correlation_matrix(np_mat, 2, 3, cols)
+pd.set_option("display.precision", 8)
+print(pd.DataFrame(np_mat, index=cols,columns=cols))
