@@ -18,4 +18,8 @@ class skinnyProgramInBatch():
 
 
     def stripJavaDoc(self, stringBody):
-        return re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n',''))
+        temp = re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n','') )
+        temp = ' '.join([ word for word in temp.split() if not word.startswith('@') ])
+        temp = temp.replace('private', 'public')
+        return temp
+

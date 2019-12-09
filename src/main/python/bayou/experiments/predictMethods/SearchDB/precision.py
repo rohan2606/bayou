@@ -8,10 +8,10 @@ from utils import *
 
 if __name__=="__main__":
 
-    numThreads = 52
+    numThreads = 45
     batch_size = 5
     minJSONs = 1 #0
-    maxJSONs = 308 #259
+    maxJSONs = 90 #259
     dimension = 256
     topK = 10
 
@@ -39,6 +39,15 @@ if __name__=="__main__":
         hit_counts_first_hit_total_ast = np.zeros(len(hit_points))
         hit_counts_first_hit_total_seq = np.zeros(len(hit_points))
         hit_counts_first_hit_total_api = np.zeros(len(hit_points))
+        mrr_total_body = 0
+        mrr_total_ast = 0
+        mrr_total_seq = 0
+        mrr_total_api = 0
+        firstHitRankTotalBody = 0
+        firstHitRankTotalAst = 0
+        firstHitRankTotalSeq = 0
+        firstHitRankTotalApi = 0
+
         count = 0
 
         # for precision
@@ -61,10 +70,15 @@ if __name__=="__main__":
                 desiredBody, desireAPIcalls, desireSeq, desireAST = get_your_desires( embedding.js[batch_id] )
 
                 # for first hit
-                firstHitRankBody = topK + 1
-                firstHitRankAst = topK + 1
-                firstHitRankSeq = topK + 1
-                firstHitRankApi = topK + 1
+                firstHitRankBody = topK #+ 1
+                firstHitRankAst = topK #+ 1
+                firstHitRankSeq = topK #+ 1
+                firstHitRankApi = topK #+ 1
+                
+                mrr_body = 1./topK #+ 1
+                mrr_ast = 1./topK #+ 1
+                mrr_seq = 1./topK #+ 1
+                mrr_api = 1./topK #+ 1
 
                 # for precision
                 hitPtId = 0
@@ -104,15 +118,19 @@ if __name__=="__main__":
                     # for first hit
                     if ifBodyMatches and j < firstHitRankBody:
                         firstHitRankBody = j
+                        mrr_body = 1./(j+1)
 
                     if ifASTMatches and j < firstHitRankAst:
                         firstHitRankAst = j
+                        mrr_ast = 1./(j+1)
 
                     if ifSeqMatches and j < firstHitRankSeq:
                         firstHitRankSeq = j
+                        mrr_seq = 1./(j+1)
 
                     if ifAPIMatches and j < firstHitRankApi:
                         firstHitRankApi = j
+                        mrr_api = 1./(j+1)
 
                     # for precision
                     hit_counts_jaccard_api[hitPtId] += int(ifAPIMatches)
@@ -125,6 +143,15 @@ if __name__=="__main__":
                     seq_jaccard_dist[hitPtId] += jaccard_distace_sequence
 
 
+                    firstHitRankTotalBody += firstHitRankBody + 1
+                    firstHitRankTotalAst  += firstHitRankAst + 1
+                    firstHitRankTotalSeq  += firstHitRankSeq + 1
+                    firstHitRankTotalApi  += firstHitRankApi + 1
+                    
+                    mrr_total_body += mrr_body
+                    mrr_total_ast += mrr_ast
+                    mrr_total_seq += mrr_seq
+                    mrr_total_api += mrr_api
                     ## For precision calculations
                     if (j+1)  == hit_points[hitPtId]:
                         hitPtId += 1
@@ -159,6 +186,7 @@ if __name__=="__main__":
                 api_jaccard_dist_total += api_jaccard_dist
                 seq_jaccard_dist_total += seq_jaccard_dist
 
+
                 # for storage
                 topProgramDict['first_hit_rank_body'] = firstHitRankBody
                 topProgramDict['first_hit_rank_ast'] = firstHitRankAst
@@ -177,6 +205,18 @@ if __name__=="__main__":
             #for distance
             avg_jaccard_api_dist = np.zeros_like(api_jaccard_dist_total)
             avg_jaccard_seq_dist = np.zeros_like(seq_jaccard_dist_total)
+
+            denom = float(batch_size * (kkk+1))
+            # for firstHit
+            firstHitRankTotalBody /= denom 
+            firstHitRankTotalAst /= denom
+            firstHitRankTotalSeq /= denom
+            firstHitRankTotalApi /= denom
+
+            mrr_total_body /= denom 
+            mrr_total_ast /= denom 
+            mrr_total_seq /= denom 
+            mrr_total_api /= denom 
 
             for i in range(len(hit_points)):
                 denom = float(hit_points[i] * batch_size * (kkk+1))
@@ -215,6 +255,18 @@ if __name__=="__main__":
                 (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(avg_jaccard_api_dist, Type='float')))
                 print('Searched {} Hit_Pts {} :: Distance Seq Match {}'.format
                 (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(avg_jaccard_seq_dist, Type='float')))
+
+                print("Average FRank Values")
+                print('Searched {} :: Average API Frank value {}'.format(batch_size * (kkk+1), firstHitRankTotalApi ))
+                print('Searched {} :: Average Seq Frank value {}'.format(batch_size * (kkk+1), firstHitRankTotalSeq ))
+                print('Searched {} :: Average AST Frank value {}'.format(batch_size * (kkk+1), firstHitRankTotalAst ))
+                print('Searched {} :: Average Exact Frank value {}'.format(batch_size * (kkk+1), firstHitRankTotalBody ))
+                
+                print("Average MRR Values")
+                print('Searched {} :: Average API MRR value {}'.format(batch_size * (kkk+1), mrr_total_api ))
+                print('Searched {} :: Average Seq MRR value {}'.format(batch_size * (kkk+1), mrr_total_seq ))
+                print('Searched {} :: Average AST MRR value {}'.format(batch_size * (kkk+1), mrr_total_ast ))
+                print('Searched {} :: Average Exact MRR value {}'.format(batch_size * (kkk+1), mrr_total_body ))
                 print()
                 with open("../log" + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
                     json.dump({'topPrograms': JSONList}, fp=f, indent=2)

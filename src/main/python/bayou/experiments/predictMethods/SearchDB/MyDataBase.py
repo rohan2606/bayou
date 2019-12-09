@@ -28,18 +28,35 @@ class MyColumnDatabaseWBatch():
 
 
 
-    def topKProgs(self, k=10):
+    def topKProgs(self, k):
 
         topKforBatch = []
         modK = min(k, self.numItems)
         for item in range(self.batch_size):
             topKids = (-self.distance[item]).argsort()[:modK] # slow to get topK
             topKProgs = [(self.programs[_id], self.distance[item][_id] ) for _id in topKids]
+            #topKProgs = self.get_unq_programs_by_body(topKProgs, k)
             topKforBatch.append(topKProgs)
 
         return topKforBatch
 
 
+    def get_unq_programs_by_body(self, programs, topK):
+       unq_top_progs = [programs[0]]
+       ptr = 0
+       while(len(unq_top_progs) < topK):
+           ptr = ptr+1
+           if ptr >= len(programs):
+               break
+           red_flag = False
+           new_prog_body = programs[ptr][0].body
+           for prog in unq_top_progs:
+               if prog[0].body == new_prog_body:
+                  red_flag = True
+                  break
+           if not red_flag:
+               unq_top_progs.append(programs[ptr])
+       return unq_top_progs
 
 
     def measureDistance(self, embedding):
