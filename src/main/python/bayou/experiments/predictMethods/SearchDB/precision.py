@@ -143,15 +143,7 @@ if __name__=="__main__":
                     seq_jaccard_dist[hitPtId] += jaccard_distace_sequence
 
 
-                    firstHitRankTotalBody += firstHitRankBody + 1
-                    firstHitRankTotalAst  += firstHitRankAst + 1
-                    firstHitRankTotalSeq  += firstHitRankSeq + 1
-                    firstHitRankTotalApi  += firstHitRankApi + 1
-                    
-                    mrr_total_body += mrr_body
-                    mrr_total_ast += mrr_ast
-                    mrr_total_seq += mrr_seq
-                    mrr_total_api += mrr_api
+                
                     ## For precision calculations
                     if (j+1)  == hit_points[hitPtId]:
                         hitPtId += 1
@@ -186,6 +178,16 @@ if __name__=="__main__":
                 api_jaccard_dist_total += api_jaccard_dist
                 seq_jaccard_dist_total += seq_jaccard_dist
 
+                 
+                firstHitRankTotalBody += firstHitRankBody + 1
+                firstHitRankTotalAst  += firstHitRankAst + 1
+                firstHitRankTotalSeq  += firstHitRankSeq + 1
+                firstHitRankTotalApi  += firstHitRankApi + 1
+
+                mrr_total_body += mrr_body
+                mrr_total_ast += mrr_ast
+                mrr_total_seq += mrr_seq
+                mrr_total_api += mrr_api
 
                 # for storage
                 topProgramDict['first_hit_rank_body'] = firstHitRankBody
@@ -208,15 +210,15 @@ if __name__=="__main__":
 
             denom = float(batch_size * (kkk+1))
             # for firstHit
-            firstHitRankTotalBody /= denom 
-            firstHitRankTotalAst /= denom
-            firstHitRankTotalSeq /= denom
-            firstHitRankTotalApi /= denom
+            avg_firstHitRankTotalBody = firstHitRankTotalBody/denom
+            avg_firstHitRankTotalAst  = firstHitRankTotalAst/denom
+            avg_firstHitRankTotalSeq  = firstHitRankTotalSeq/denom
+            avg_firstHitRankTotalApi  = firstHitRankTotalApi/denom
 
-            mrr_total_body /= denom 
-            mrr_total_ast /= denom 
-            mrr_total_seq /= denom 
-            mrr_total_api /= denom 
+            avg_mrr_total_body = mrr_total_body/denom
+            avg_mrr_total_ast = mrr_total_ast/denom
+            avg_mrr_total_seq = mrr_total_seq/denom
+            avg_mrr_total_api = mrr_total_api/denom
 
             for i in range(len(hit_points)):
                 denom = float(hit_points[i] * batch_size * (kkk+1))
@@ -257,16 +259,16 @@ if __name__=="__main__":
                 (batch_size * (kkk+1), ListToFormattedString(hit_points, Type='int'), ListToFormattedString(avg_jaccard_seq_dist, Type='float')))
 
                 print("Average FRank Values")
-                print('Searched {} :: Average API Frank value {}'.format(batch_size * (kkk+1), firstHitRankTotalApi ))
-                print('Searched {} :: Average Seq Frank value {}'.format(batch_size * (kkk+1), firstHitRankTotalSeq ))
-                print('Searched {} :: Average AST Frank value {}'.format(batch_size * (kkk+1), firstHitRankTotalAst ))
-                print('Searched {} :: Average Exact Frank value {}'.format(batch_size * (kkk+1), firstHitRankTotalBody ))
+                print('Searched {} :: Average API Frank value {}'.format(batch_size * (kkk+1), avg_firstHitRankTotalApi ))
+                print('Searched {} :: Average Seq Frank value {}'.format(batch_size * (kkk+1), avg_firstHitRankTotalSeq ))
+                print('Searched {} :: Average AST Frank value {}'.format(batch_size * (kkk+1), avg_firstHitRankTotalAst ))
+                print('Searched {} :: Average Exact Frank value {}'.format(batch_size * (kkk+1), avg_firstHitRankTotalBody ))
                 
                 print("Average MRR Values")
-                print('Searched {} :: Average API MRR value {}'.format(batch_size * (kkk+1), mrr_total_api ))
-                print('Searched {} :: Average Seq MRR value {}'.format(batch_size * (kkk+1), mrr_total_seq ))
-                print('Searched {} :: Average AST MRR value {}'.format(batch_size * (kkk+1), mrr_total_ast ))
-                print('Searched {} :: Average Exact MRR value {}'.format(batch_size * (kkk+1), mrr_total_body ))
+                print('Searched {} :: Average API MRR value {}'.format(batch_size * (kkk+1), avg_mrr_total_api ))
+                print('Searched {} :: Average Seq MRR value {}'.format(batch_size * (kkk+1), avg_mrr_total_seq ))
+                print('Searched {} :: Average AST MRR value {}'.format(batch_size * (kkk+1), avg_mrr_total_ast ))
+                print('Searched {} :: Average Exact MRR value {}'.format(batch_size * (kkk+1), avg_mrr_total_body ))
                 print()
                 with open("../log" + "/expNumber_" + str(expNumber) + '/L5TopProgramList.json', 'w') as f:
                     json.dump({'topPrograms': JSONList}, fp=f, indent=2)

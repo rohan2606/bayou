@@ -1,5 +1,6 @@
 import os
 
+# give offset the number you want to start with - 1
 
 offset = 67
 for a in os.listdir():
