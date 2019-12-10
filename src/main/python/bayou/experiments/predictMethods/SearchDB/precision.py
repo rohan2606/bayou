@@ -8,10 +8,10 @@ from utils import *
 
 if __name__=="__main__":
 
-    numThreads = 45
+    numThreads = 52
     batch_size = 5
     minJSONs = 1 #0
-    maxJSONs = 90 #259
+    maxJSONs = 308 #259
     dimension = 256
     topK = 10
 
