@@ -11,11 +11,11 @@ if __name__=="__main__":
     numThreads = 30#0
     batch_size = 5
     minJSONs = 1
-    maxJSONs = 90 #259
+    maxJSONs = 278 #259
     dimension = 256
     topK = 10
 
-    JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, minJSONs=minJSONs , maxJSONs=maxJSONs)
+    JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/Non_Prob_Indexed_Data/', numThreads=numThreads, dimension=dimension, batch_size=batch_size, minJSONs=minJSONs , maxJSONs=maxJSONs)
     listOfColDB = JSONReader.readAllJSONs()
 
     # dicts coming from outside

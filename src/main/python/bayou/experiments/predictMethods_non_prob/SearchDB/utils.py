@@ -99,9 +99,16 @@ def get_sequence_dict():
     return dict_sequence
 
 
+def stripJavaDoc(stringBody):
+    temp = re.sub(r'/\*\*(.*?)\*\/', '', stringBody.replace('\n','') )
+    temp = ' '.join([ word for word in temp.split() if not word.startswith('@') ])
+    temp = temp.replace('private', 'public')
+    return temp
+
+
 def get_your_desires(js):
     # get the desired valuess
-    desiredBody = js['body']
+    desiredBody = stripJavaDoc(js['body'])
     desiredBody = re.sub(r'\*\*(.*?)\*\/', '', desiredBody)
     desireAPIcalls = js['testapicalls']
     desireSeqs = js['testsequences']
