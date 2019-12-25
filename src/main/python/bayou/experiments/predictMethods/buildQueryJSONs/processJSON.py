@@ -89,6 +89,9 @@ def modifyInputForExperiment(sample, expNumber, config):
     sample['testapicalls'] = sample['apicalls']
     sample['method_name_not_ev'] = sample['method']
     sample['file_name_not_ev'] = sample['file']
+    #sample['body_not_ev'] = sample['body']
+    
+    sample['className'] = sample['file'].split('/')[-1]
     del sample['file'] # file deleted so that it is not used as className, which is subsequently used
 
     sample['returnType_not_ev'] = sample['returnType'] if sample['returnType'] in config.evidence[4].vocab else '__UDT__'
@@ -99,28 +102,28 @@ def modifyInputForExperiment(sample, expNumber, config):
     for ev in ['javaDoc', 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
         if ev not in sample:
             return {}
-        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 5 ):
+        if ev == 'javaDoc' and (sample[ev] == None or len(sample[ev].split(" ")) < 2 ):
             return {}
-        if ev == 'Surrounding_Evidences' and len(sample[ev]) < 5:
+        if ev == 'Surrounding_Evidences' and len(sample[ev]) < 1:
             return {}
-        if ev == 'sequences':
-            for elem in sample[ev]:
-                if elem not in sample['apicalls']:
-                    return {}
+        #if ev == 'sequences':
+        #    for elem in sample[ev]:
+        #        if elem not in sample['apicalls']:
+        #            return {}
 
-        if ev == 'returnType' and sample[ev] not in config.evidence[4].vocab:
-             return {}
+        #if ev == 'returnType' and sample[ev] not in config.evidence[4].vocab:
+        #     return {}
 
-        if ev == 'formalParam':
-           for elem in sample[ev]:
-               if elem not in config.evidence[5].vocab:
-                  return {}
+        #if ev == 'formalParam':
+        #   for elem in sample[ev]:
+        #       if elem not in config.evidence[5].vocab:
+        #          return {}
 
 
 
     if expNumber == 0: # onlyJavaDoc
 
-        for ev in [ 'method' , 'className', 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
+        for ev in ['method' , 'className', 'Surrounding_Evidences', 'classTypes', 'sequences', 'returnType', 'formalParam', 'apicalls', 'types', 'keywords']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'
@@ -136,7 +139,7 @@ def modifyInputForExperiment(sample, expNumber, config):
         sample['formalParam'] = ['None']
 
     elif expNumber == 2: # sorrounding plus javadoc
-        for ev in [ 'method' , 'returnType', 'formalParam', 'apicalls', 'types', 'keywords', 'sequences']:
+        for ev in ['method' , 'returnType', 'formalParam', 'apicalls', 'types', 'keywords', 'sequences']:
             if ev in sample:
                 del sample[ev]
         sample['returnType'] = 'None'

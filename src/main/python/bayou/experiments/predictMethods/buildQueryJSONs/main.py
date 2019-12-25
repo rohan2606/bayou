@@ -74,7 +74,8 @@ def runDomDriver(queryFilesSampled, queryFilesInJson, logdir):
 if __name__ == "__main__":
 
     logdir = "../log"
-    queryFilesSampled = logdir + "/L1SampledQueryFileNamesfiles.txt"
+    #queryFilesSampled = logdir + "/L1SampledQueryFileNamesfiles.txt"
+    queryFilesSampled = logdir + "/L1NewTestFiles.txt"
     queryFilesInJson = logdir + '/L3JSONFiles.txt'
 
     #cleanUp(logdir = logdir)
@@ -86,7 +87,7 @@ if __name__ == "__main__":
 
 
     EmbS = embedding_server()
-    for expNumber in range(11):
+    for expNumber in range(7):
          exp_logdir = logdir + "/expNumber_" + str(expNumber)
          count = processJSONs(queryFilesInJson,  exp_logdir, config, expNumber = expNumber)
          EmbS.getEmbeddings(exp_logdir)

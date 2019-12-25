@@ -518,6 +518,11 @@ class FormalParam(Sequences):
         self.vocab[1]['None'] = 0
         self.vocab_size = [1,1]
 
+
+    def placeholder(self, config):
+        # type: (object) -> object
+        return tf.placeholder(tf.int32, [config.batch_size, self.max_depth, self.max_nums])
+
     def word2num(self, listOfWords, id, infer):
         output = []
         for word in listOfWords:
@@ -556,19 +561,22 @@ class FormalParam(Sequences):
 
         fp_types = self.word2num(json_sequence, 0, infer) # 8
 
-        varNames = get_variables(program['body'])[0] # 8*3
-        if 'None' not in json_sequence:
-            varNames.insert(0, 'None')
-            varNames.insert(0, 'None')
 
         list_of_var_name_ids = []
-        for varName in varNames:
-            if infer and varName == 'None':
-                list_of_var_name_ids.append([0])
-            else:
-                tokens = split_words_underscore_plus_camel(varName)
-                var_name_ids = self.word2num(tokens, 1, infer)
-                list_of_var_name_ids.append(var_name_ids)
+        if 'body' in program and 'None' not in json_sequence:
+            varNames = get_variables(program['body'])[0] # 8*3
+            if 'None' not in json_sequence:
+                varNames.insert(0, 'None')
+                varNames.insert(0, 'None')
+
+            list_of_var_name_ids = []
+            for varName in varNames:
+                if infer and varName == 'None':
+                    list_of_var_name_ids.append([0])
+                else:
+                    tokens = split_words_underscore_plus_camel(varName)
+                    var_name_ids = self.word2num(tokens, 1, infer)
+                    list_of_var_name_ids.append(var_name_ids)
 
         return [fp_types, list_of_var_name_ids]
 

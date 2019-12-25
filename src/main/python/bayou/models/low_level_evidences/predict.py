@@ -73,7 +73,7 @@ class BayesianPredictor(object):
         with tf.variable_scope("Reverse_Encoder"):
             embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
             embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
-            embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
+            embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size[0], config.reverse_encoder.units])
             self.reverse_encoder = BayesianReverseEncoder(config, embAPI, nodes, edges, self.ret_type_placeholder, embRT, self.formal_param_placeholder, embFS)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
             
@@ -101,7 +101,7 @@ class BayesianPredictor(object):
             initial_state_RE = tf.nn.xw_plus_b(self.psi_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
 
             input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(self.ret_type_placeholder), axis=[1]))
-            output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4])
+            output = SimpleDecoder(config, emb_RE, initial_state_RE, input_RE, config.evidence[4], config.evidence[4].vocab_size)
 
             projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
             projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
@@ -122,11 +122,11 @@ class BayesianPredictor(object):
             initial_state_FS = tf.nn.xw_plus_b(self.psi_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS")
 
             input_FS = tf.transpose(tf.reverse_v2(self.formal_param_placeholder, axis=[1]))
-            self.decoder_FS = SimpleDecoder(config, emb_FS, initial_state_FS, input_FS, config.evidence[5])
+            self.decoder_FS = SimpleDecoder(config, emb_FS, initial_state_FS, input_FS, config.evidence[5], config.evidence[5].vocab_size[0])
 
             output = tf.reshape(tf.concat(self.decoder_FS.outputs, 1), [-1, self.decoder_FS.cell1.output_size])
             logits_FS = tf.matmul(output, self.decoder_FS.projection_w_FS) + self.decoder_FS.projection_b_FS
-            logits_FS = tf.reshape(logits_FS, (config.batch_size, config.evidence[5].max_depth, config.evidence[5].vocab_size))
+            logits_FS = tf.reshape(logits_FS, (config.batch_size, config.evidence[5].max_depth, config.evidence[5].vocab_size[0]))
 
             # logits_FS = output
             targets_FS = tf.reverse_v2(tf.concat( [ tf.zeros_like(self.formal_param_placeholder[:,-1:]) , self.formal_param_placeholder[:, :-1]], axis=1) , axis=[1])
@@ -258,8 +258,9 @@ class BayesianPredictor(object):
         config = self.config
         raw_evidences = [rdp for j in range(self.config.batch_size)]
         raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
-        raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
-        raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
+        raw_evidences = [ev.transpose(raw_evidence) for ev, raw_evidence in zip(config.evidence, raw_evidences)]
+        #raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
+        #raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
         rdp = raw_evidences
 
         # inputs = [ev.wrangle([ev_rdp for i in range(self.config.batch_size)]) for ev, ev_rdp in zip(self.config.evidence, rdp)]
@@ -314,7 +315,7 @@ class BayesianPredictor(object):
         feed[self.edges.name] = edges
         feed[self.targets.name] = targets
         feed[self.ret_type_placeholder] = inputs[4] 
-        feed[self.formal_param_placeholder] = inputs[5] 
+        feed[self.formal_param_placeholder] = inputs[5][:,:,0] 
 
         [EncA, EncB, RevEncA, RevEncB, probY] = self.sess.run( [  self.EncA, self.EncB , self.RevEncA, self.RevEncB , self.probY ] , feed )
         return EncA, EncB, RevEncA, RevEncB, probY, ignored
