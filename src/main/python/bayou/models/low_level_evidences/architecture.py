@@ -114,7 +114,7 @@ class BayesianDecoder(object):
 
 
 class SimpleDecoder(object):
-    def __init__(self, config, emb, initial_state, nodes, ev_config):
+    def __init__(self, config, emb, initial_state, nodes, ev_config, vocab_size):
 
         cells1 = []
         for _ in range(config.decoder.num_layers):
@@ -129,8 +129,8 @@ class SimpleDecoder(object):
         # projection matrices for output
         with tf.variable_scope("projections_FS"):
             self.projection_w_FS = tf.get_variable('projection_w_FS', [self.cell1.output_size,
-                                                                 ev_config.vocab_size])
-            self.projection_b_FS = tf.get_variable('projection_b_FS', [ev_config.vocab_size])
+                                                                 vocab_size])
+            self.projection_b_FS = tf.get_variable('projection_b_FS', [vocab_size])
             # tf.summary.histogram("projection_w", self.projection_w)
             # tf.summary.histogram("projection_b", self.projection_b)
 

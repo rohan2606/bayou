@@ -14,7 +14,7 @@
 
 from __future__ import print_function
 import json
-import ijson.backends.yajl2_cffi as ijson
+import ijson #.backends.yajl2_cffi as ijson
 import numpy as np
 import random
 import os
@@ -43,7 +43,10 @@ class Reader():
             print('Loading Data')
             with open('data/inputs.npy', 'rb') as f:
                 self.inputs = pickle.load(f)
-            # with open(, 'rb') as f:
+            self.input_var_names = np.load('data/var_names.npy')
+
+            self.inputs[5] = np.concatenate( [np.expand_dims(self.inputs[5], axis=2), self.input_var_names], axis=2  )
+
             self.nodes = np.load('data/nodes.npy')
             self.edges = np.load('data/edges.npy')
             self.targets = np.load('data/targets.npy')
@@ -67,26 +70,20 @@ class Reader():
             print('Reading data file...')
             raw_evidences, raw_targets, js_programs = self.read_data(clargs.input_file[0], infer, save=clargs.save)
 
+            # transpose the raw evidence matrix
             raw_evidences = [[raw_evidence[i] for raw_evidence in raw_evidences] for i, ev in enumerate(config.evidence)]
-            raw_evidences[-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1]] for j in range(len(config.surrounding_evidence))] # for
-            raw_evidences[-1][-1] = [[raw_evidence[j] for raw_evidence in raw_evidences[-1][-1]] for j in range(2)] # is
 
-
+            raw_evidences = [ev.transpose(raw_evidence) for ev, raw_evidence in zip(config.evidence, raw_evidences)]
             config.num_batches = int(len(raw_targets) / config.batch_size)
 
             ################################
 
             assert config.num_batches > 0, 'Not enough data'
             sz = config.num_batches * config.batch_size
-            for i in range(len(config.evidence)-1): #-1 to leave surrounding evidences
-                raw_evidences[i] = raw_evidences[i][:sz]
-
-            for i in range(len(config.surrounding_evidence)-1): #-1 to leave formal params
-                raw_evidences[-1][i] = raw_evidences[-1][i][:sz]
+            for i, (ev, data) in enumerate(zip(config.evidence, raw_evidences)):
+                raw_evidences[i] = ev.truncate(data, sz)
 
 
-            for j in range(2):
-                raw_evidences[-1][-1][j] = raw_evidences[-1][-1][j][:sz]
 
             raw_targets = raw_targets[:sz]
             js_programs = js_programs[:sz]
@@ -113,14 +110,11 @@ class Reader():
             self.js_programs = js_programs
 
             print('Done!')
-            # del raw_evidences
-            # del raw_targets
-            # gc.collect()
 
             print('Saving...')
             with open('data/inputs.npy', 'wb') as f:
                 pickle.dump(self.inputs, f, protocol=4) #pickle.HIGHEST_PROTOCOL)
-            # with open(', 'wb') as f:
+
             np.save('data/nodes', self.nodes)
             np.save('data/edges', self.edges)
             np.save('data/targets', self.targets)
@@ -130,8 +124,6 @@ class Reader():
 
             jsconfig = dump_config(config)
             with open(os.path.join(clargs.save, 'config.json'), 'w') as f:
-                json.dump(jsconfig, fp=f, indent=2)
-            with open('data/config.json', 'w') as f:
                 json.dump(jsconfig, fp=f, indent=2)
 
             print("Saved")
@@ -145,11 +137,13 @@ class Reader():
 
         f = open(filename , 'rb')
 
+
         for program in ijson.items(f, 'programs.item'):
             if 'ast' not in program:
                 continue
             try:
                 evidences = [ev.read_data_point(program, infer) for ev in self.config.evidence]
+
                 ast_node_graph = get_ast_from_json(program['ast']['_nodes'])
 
                 ast_node_graph.sibling.check_nested_branch()
@@ -181,10 +175,10 @@ class Reader():
             except (TooLongBranchingException) as e2:
                 ignored_for_branch += 1
 
-            if done % 100000 == 0:
+            if done % 10000 == 0:
                 print('Extracted data for {} programs'.format(done), end='\n')
-                # break
-
+            if done % 1000000 == 0:
+                break
         print('{:8d} programs/asts in training data'.format(done))
         print('{:8d} programs/asts missed in training data for loop'.format(ignored_for_loop))
         print('{:8d} programs/asts missed in training data for branch'.format(ignored_for_branch))

@@ -23,8 +23,11 @@ from collections import Counter
 import gensim
 from bayou.models.low_level_evidences.utils import CONFIG_ENCODER, CONFIG_INFER
 from bayou.models.low_level_evidences.seqEncoder import seqEncoder
+from bayou.models.low_level_evidences.seqEncoder_nested import seqEncoder_nested
 from bayou.models.low_level_evidences.biRNN import biRNN
 from bayou.models.low_level_evidences.surrounding_evidences import *
+from scripts.variable_name_extractor import get_variables, split_words_underscore_plus_camel
+
 
 from nltk.stem.wordnet import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
@@ -78,6 +81,7 @@ class Evidence(object):
             if name == 'surrounding_evidence':
                 surrounding_evs.extend(internal_evidences)
 
+
         return evidences, surrounding_evs
 
     def word2num(self, listOfWords, infer):
@@ -105,8 +109,7 @@ class Evidence(object):
         raise NotImplementedError('wrangle() has not been implemented')
 
     def placeholder(self, config):
-        # type: (object) -> object
-        raise NotImplementedError('placeholder() has not been implemented')
+         raise NotImplementedError('placeholder() has not been implemented')
 
     def exists(self, inputs, config, infer):
         raise NotImplementedError('exists() has not been implemented')
@@ -139,6 +142,12 @@ class Evidence(object):
             if len_w > 1 and len_w < 10 :
                 final_vars.append(w)
         return final_vars
+
+    def transpose(self, data):
+        return data
+
+    def truncate(self, data, sz):
+        return data[:sz]
 
 class Sets(Evidence):
 
@@ -416,6 +425,7 @@ class ReturnType(Sets):
         returnType = [program['returnType'] if 'returnType' in program else '__Constructor__']
         return self.word2num(returnType , infer)
 
+
 class ClassTypes(Sets):
 
     def __init__(self):
@@ -503,17 +513,146 @@ class CallSequences(Sequences):
 class FormalParam(Sequences):
 
     def __init__(self):
-        self.vocab = dict()
-        self.vocab['None'] = 0
-        self.vocab_size = 1
+        self.vocab = [ dict(), dict() ]
+        self.vocab[0]['None'] = 0
+        self.vocab[1]['None'] = 0
+        self.vocab_size = [1,1]
+
+    def word2num(self, listOfWords, id, infer):
+        output = []
+        for word in listOfWords:
+            if word not in self.vocab[id]:
+                if not infer:
+                    self.vocab[id][word] = self.vocab_size[id]
+                    self.vocab_size[id] += 1
+                    output.append(self.vocab[id][word])
+            else:
+                output.append(self.vocab[id][word])
+                # with open("/home/ubuntu/evidences_used.txt", "a") as f:
+                #      f.write('Evidence Type :: ' + self.name + " , " + "Evidence Value :: " + word + "\n")
+
+        return output
+
+
+    def exists(self, inputs, config, infer):
+        i = tf.expand_dims(tf.reduce_sum(inputs[:,:,0], axis=[1]),axis=1)
+        #ij = tf.expand_dims(tf.reduce_sum(inputs[1], axis=[1,2,3]),axis=1)
+        #i = ii + ij
+        # Drop a few types of evidences during training
+        if not infer:
+            i_shaped_zeros = tf.zeros_like(i)
+            rand = tf.random_uniform( (config.batch_size,1) )
+            i = tf.where(tf.less(rand, self.ev_drop_prob) , i, i_shaped_zeros)
+        i = tf.reduce_sum(i, axis=1)
+
+        return tf.not_equal(i, 0) # [batch_size]
+
 
     def read_data_point(self, program, infer):
         json_sequence = program['formalParam'] if 'formalParam' in program else []
         if 'None' not in json_sequence:
             json_sequence.insert(0, 'Start')
             json_sequence.insert(0, 'None')
-        return [self.word2num(json_sequence, infer)]
 
+        fp_types = self.word2num(json_sequence, 0, infer) # 8
+
+        varNames = get_variables(program['body'])[0] # 8*3
+        if 'None' not in json_sequence:
+            varNames.insert(0, 'None')
+            varNames.insert(0, 'None')
+
+        list_of_var_name_ids = []
+        for varName in varNames:
+            if infer and varName == 'None':
+                list_of_var_name_ids.append([0])
+            else:
+                tokens = split_words_underscore_plus_camel(varName)
+                var_name_ids = self.word2num(tokens, 1, infer)
+                list_of_var_name_ids.append(var_name_ids)
+
+        return [fp_types, list_of_var_name_ids]
+
+    def wrangle(self, data):
+        wrangled = np.zeros((len(data[0]), self.max_depth,  self.max_nums), dtype=np.int32)
+        fp = data[0]
+        for i, seqs in enumerate(fp):
+            for pos,c in enumerate(seqs):
+                if pos < self.max_depth:
+                    wrangled[i, self.max_depth - 1 - pos, 0] = c
+
+        header_vars = data[1]
+        for i, seqs in enumerate(header_vars):
+            for pos,c in enumerate(seqs):
+                if pos < self.max_depth:
+                    for l, token in enumerate(c):
+                        if l < 3:
+                            wrangled[i, self.max_depth - 1 - pos, 1+l] = token
+
+        return wrangled
+
+    def init_sigma(self, config):
+        with tf.variable_scope(self.name):
+            self.emb = [None, None]
+            self.emb[0] = tf.get_variable('emb', [self.vocab_size[0], self.units])
+            self.emb[1] = tf.get_variable('emb1', [self.vocab_size[1], self.units])
+            self.sigma = tf.get_variable('sigma', [])
+
+    def transpose(self, data_pts):
+        data = [[data[j] for data in data_pts] for j in range(2)]
+        return data
+
+    def truncate(self, data_pts, sz):
+        data_pts = [data[:sz] for j, data in enumerate(data_pts)]
+        return data_pts
+
+    def encode(self, inputs, config, infer):
+        with tf.variable_scope(self.name):
+
+            # Drop some inputs
+            inputs_0 = tf.reshape(inputs[:,:, 0], [config.batch_size, self.max_depth])
+            inputs_1 = tf.reshape(inputs[:,:, 1:], [config.batch_size * self.max_depth, 3])
+
+            if not infer:
+                inp_shaped_zeros = tf.zeros_like(inputs_0)
+                rand = tf.random_uniform( (config.batch_size, self.max_depth  ) )
+                inputs_0 = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs_0, inp_shaped_zeros)
+
+                inp_shaped_zeros = tf.zeros_like(inputs_1)
+                rand = tf.random_uniform( (config.batch_size * self.max_depth, 3  ) )
+                inputs_1 = tf.where(tf.less(rand, self.ev_call_drop_prob) , inputs_1, inp_shaped_zeros)
+
+
+            LSTM_Encoder = seqEncoder(self.num_layers, self.units, inputs_1, config.batch_size * self.max_depth, self.emb[1], config.latent_size)
+            encoding = LSTM_Encoder.output
+
+            w = tf.get_variable('w0', [self.units, config.latent_size ])
+            b = tf.get_variable('b0', [config.latent_size])
+            latent_encoding_variables_intermediate = tf.nn.xw_plus_b(encoding, w, b)
+
+            zeros = tf.zeros_like(latent_encoding_variables_intermediate)
+            latent_encoding_variables_intermediate = tf.where( tf.not_equal(tf.reduce_sum(inputs_1, axis=1),0),latent_encoding_variables_intermediate, zeros)
+            latent_encoding_variables_intermediate = tf.reshape(latent_encoding_variables_intermediate, [config.batch_size, self.max_depth, -1])
+
+
+            input_vars_mod_cond = tf.reduce_sum(tf.reshape(inputs_1 , [config.batch_size , self.max_depth, 3]), axis=2)
+
+            LSTM_Encoder = seqEncoder_nested(self.num_layers, self.units, inputs_0, config.batch_size, self.emb[0], latent_encoding_variables_intermediate, input_vars_mod_cond)
+            encoding = LSTM_Encoder.output
+
+            w = tf.get_variable('w1', [self.units, config.latent_size ])
+            b = tf.get_variable('b1', [config.latent_size])
+            latent_encoding = tf.nn.xw_plus_b(encoding, w, b)
+
+            zeros = tf.zeros_like(latent_encoding)
+            cond_0 = tf.equal(tf.reduce_sum(inputs_0, axis=1), 0)
+            cond_1 = tf.equal(tf.reduce_sum(input_vars_mod_cond, axis=1), 0)
+            cond = tf.logical_and(cond_0 , cond_1)
+
+            latent_encoding = tf.where( cond, zeros, latent_encoding)
+
+            latent_encoding = tf.reshape(latent_encoding, [config.batch_size ,config.latent_size])
+
+            return latent_encoding
 
 # handle sequences as i/p
 class JavaDoc(Sequences):
@@ -601,9 +740,18 @@ class SurroundingEvidence(Evidence):
         self.vocab = None
         self.vocab_size = 0
 
+    def transpose(self, data_pts):
+        data_pts = [[data_pt[i] for data_pt in data_pts] for i, ev in enumerate(self.internal_evidences)]
+        data = [ ev.transpose(data_pt) for ev, data_pt in zip(self.internal_evidences, data_pts)]
+        return data
+
+    def truncate(self, all_data, sz):
+        for i, (ev, data) in enumerate(zip(self.internal_evidences, all_data)):  # -1 to leave surrounding evidences
+            all_data[i] = ev.truncate(data, sz)
+        return all_data
+
     def read_data_point(self, program, infer):
         list_of_programs = program['Surrounding_Evidences'] if 'Surrounding_Evidences' in program else []
-        # print(list_of_programs)
         data = [ev.read_data_point(list_of_programs, infer) for ev in self.internal_evidences] #self.config.surrounding_evidence]
         return data
 
@@ -614,7 +762,6 @@ class SurroundingEvidence(Evidence):
         return wrangled
 
     def placeholder(self, config):
-        # type: (object) -> object
         return [ev.placeholder(config) for ev in config.surrounding_evidence]
 
 

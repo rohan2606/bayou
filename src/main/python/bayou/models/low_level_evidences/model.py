@@ -35,9 +35,13 @@ class Model():
         surr_input_fp = newBatch[16:]
 
 
-
+        # For decoder and reverse encoder
         self.nodes = tf.transpose(nodes)
         self.edges = tf.transpose(edges)
+        ret_type = ev_data[4]
+        rt_vocab_size = config.evidence[4].vocab_size
+        fp_param_type = ev_data[5][:,:,0]
+        fp_vocab_size = config.evidence[5].vocab_size[0]
 
 
         with tf.variable_scope("Embedding"):
@@ -55,14 +59,15 @@ class Model():
         # setup the reverse encoder.
         with tf.variable_scope("Reverse_Encoder"):
             embAPI = tf.get_variable('embAPI', [config.reverse_encoder.vocab_size, config.reverse_encoder.units])
-            embRT = tf.get_variable('embRT', [config.evidence[4].vocab_size, config.reverse_encoder.units])
-            embFS = tf.get_variable('embFS', [config.evidence[5].vocab_size, config.reverse_encoder.units])
-            self.reverse_encoder = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges, ev_data[4], embRT, ev_data[5], embFS)
+            embRT = tf.get_variable('embRT', [rt_vocab_size, config.reverse_encoder.units])
+            embFS = tf.get_variable('embFS', [fp_vocab_size, config.reverse_encoder.units])
+            self.reverse_encoder = BayesianReverseEncoder(config, embAPI, self.nodes, self.edges, ret_type, embRT, fp_param_type, embFS)
             samples_2 = tf.random_normal([config.batch_size, config.latent_size], mean=0., stddev=1., dtype=tf.float32)
             if prob_mode:
                   self.psi_reverse_encoder = self.reverse_encoder.psi_mean + tf.sqrt(self.reverse_encoder.psi_covariance) * samples_2
             else:
                   self.psi_reverse_encoder = self.reverse_encoder.psi_mean
+
         # setup the decoder with psi as the initial state
         with tf.variable_scope("Decoder", reuse=tf.AUTO_REUSE):
 
@@ -76,7 +81,7 @@ class Model():
         with tf.variable_scope("RE_Decoder", reuse=tf.AUTO_REUSE):
             ## RE
 
-            emb_RE = config.evidence[4].emb * 0.0 #tf.get_variable('emb_RE', [config.evidence[4].vocab_size, config.evidence[4].units])
+            emb_RE = config.evidence[4].emb * 0.0
 
             lift_w_RE = tf.get_variable('lift_w_RE', [config.latent_size, config.evidence[4].units])
             lift_b_RE = tf.get_variable('lift_b_RE', [config.evidence[4].units])
@@ -84,16 +89,16 @@ class Model():
             initial_state_RE_enc = tf.nn.xw_plus_b(self.psi_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE")
             initial_state_RE_rev_enc = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w_RE, lift_b_RE, name="Initial_State_RE_reverse")
 
-            input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(ev_data[4]), axis=[1]))
-            output_enc = SimpleDecoder(config, emb_RE, initial_state_RE_enc, input_RE, config.evidence[4])
-            output_rev_enc = SimpleDecoder(config, emb_RE, initial_state_RE_rev_enc, input_RE, config.evidence[4])
+            input_RE = tf.transpose(tf.reverse_v2(tf.zeros_like(ret_type), axis=[1]))
+            output_enc = SimpleDecoder(config, emb_RE, initial_state_RE_enc, input_RE, config.evidence[4], rt_vocab_size)
+            output_rev_enc = SimpleDecoder(config, emb_RE, initial_state_RE_rev_enc, input_RE, config.evidence[4], rt_vocab_size)
 
-            projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, config.evidence[4].vocab_size])
-            projection_b_RE = tf.get_variable('projection_b_RE', [config.evidence[4].vocab_size])
+            projection_w_RE = tf.get_variable('projection_w_RE', [config.evidence[4].units, rt_vocab_size])
+            projection_b_RE = tf.get_variable('projection_b_RE', [rt_vocab_size])
             logits_RE_enc = tf.nn.xw_plus_b(output_enc.outputs[-1] , projection_w_RE, projection_b_RE)
             logits_RE_rev_enc = tf.nn.xw_plus_b(output_rev_enc.outputs[-1] , projection_w_RE, projection_b_RE)
 
-            labels_RE = tf.one_hot(tf.squeeze(ev_data[4]) , config.evidence[4].vocab_size , dtype=tf.int32)
+            labels_RE = tf.one_hot(tf.squeeze(ret_type) , rt_vocab_size , dtype=tf.int32)
             loss_RE_enc = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE_enc)
             loss_RE_rev_enc = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_RE, logits=logits_RE_rev_enc)
 
@@ -103,16 +108,16 @@ class Model():
 
         with tf.variable_scope("FS_Decoder", reuse=tf.AUTO_REUSE):
             #FS
-            emb_FS = config.evidence[5].emb #tf.get_variable('emb_FS', [config.evidence[5].vocab_size, config.evidence[5].units])
+            emb_FS = config.evidence[5].emb[0]
             lift_w_FS = tf.get_variable('lift_w_FS', [config.latent_size, config.evidence[5].units])
             lift_b_FS = tf.get_variable('lift_b_FS', [config.evidence[5].units])
 
             initial_state_FS_Enc = tf.nn.xw_plus_b(self.psi_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS")
             initial_state_FS_RevEnc = tf.nn.xw_plus_b(self.psi_reverse_encoder, lift_w_FS, lift_b_FS, name="Initial_State_FS_Reverse")
 
-            input_FS = tf.transpose(tf.reverse_v2(ev_data[5], axis=[1]))
-            self.decoder_FS_enc = SimpleDecoder(config, emb_FS, initial_state_FS_Enc, input_FS, config.evidence[5])
-            self.decoder_FS_rev_enc = SimpleDecoder(config, emb_FS, initial_state_FS_RevEnc, input_FS, config.evidence[5])
+            input_FS = tf.transpose(tf.reverse_v2(fp_param_type, axis=[1]))
+            self.decoder_FS_enc = SimpleDecoder(config, emb_FS, initial_state_FS_Enc, input_FS, config.evidence[5], fp_vocab_size)
+            self.decoder_FS_rev_enc = SimpleDecoder(config, emb_FS, initial_state_FS_RevEnc, input_FS, config.evidence[5], fp_vocab_size)
 
             output_enc = tf.reshape(tf.concat(self.decoder_FS_enc.outputs, 1), [-1, self.decoder_FS_enc.cell1.output_size])
             output_rev_enc = tf.reshape(tf.concat(self.decoder_FS_rev_enc.outputs, 1), [-1, self.decoder_FS_rev_enc.cell1.output_size])
@@ -120,12 +125,12 @@ class Model():
             logits_FS_Enc = tf.matmul(output_enc, self.decoder_FS_enc.projection_w_FS) + self.decoder_FS_enc.projection_b_FS
             logits_FS_RevEnc = tf.matmul(output_rev_enc, self.decoder_FS_rev_enc.projection_w_FS) + self.decoder_FS_rev_enc.projection_b_FS
             
-            logits_FS_Enc = tf.reshape(logits_FS_Enc, (config.batch_size, config.evidence[5].max_depth, config.evidence[5].vocab_size))
-            logits_FS_RevEnc = tf.reshape(logits_FS_RevEnc, (config.batch_size, config.evidence[5].max_depth, config.evidence[5].vocab_size))
+            logits_FS_Enc = tf.reshape(logits_FS_Enc, (config.batch_size, config.evidence[5].max_depth, fp_vocab_size))
+            logits_FS_RevEnc = tf.reshape(logits_FS_RevEnc, (config.batch_size, config.evidence[5].max_depth, fp_vocab_size))
 
           
             # logits_FS = output
-            targets_FS = tf.reverse_v2(tf.concat( [ tf.zeros_like(ev_data[5][:,-1:]) , ev_data[5][:, :-1]], axis=1) , axis=[1])
+            targets_FS = tf.reverse_v2(tf.concat( [ tf.zeros_like(fp_param_type[:,-1:]) , fp_param_type[:, :-1]], axis=1) , axis=[1])
 
             self.gen_loss_FS_Enc = seq2seq.sequence_loss(logits_FS_Enc, targets_FS,
                                                   tf.ones_like(targets_FS, dtype=tf.float32), average_across_batch=False, average_across_timesteps=True)
@@ -178,7 +183,7 @@ class Model():
             self.loss_enc = self.gen_loss_enc + 1/8 * self.loss_RE_enc  + 8/8 * self.gen_loss_FS_Enc
             self.loss_rev_enc = self.gen_loss_rev_enc + 1/8 * self.loss_RE_rev_enc  + 8/8 * self.gen_loss_FS_RevEnc
 
-            self.loss = self.loss_enc + self.KL_loss + regu_KL_loss #+ 0.01*regularizor
+            self.loss = self.loss_enc + 0.01*self.KL_loss + 0.01*regu_KL_loss #+ 0.01*regularizor
 
             # P(Y) = int_Z P(YZ) = int_Z P(Y|Z)P(Z) = int_Z P(Y|Z)P(Z|X)P(Z)/P(Z|X) = sum_Z P(Y|Z)P(Z)/P(Z|X) where Z~P(Z|X)
             # last step by importace_sampling

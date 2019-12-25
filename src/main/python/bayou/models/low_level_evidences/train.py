@@ -23,10 +23,21 @@ import sys
 import json
 import textwrap
 
+import sys
+sys.path.append("/home/rm38/Bayou_Code_Search/bayou/src/main/python")
+
 from bayou.models.low_level_evidences.data_reader import Reader
 from bayou.models.low_level_evidences.model import Model
 from bayou.models.low_level_evidences.utils import read_config, dump_config, get_var_list
 
+#Ignore warnings:
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+#Make some device order (not sure exactly what it does):
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+
+#Use a particular cuda (must be a string, eg. "1")
+os.environ["CUDA_VISIBLE_DEVICES"] = '7'
 
 HELP = """\
 Config options should be given as a JSON file (see config.json for example):
@@ -36,7 +47,7 @@ Config options should be given as a JSON file (see config.json for example):
 
 def train(clargs):
 
-    dataIsThere = True
+    dataIsThere = False
 
     if clargs.continue_from is not None:
         config_file = os.path.join(clargs.continue_from, 'config.json')
@@ -94,7 +105,6 @@ def train(clargs):
         # training
         for i in range(config.num_epochs):
             sess.run(iterator.initializer, feed_dict=feed_dict)
-            start = time.time()
             avg_loss, avg_gen_loss_enc, avg_RE_loss_enc , avg_FS_loss_enc, avg_gen_loss_rev_enc, avg_RE_loss_rev_enc, avg_FS_loss_rev_enc, avg_KL_loss = 0.,0.,0.,0.,0.,0.,0.,0.
             for b in range(NUM_BATCHES):
                 # run the optimizer
@@ -138,7 +148,7 @@ if __name__ == '__main__':
                         help='input data file')
     parser.add_argument('--python_recursion_limit', type=int, default=10000,
                         help='set recursion limit for the Python interpreter')
-    parser.add_argument('--save', type=str, default='save_500_ndss_decoder',
+    parser.add_argument('--save', type=str, default='save',
                         help='checkpoint model during training here')
     parser.add_argument('--config', type=str, default=None,
                         help='config file (see description above for help)')
@@ -146,9 +156,9 @@ if __name__ == '__main__':
                         help='ignore config options and continue training model checkpointed here')
     #clargs = parser.parse_args()
     clargs = parser.parse_args(
-     ['--continue_from', 'save_500_new_drop_skinny_seq',
+     ['--continue_from', 'save_500_new_drop_skinny_seq_surr_cont_vars',
      #['--config','config.json',
-    '/home/ubuntu/DATA-newSurrounding_methodHeaders_train_v2_train.json']) #DATA-newSurrounding_methodHeaders_train.json'])
+    '/home/rm38/DATA-newSurrounding_methodHeaders_train_v2_train.json']) #DATA-newSurrounding_methodHeaders_train.json'])
     sys.setrecursionlimit(clargs.python_recursion_limit)
     if clargs.config and clargs.continue_from:
         parser.error('Do not provide --config if you are continuing from checkpointed model')

@@ -106,7 +106,11 @@ class SetsOfSomething(object):
 
         return i #tf.not_equal(i, 0) # [batch_size]
 
+    def transpose(self, data):
+        return data
 
+    def truncate(self, data, sz):
+        return data[:sz]
 
 class SetsOfSets(SetsOfSomething):
 
@@ -140,6 +144,8 @@ class SetsOfSets(SetsOfSomething):
 
             latent_encoding = tf.reshape(latent_encoding, [config.batch_size ,self.max_nums, config.latent_size])
             return latent_encoding
+
+
 
 
 class surr_returnType(SetsOfSets):
@@ -232,6 +238,16 @@ class surr_formalParam(SetsOfSomething):
         self.vocab[0]['None'] = 0
         self.vocab[1]['None'] = 0
         self.vocab_size = [1,1]
+
+
+    def transpose(self, data_pts):
+        data = [[data[j] for data in data_pts] for j in range(2)]
+        return data
+
+
+    def truncate(self, data_pts, sz):
+        data_pts = [data[:sz] for j, data in enumerate(data_pts)]
+        return data_pts
 
 
     def word2num(self, listOfWords, id, infer):
