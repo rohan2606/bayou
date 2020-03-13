@@ -24,6 +24,9 @@ import sys
 
 import time
 import bayou.models.low_level_evidences.predict
+from bayou.experiments.predictMethods.SearchDB.parallelReadJSON import parallelReadJSON
+from bayou.experiments.predictMethods.SearchDB.searchFromDB import searchFromDB
+from bayou.experiments.predictMethods.SearchDB.Embedding import EmbeddingBatch
 
 class Predictor:
 
@@ -100,7 +103,43 @@ class Decoder_Model:
         return top_progs
 
 
+class Rev_Encoder_Model:
+    def __init__(self, numThreads=8, topK=10):
+        self.numThreads = numThreads
+        self.batch_size = 1
+        self.minJSONs = 1
+        self.maxJSONs = 2
+        self.dimension = 256
+        self.topK = topK
+        self.scanner = self.get_database_scanner()
+        return
 
+    def get_database_scanner(self):
+
+        JSONReader = parallelReadJSON('/home/ubuntu/DATABASE/', numThreads=self.numThreads, dimension=self.dimension, batch_size=self.batch_size, minJSONs=self.minJSONs , maxJSONs=self.maxJSONs)
+        listOfColDB = JSONReader.readAllJSONs()
+        scanner = searchFromDB(listOfColDB, self.topK, self.batch_size)
+        return scanner
+
+
+    def get_result(self, encA, encB, numThreads=None):
+
+        if numThreads == None:
+           numThreads = self.numThreads
+        assert( self.numThreads % numThreads == 0)
+        embIt_json = [{'a1':encA, 'b1':encB}]
+     
+        start = time.perf_counter()
+
+        embIt_batch = EmbeddingBatch(embIt_json, 1, self.dimension)
+        topKProgsBatch = self.scanner.searchAndTopKParallel(embIt_batch, numThreads = numThreads)
+        topKProgs = topKProgsBatch[0]
+        end = time.perf_counter()
+
+        print("Rev Encoder Time :: " + str(end-start))
+
+        #top_progs = sorted(topKProgs) #program_db, key=lambda x: x[3], reverse=True)#[:self.topK]
+        return [] #top_progs
 
 if __name__ == "__main__":
     #%%
@@ -123,6 +162,9 @@ if __name__ == "__main__":
     ## Please note that here cpu time is being used but programs are taken from TF. One reason is it is hard to get RT/FP from Program_output.json files if not indexed differently
     ## Second is that there are discrepancies in the result. This is most likely due to precision in a2 and b2 numbers stored in DB.
      
+    rev_encoder_cpu = Rev_Encoder_Model(numThreads=1, topK=max_cut_off_accept)
+    rev_encoder_top_progs_cpu = rev_encoder_cpu.get_result(-0.5, np.zeros((1,256)))
+    
     decoder = Decoder_Model(pred, clargs.mc_iter, topK=max_cut_off_accept) #, golden_programs=rev_encoder_top_progs_cpu)
     decoder_top_progs = decoder.get_running_comparison(psi)
     
